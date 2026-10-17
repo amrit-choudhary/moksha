@@ -1,0 +1,23 @@
+{
+    "copy": [
+        "texture_data/atlas_ui.json",
+        "texture_data/font_atlas_01.json"
+    ],
+    "textures": [
+        "textures/ui/ui_atlas.png",
+        "textures/font/ascii_ibm_transparent.png"
+    ],
+    "shaders": {
+        "hlsl": [
+            "shaders/hlsl/sprite_atlas.hlsl",
+            "shaders/hlsl/sprite_instanced_atlas.hlsl",
+            "shaders/hlsl/ui_text.hlsl",
+            "shaders/hlsl/ui_sprite.hlsl"
+        ],
+        "metal": [
+            "shaders/metal/basic.metal",
+            "shaders/metal/sprite.metal",
+            "shaders/metal/sprite_instanced.metal"
+        ]
+    }
+}

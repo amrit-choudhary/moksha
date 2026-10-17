@@ -89,3 +89,15 @@ endif()
 if(MOKSHA_BUILD_TOOLS)
     add_subdirectory(tools/content_server)
 endif()
+
+# The cook runs on the build machine, so a cross-compiled build uses a prebuilt one (MOKSHA_COOK_EXECUTABLE).
+set(MOKSHA_COOK_EXECUTABLE "" CACHE FILEPATH "Host Moksha_Cook to use instead of building one")
+if(MOKSHA_BUILD_CLIENT AND NOT MOKSHA_COOK_EXECUTABLE AND NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(tools/cook)
+endif()
+
+include(cmake/moksha_game.cmake)
+
+if(NOT PROJECT_IS_TOP_LEVEL)
+    include(cmake/moksha_pin_check.cmake)
+endif()

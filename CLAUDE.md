@@ -41,6 +41,9 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
 - The client builds as two variants from the same sources: `Moksha_Client` (windowed, graphics API from
   `MOKSHA_RENDERER`) and `Moksha_ClientHeadless` (`ME_HEADLESS`: null renderer, input and audio). Each has its
   entry OBJECT library (`Moksha_Entry`, `Moksha_EntryHeadless`). The API define is per target, never global.
+- Games build with `moksha_add_game()` (`cmake/moksha_game.cmake`). It owns the per-platform executable
+  shape and runs `Moksha_Cook` (`tools/cook`), which cooks `resources/res_list.json` (engine) and then the
+  game's list next to the executable. Engine resources stay minimal: shaders, one font, one UI atlas.
 - `file(GLOB ...)` source lists are collected at configure time: after adding or removing a
   `.cpp`, re-run `cmake -B build`.
 
