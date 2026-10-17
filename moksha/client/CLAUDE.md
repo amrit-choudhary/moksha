@@ -9,7 +9,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   `Shutdown()`. It never loops itself. Drivers per platform: `platform/win/win_main.cpp` (window, message pump,
   `Tick`; minimized → `Pause` and a blocking wait), `platform/headless/headless_main.cpp` (plain `main`,
   `Tick` + `Time::WaitForNextFixedStep`). macOS (`main/main_mac.*`, `platform/mac/`) is still on the old
-  pre-`ClientApp` API and does not compile; it moves onto `ClientApp` next.
+  pre-`ClientApp` API and does not compile. Mac work, in order: move it onto `ClientApp` (`Tick` from
+  `drawInMTKView:`) with an app-bundle branch in `moksha_add_game` and a `mac-metal` cook target; then port
+  the DX12 UI passes (`scene_ui_dx`, UI sprites/text, debug overlay) and the atlas sprite sets to Metal.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
