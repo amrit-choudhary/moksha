@@ -29,6 +29,9 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
   - `tests` → anything
 
   `shared` never includes `client` or `server`, so servers build without client code.
+- A non-qualified include (`"vec3.h"`) is only allowed for a file in the same folder.
+- `python tools/check_layers.py` checks both rules (stdlib only; exit code 1 lists violations).
+  Run it after changing includes.
 
 ## Build system
 - C++20, CMake 3.31+.

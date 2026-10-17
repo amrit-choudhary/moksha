@@ -32,6 +32,7 @@
 
 # Builds
 /build
+/build-*
 /.vscode
 
 # clangd index

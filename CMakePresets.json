@@ -1,0 +1,17 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "dev",
+            "displayName": "Engine development",
+            "description": "Engine libraries, tools and tests.",
+            "binaryDir": "${sourceDir}/build"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        }
+    ]
+}
