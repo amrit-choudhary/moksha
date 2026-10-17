@@ -24,7 +24,7 @@ namespace ME::Cook {
 enum class CookTarget : uint8_t {
     None,           // unknown name
     WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
-    Headless,       // headless client: copies only, nothing is drawn
+    Headless,       // headless clients and servers: copies only, nothing is drawn
     MacMetal,       // not supported yet
     IosMetal,       // not supported yet
     AndroidVulkan,  // not supported yet
