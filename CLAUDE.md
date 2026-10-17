@@ -30,6 +30,8 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
 
   `shared` never includes `client` or `server`, so servers build without client code.
 - A non-qualified include (`"vec3.h"`) is only allowed for a file in the same folder.
+- Per-module notes: [client](moksha/client/CLAUDE.md), [shared](moksha/shared/CLAUDE.md),
+  [server](moksha/server/CLAUDE.md), [tools](tools/CLAUDE.md). Update them when a module's shape changes.
 - `python tools/check_layers.py` checks both rules (stdlib only; exit code 1 lists violations).
   Run it after changing includes.
 
