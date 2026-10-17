@@ -95,3 +95,8 @@ double TimeManager::GetCurrentFPS() const {
 double TimeManager::GetFixedStepFPS() const {
     return config.fixedStepFPS;
 }
+
+double TimeManager::GetTimeUntilNextFixedStep() const {
+    const double remaining = fixedDeltaTime - accumulator;
+    return remaining > 0.0 ? remaining : 0.0;
+}

@@ -67,5 +67,8 @@ constexpr size_t MaxLoadedMusicCount = 16;
 // Timer constants
 constexpr size_t MaxTimerCount = 256;  // simultaneously scheduled timers per TimerManager
 
+// Server constants
+constexpr size_t MaxServerClients = 255;  // connected clients per GameServer; client IDs are one byte
+
 }  // namespace Constants
 }  // namespace ME

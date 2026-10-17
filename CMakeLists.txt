@@ -73,7 +73,12 @@ endif()
 add_subdirectory(moksha/logging)
 add_subdirectory(moksha/shared)
 add_subdirectory(moksha/test_framework)
+add_subdirectory(moksha/server)
 
 if(MOKSHA_BUILD_TESTS)
     add_subdirectory(tests)
+endif()
+
+if(MOKSHA_BUILD_TOOLS)
+    add_subdirectory(tools/content_server)
 endif()

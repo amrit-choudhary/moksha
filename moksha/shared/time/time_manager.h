@@ -71,6 +71,8 @@ class TimeManager {
     /** The configured deterministic simulation rate (== 1/GetFixedDeltaTime()), for display
      * alongside GetCurrentFPS(). */
     double GetFixedStepFPS() const;
+    /** Real time until the next fixed step is due, as of the last BeginFrame(); 0 if one is already due. */
+    double GetTimeUntilNextFixedStep() const;
 
    private:
     using Clock = std::chrono::high_resolution_clock;
