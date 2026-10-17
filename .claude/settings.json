@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(sed -i -e 's#e\\\\.g\\\\. `std::vector` in `GameServer`.s client list, the `DebugSystem` singleton#e.g. the `DebugSystem` singleton, the static key state in `InputManager`#' -e 's#One platform-neutral `res_list\\\\.json` \\(not `res_list\\\\.json`\\);#One platform-neutral `res_list.json` \\(instead of per-platform `res_list_win.json` files\\);#' /c/Users/Admin/.claude/plans/jaunty-gliding-avalanche.md)",
+      "Read(//c/Users/Admin/.claude/plans/**)",
+      "Bash(git -C /d/GameDev/Projects/moksha/moksha log --oneline -3)",
+      "Bash(git -C /d/GameDev/Projects/moksha/moksha status --short)"
     ]
   }
 }
