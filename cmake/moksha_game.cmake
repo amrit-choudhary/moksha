@@ -1,13 +1,15 @@
 # moksha_add_game / moksha_add_server: the one CMake call a game makes per executable.
 #
-#   moksha_add_game(<target> SOURCES <files...> RES_LIST <res_list.json> [HEADLESS])
-#   moksha_add_server(<target> SOURCES <files...> [RES_LIST <res_list.json>])
+#   moksha_add_game(<target> SOURCES <files...> RES_LIST <res_list.json> [LIBRARIES <libs...>] [HEADLESS])
+#   moksha_add_server(<target> SOURCES <files...> [RES_LIST <res_list.json>] [LIBRARIES <libs...>])
 #
 # Creates <target> on the windowed client and <target>_cook, which cooks the engine's resources and then the
 # game's (RES_LIST; its paths are relative to its folder) into resources/ next to the executable. HEADLESS also
 # creates <target>_Headless on the headless client. moksha_add_server creates a console program on the server
 # module; its RES_LIST (data only: config, game data) is copied next to it. Includes resolve from the project root.
-# The engine owns the per-platform target shape, so games never branch on the platform.
+# LIBRARIES are the game's own libraries, linked into every executable created; pass them here rather than calling
+# target_link_libraries, since a platform may create no windowed target. The engine owns the per-platform target
+# shape, so games never branch on the platform.
 
 # The engine's resource list, cooked before every game's.
 set(MOKSHA_ENGINE_RES_LIST "${CMAKE_CURRENT_LIST_DIR}/../resources/res_list.json" CACHE INTERNAL "")
@@ -58,7 +60,7 @@ function(_moksha_add_cook target cookTarget engineList resList)
 endfunction()
 
 function(moksha_add_game target)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "HEADLESS" "RES_LIST" "SOURCES")
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "HEADLESS" "RES_LIST" "SOURCES;LIBRARIES")
     if(ARG_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "moksha_add_game(${target}): unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
@@ -78,7 +80,7 @@ function(moksha_add_game target)
     if(cookTarget)
         add_executable(${target} WIN32 ${ARG_SOURCES})
         target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
-        target_link_libraries(${target} PRIVATE Moksha_Entry Moksha_Client)
+        target_link_libraries(${target} PRIVATE Moksha_Entry Moksha_Client ${ARG_LIBRARIES})
         _moksha_add_cook(${target} ${cookTarget} "${MOKSHA_ENGINE_RES_LIST}" "${resList}")
     elseif(TARGET Moksha_Client)
         message(WARNING "moksha_add_game(${target}): no windowed game on '${CMAKE_SYSTEM_NAME}' "
@@ -90,7 +92,7 @@ function(moksha_add_game target)
         set(headless ${target}_Headless)
         add_executable(${headless} ${ARG_SOURCES})
         target_include_directories(${headless} PRIVATE "${PROJECT_SOURCE_DIR}")
-        target_link_libraries(${headless} PRIVATE Moksha_EntryHeadless Moksha_ClientHeadless)
+        target_link_libraries(${headless} PRIVATE Moksha_EntryHeadless Moksha_ClientHeadless ${ARG_LIBRARIES})
         _moksha_add_cook(${headless} headless "${MOKSHA_ENGINE_RES_LIST}" "${resList}")
         # Both may cook into the same folder; one after the other, never at the same time.
         if(TARGET ${target}_cook)
@@ -100,7 +102,7 @@ function(moksha_add_game target)
 endfunction()
 
 function(moksha_add_server target)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "RES_LIST" "SOURCES")
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "RES_LIST" "SOURCES;LIBRARIES")
     if(ARG_UNPARSED_ARGUMENTS)
         message(FATAL_ERROR "moksha_add_server(${target}): unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
@@ -110,7 +112,7 @@ function(moksha_add_server target)
 
     add_executable(${target} ${ARG_SOURCES})
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
-    target_link_libraries(${target} PRIVATE Moksha_Server)
+    target_link_libraries(${target} PRIVATE Moksha_Server ${ARG_LIBRARIES})
 
     # Servers need no engine resources, only their own data.
     if(ARG_RES_LIST)
