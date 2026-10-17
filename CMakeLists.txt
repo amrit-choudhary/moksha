@@ -22,6 +22,14 @@ endif()
 set(MOKSHA_RENDERER ${MOKSHA_DEFAULT_RENDERER} CACHE STRING "Graphics API: DX12, METAL or NONE (headless)")
 set_property(CACHE MOKSHA_RENDERER PROPERTY STRINGS DX12 METAL NONE)
 
+# The client needs a graphics API until the headless client exists; servers never need it.
+if(MOKSHA_RENDERER STREQUAL "NONE")
+    set(MOKSHA_DEFAULT_BUILD_CLIENT OFF)
+else()
+    set(MOKSHA_DEFAULT_BUILD_CLIENT ON)
+endif()
+option(MOKSHA_BUILD_CLIENT "Build the client engine libraries" ${MOKSHA_DEFAULT_BUILD_CLIENT})
+
 # MSVC adds /EHsc by default; strip it so /EHs-c- below takes effect without a D9025 override warning.
 if(MSVC)
     string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -74,6 +82,10 @@ add_subdirectory(moksha/logging)
 add_subdirectory(moksha/shared)
 add_subdirectory(moksha/test_framework)
 add_subdirectory(moksha/server)
+
+if(MOKSHA_BUILD_CLIENT)
+    add_subdirectory(moksha/client)
+endif()
 
 if(MOKSHA_BUILD_TESTS)
     add_subdirectory(tests)

@@ -35,8 +35,12 @@ def module_of(path):
     return None
 
 
+# Vendored files that live next to engine code instead of in a third_party folder.
+VENDORED_FILES = {"d3dx12.h", "stb_perlin.h", "stb_perlin.cpp"}
+
+
 def is_vendored(path):
-    return "third_party" in path.relative_to(REPO_ROOT).parts
+    return "third_party" in path.relative_to(REPO_ROOT).parts or path.name in VENDORED_FILES
 
 
 def check_file(path, module):
