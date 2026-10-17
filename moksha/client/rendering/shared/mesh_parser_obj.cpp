@@ -1,20 +1,21 @@
 #include "mesh_parser_obj.h"
 
 #include <cstdint>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "mesh.h"
-#include "moksha/shared/misc/utils.h"
+#include "moksha/logging/logging.h"
+#include "moksha/shared/file_io/vfs.h"
 
 void ME::CreateMeshFromOBJ(const char* fileName, ME::Mesh& mesh) {
-    std::string filePath = ME::Utils::GetResourcesPath() + fileName;
-    std::ifstream file(filePath);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filePath);
+    std::string text;
+    if (!ME::Vfs::ReadText(ME::FileRoot::Resources, fileName, text)) {
+        ME::LogError("Failed to open mesh file:", fileName);
+        return;
     }
+    std::istringstream file(text);
 
     std::vector<ME::Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -58,7 +59,6 @@ void ME::CreateMeshFromOBJ(const char* fileName, ME::Mesh& mesh) {
             }
         }
     }
-    file.close();
 
     for (int i = 0; i < tempPositions.size(); ++i) {
         Vertex vertex;

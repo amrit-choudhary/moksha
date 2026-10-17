@@ -14,6 +14,9 @@ static std::string resourceDirPath;
 
 // Path of dlc folder (downloadable content fetched from a content server).
 static std::string dlcDirPath;
+
+// Path of the writable user data folder (saves, user settings).
+static std::string userDataDirPath;
 }  // namespace
 
 using namespace ME;
@@ -46,6 +49,9 @@ void ME::Utils::SetPaths(char* arg1, char* arg2) {
 
     dlcDirPath = std::string{executableDirPath};
     dlcDirPath += "/dlc/";
+
+    userDataDirPath = std::string{executableDirPath};
+    userDataDirPath += "/user_data/";
 }
 
 std::string ME::Utils::GetResourcesPath() {
@@ -54,6 +60,10 @@ std::string ME::Utils::GetResourcesPath() {
 
 std::string ME::Utils::GetDlcPath() {
     return dlcDirPath;
+}
+
+std::string ME::Utils::GetUserDataPath() {
+    return userDataDirPath;
 }
 
 std::string ME::Utils::GetExecutableDirPath() {

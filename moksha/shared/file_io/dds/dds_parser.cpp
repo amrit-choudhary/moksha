@@ -1,11 +1,9 @@
 #include "dds_parser.h"
 
-#include <fstream>
+#include <cstring>
 #include <iostream>
-#include <string>
-#include <vector>
 
-#include "moksha/shared/misc/utils.h"
+#include "moksha/shared/file_io/vfs.h"
 
 #pragma pack(push, 1)
 struct DDS_PIXELFORMAT {
@@ -55,39 +53,56 @@ constexpr uint32_t FOURCC_DX10 = MAKE_FOURCC('D', 'X', '1', '0');
 
 bool ME::DDSParser::LoadDDS(const char* fileName, uint8_t** outData, uint32_t* outWidth, uint32_t* outHeight,
                             uint32_t* bytesPerPixel, uint8_t* channels) {
-    std::string fileNameString = ME::Utils::GetResourcesPath() + fileName;
-    const char* filename = fileNameString.c_str();
-
-    std::ifstream fs(filename, std::ios::binary);
-    if (!fs) {
+    size_t fileSize = 0;
+    if (!Vfs::GetFileSize(FileRoot::Resources, fileName, fileSize)) {
         std::cerr << "Failed to open file: " << fileName << std::endl;
         return false;
     }
+    uint8_t* file = new uint8_t[fileSize];
+    if (!Vfs::ReadBytes(FileRoot::Resources, fileName, file, fileSize, fileSize)) {
+        std::cerr << "Failed to read file: " << fileName << std::endl;
+        delete[] file;
+        return false;
+    }
 
-    uint32_t magic;
-    fs.read(reinterpret_cast<char*>(&magic), sizeof(magic));
+    // Header fields are copied out of the buffer; the file bytes have no alignment guarantee.
+    size_t offset = 0;
+    uint32_t magic = 0;
+    if (fileSize < sizeof(magic) + sizeof(DDS_HEADER)) {
+        std::cerr << "Not a valid DDS file: " << fileName << std::endl;
+        delete[] file;
+        return false;
+    }
+    std::memcpy(&magic, file, sizeof(magic));
+    offset += sizeof(magic);
     if (magic != FOURCC_DDS) {
         std::cerr << "Not a valid DDS file: " << fileName << std::endl;
+        delete[] file;
         return false;
     }
 
     DDS_HEADER header;
-    fs.read(reinterpret_cast<char*>(&header), sizeof(header));
+    std::memcpy(&header, file + offset, sizeof(header));
+    offset += sizeof(header);
 
     if (header.format.fourCC == FOURCC_DX10) {
-        DDS_HEADER_DX10 headerDX10;
-        fs.read(reinterpret_cast<char*>(&headerDX10), sizeof(headerDX10));
+        offset += sizeof(DDS_HEADER_DX10);
     }
 
     *outWidth = static_cast<uint32_t>(header.width);
     *outHeight = static_cast<uint32_t>(header.height);
     *bytesPerPixel = 4;
     *channels = 4;
-    uint32_t dataSize = header.width * header.height * (*bytesPerPixel);
+    const size_t dataSize = static_cast<size_t>(header.width) * header.height * (*bytesPerPixel);
+    if (offset > fileSize || fileSize - offset < dataSize) {
+        std::cerr << "DDS file is shorter than its pixel data: " << fileName << std::endl;
+        delete[] file;
+        return false;
+    }
 
     *outData = new uint8_t[dataSize];
-    fs.read(reinterpret_cast<char*>(*outData), dataSize);
+    std::memcpy(*outData, file + offset, dataSize);
 
-    fs.close();
+    delete[] file;
     return true;
 }

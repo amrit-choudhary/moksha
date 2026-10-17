@@ -2,27 +2,18 @@
 
 #include "shader_mac.h"
 
-#include <fstream>
-#include <iostream>
-#include <map>
-#include <sstream>
 #include <string>
 
-#include "moksha/shared/misc/utils.h"
+#include "moksha/logging/logging.h"
+#include "moksha/shared/file_io/vfs.h"
 
 ME::Shader::Shader(MTL::Device* device, const char* shaderName)
     : device(device), library(nullptr), vertexFunction(nullptr), fragmentFunction(nullptr) {
-    std::string filePath = ME::GetResourcesPath() + shaderName;
-    std::ifstream file(filePath);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filePath);
+    std::string shaderString;
+    if (!ME::Vfs::ReadText(ME::FileRoot::Resources, shaderName, shaderString)) {
+        ME::LogError("Failed to open shader file:", shaderName);
+        return;
     }
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string shaderString = buffer.str();
-    file.close();
 
     NS::Error* error = nullptr;
     using NS::StringEncoding::UTF8StringEncoding;

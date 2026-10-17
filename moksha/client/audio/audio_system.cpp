@@ -6,7 +6,6 @@
 #include "audio_impl_miniaudio.h"
 #endif
 #include "moksha/client/scene/scene.h"
-#include "moksha/shared/misc/utils.h"
 
 void ME::AudioSystem::Init() {
     isInitialized = false;
@@ -43,13 +42,11 @@ void ME::AudioSystem::SetScene(Scene* scene) {
 
     // Load audio resources related to the scene here.
     for (uint8_t i = 0; i < scene->sfxPaths.count; ++i) {
-        std::string fileName = ME::Utils::GetResourcesPath() + scene->sfxPaths[i];
-        audioImpl->LoadAudioFile(i, fileName.c_str(), true);
+        audioImpl->LoadAudioFile(i, scene->sfxPaths[i], true);
     }
 
     for (uint8_t i = 0; i < scene->musicPaths.count; ++i) {
-        std::string fileName = ME::Utils::GetResourcesPath() + scene->musicPaths[i];
-        audioImpl->LoadAudioFile(i, fileName.c_str(), false);
+        audioImpl->LoadAudioFile(i, scene->musicPaths[i], false);
     }
 
     isInitialized = true;  // Mark the system as initialized.

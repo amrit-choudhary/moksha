@@ -23,7 +23,7 @@ class AudioImplMiniaudio : public IAudioImpl {
     // Ends the audio implementation, cleaning up resources if necessary.
     void End() override;
 
-    // Loads sound file into memory.
+    // Loads a sound file into memory. filePath is relative to the resources root (read through Vfs).
     void LoadAudioFile(uint8_t soundId, const char* filePath, bool bSFX) override;
 
     // Unloads sound file from memory.

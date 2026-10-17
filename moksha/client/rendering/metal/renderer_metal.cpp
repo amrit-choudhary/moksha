@@ -6,7 +6,6 @@
 
 #include "moksha/client/rendering/shared/camera.h"
 #include "moksha/client/rendering/shared/color.h"
-#include "moksha/client/rendering/shared/image_loader_png.h"
 #include "moksha/client/rendering/shared/mesh.h"
 #include "moksha/client/rendering/shared/mesh_parser_obj.h"
 #include "moksha/client/rendering/shared/texture.h"

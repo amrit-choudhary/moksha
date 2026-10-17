@@ -26,6 +26,11 @@ std::string GetResourcesPath();
 std::string GetDlcPath();
 
 /**
+ * Writable folder for saves and user settings, with a trailing slash. Desktop: user_data/ next to resources/.
+ */
+std::string GetUserDataPath();
+
+/**
  * Directory containing the executable, without a trailing slash.
  */
 std::string GetExecutableDirPath();

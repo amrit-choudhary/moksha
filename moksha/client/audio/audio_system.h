@@ -28,7 +28,7 @@ class IAudioImpl {
     // Ends the audio implementation, cleaning up resources if necessary.
     virtual void End() = 0;
 
-    // Loads sound file into memory.
+    // Loads a sound file into memory. filePath is relative to the resources root (read through Vfs).
     virtual void LoadAudioFile(uint8_t soundId, const char* filePath, bool bSFX) = 0;
 
     // Unloads sound file from memory.

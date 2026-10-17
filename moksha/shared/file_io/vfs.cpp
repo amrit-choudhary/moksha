@@ -13,6 +13,8 @@ std::string ME::Vfs::GetRootPath(FileRoot root) {
             return Utils::GetResourcesPath();
         case FileRoot::Dlc:
             return Utils::GetDlcPath();
+        case FileRoot::UserData:
+            return Utils::GetUserDataPath();
     }
     return Utils::GetResourcesPath();
 }

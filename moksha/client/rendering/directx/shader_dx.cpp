@@ -8,7 +8,32 @@
 
 #include <string>
 
-#include "moksha/shared/misc/utils.h"
+#include "moksha/logging/logging.h"
+#include "moksha/shared/file_io/vfs.h"
+
+namespace {
+
+// Reads a compiled shader from the resources into a new blob; null if it is missing or unreadable.
+ID3DBlob* ReadShaderBlob(const std::string& relPath) {
+    size_t size = 0;
+    if (!ME::Vfs::GetFileSize(ME::FileRoot::Resources, relPath.c_str(), size) || size == 0) {
+        ME::LogError("Shader not found:", relPath);
+        return nullptr;
+    }
+    ID3DBlob* blob = nullptr;
+    if (FAILED(D3DCreateBlob(size, &blob))) {
+        return nullptr;
+    }
+    if (!ME::Vfs::ReadBytes(ME::FileRoot::Resources, relPath.c_str(), static_cast<uint8_t*>(blob->GetBufferPointer()),
+                            blob->GetBufferSize(), size)) {
+        ME::LogError("Shader unreadable:", relPath);
+        blob->Release();
+        return nullptr;
+    }
+    return blob;
+}
+
+}  // namespace
 
 ME::Shader::Shader(const char* shaderName) {
     CompileShader(shaderName);
@@ -33,11 +58,8 @@ void ME::Shader::CompileShader(const char* shaderName) {
         shaderBaseName = shaderBaseName.substr(0, pos);
     }
 
-    std::string filePathVS = ME::Utils::GetResourcesPath() + "shaders/hlsl/" + shaderBaseName + "_vs.cso";
-    std::string filePathPS = ME::Utils::GetResourcesPath() + "shaders/hlsl/" + shaderBaseName + "_ps.cso";
-
-    D3DReadFileToBlob(std::wstring(filePathVS.begin(), filePathVS.end()).c_str(), &vsBlob);
-    D3DReadFileToBlob(std::wstring(filePathPS.begin(), filePathPS.end()).c_str(), &psBlob);
+    vsBlob = ReadShaderBlob("shaders/hlsl/" + shaderBaseName + "_vs.cso");
+    psBlob = ReadShaderBlob("shaders/hlsl/" + shaderBaseName + "_ps.cso");
 }
 
 ID3DBlob* ME::Shader::GetVSBlob() const {

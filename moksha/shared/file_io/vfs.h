@@ -13,6 +13,7 @@ namespace ME {
 enum class FileRoot : uint8_t {
     Resources,  // Shipped with the build, read-only.
     Dlc,        // Downloaded from the content server.
+    UserData,   // Written by the game: saves, user settings. Per-platform writable folder.
 };
 
 namespace Vfs {
