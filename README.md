@@ -1,4 +1,4 @@
-# Moksha Engine
+# Moksha Game Engine
 
 A C++20 game engine with native renderer backends, built from scratch with minimal
 external dependencies. This repository holds the engine only; every game, including the
