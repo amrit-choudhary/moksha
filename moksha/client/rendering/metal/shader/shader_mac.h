@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 /**
  * Shader class
  * This will load a shader from a file and compile it.
@@ -30,4 +30,4 @@ class Shader {
 
 }  // namespace ME
 
-#endif  // ME_MAC
+#endif  // ME_METAL

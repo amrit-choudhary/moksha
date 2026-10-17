@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 /**
  * Rendering for Metal platform.
@@ -57,4 +57,4 @@ class RendererMetal : public PlatformRenderer {
 
 }  // namespace ME
 
-#endif  // ME_MAC
+#endif  // ME_METAL

@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "shader_dx.h"
 
@@ -47,4 +47,4 @@ ID3DBlob* ME::Shader::GetPSBlob() const {
     return psBlob;
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

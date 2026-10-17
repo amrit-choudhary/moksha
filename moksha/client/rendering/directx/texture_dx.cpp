@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "texture_dx.h"
 
@@ -68,4 +68,4 @@ void ME::TextureDX::ReleaseUploadBuffers() {
     }
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

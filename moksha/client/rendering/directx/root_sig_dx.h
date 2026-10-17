@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific root signature class.
@@ -46,4 +46,4 @@ class RootSigDx {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

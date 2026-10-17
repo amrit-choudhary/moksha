@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "quad_dx.h"
 

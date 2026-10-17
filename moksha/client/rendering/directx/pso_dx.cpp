@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 #include "pso_dx.h"
 
 #include "d3dx12.h"
@@ -303,4 +303,4 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DUISprite(ID3D12Device* device, c
     return pso;
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

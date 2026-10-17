@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 /**
  * Metal's specific render pipeline state class.

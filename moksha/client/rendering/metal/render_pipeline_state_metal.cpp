@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 #include "render_pipeline_state_metal.h"
 

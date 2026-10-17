@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * A utility class for managing descriptor heap in DirectX 12.
@@ -62,4 +62,4 @@ class DescHeapManagerDX {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

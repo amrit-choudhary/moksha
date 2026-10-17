@@ -9,7 +9,7 @@ list(FILTER SOURCES EXCLUDE REGEX "/(platform|third_party)/")
 
 # Windowed client, when the platform has a graphics API.
 if(MOKSHA_GRAPHICS_API_DEFINE)
-    if(APPLE)
+    if(MOKSHA_RENDERER STREQUAL "METAL")
         add_subdirectory(third_party/metal)
     endif()
     add_subdirectory(third_party/miniaudio-0.11.23)
@@ -22,11 +22,17 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     # PUBLIC, so a game can use shared and logging directly.
     target_link_libraries(Moksha_Client PUBLIC Moksha_Options Moksha_Shared Moksha_Logging miniaudio)
 
-    if(WIN32)
+    # Graphics API libraries.
+    if(MOKSHA_RENDERER STREQUAL "DX12")
         target_link_libraries(Moksha_Client PUBLIC d3d12 dxgi d3dcompiler)
-    elseif(APPLE)
+    elseif(MOKSHA_RENDERER STREQUAL "METAL")
+        target_link_libraries(Moksha_Client PUBLIC METAL_LIB)
+    endif()
+
+    # OS libraries.
+    if(APPLE)
         find_library(APPLICATION_SERVICES_FRAMEWORK ApplicationServices)
-        target_link_libraries(Moksha_Client PUBLIC ${APPLICATION_SERVICES_FRAMEWORK} METAL_LIB)
+        target_link_libraries(Moksha_Client PUBLIC ${APPLICATION_SERVICES_FRAMEWORK})
     endif()
 
     # Platform entry and OS glue for the current OS.

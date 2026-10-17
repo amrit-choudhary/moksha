@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * Renderer class for DirectX 12 on Windows.
@@ -143,4 +143,4 @@ class RendererDX : public PlatformRenderer {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

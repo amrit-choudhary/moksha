@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 #include "depth_stencil_state_metal.h"
 

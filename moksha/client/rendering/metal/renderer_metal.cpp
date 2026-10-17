@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 #include "renderer_metal.h"
 
@@ -190,4 +190,4 @@ void ME::RendererMetal::Draw() {
     pool->release();
 }
 
-#endif  // ME_MAC
+#endif  // ME_METAL

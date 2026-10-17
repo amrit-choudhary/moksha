@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific pipeline state object (PSO) class.
@@ -79,4 +79,4 @@ class PSODirectX {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

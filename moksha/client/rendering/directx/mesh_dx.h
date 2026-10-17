@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific mesh class.
@@ -34,4 +34,4 @@ class MeshDX : public Mesh {
 };
 
 }  // namespace ME
-#endif  // ME_WIN
+#endif  // ME_DX12

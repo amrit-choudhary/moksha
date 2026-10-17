@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific texture class.
@@ -41,4 +41,4 @@ class TextureDX : public Texture {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

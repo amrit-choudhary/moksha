@@ -26,6 +26,8 @@
 #include "moksha/client/rendering/null/renderer_null.h"
 #else
 #include "moksha/client/input/input_manager_win.h"
+#endif
+#ifdef ME_DX12
 #include "moksha/client/rendering/directx/renderer_dx.h"
 #endif
 
@@ -91,6 +93,8 @@ class ClientApp {
     RendererNull renderer;
 #else
     Input::InputManagerWin* winInputManager = nullptr;
+#endif
+#ifdef ME_DX12
     RendererDX renderer;
 #endif
 

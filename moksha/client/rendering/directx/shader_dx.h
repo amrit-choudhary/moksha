@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * Shader class for DirectX
@@ -32,4 +32,4 @@ class Shader {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

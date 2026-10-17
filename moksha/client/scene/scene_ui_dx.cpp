@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "scene_ui_dx.h"
 
@@ -128,4 +128,4 @@ void ME::SceneUIDX::MakeTextInstanceBuffer() {
         textInstanceBuffer->GetResource(), sizeof(ME::TextRendererInstanceData), Constants::MaxTextInstanceDataCount);
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

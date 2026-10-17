@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 #include "shader_mac.h"
 
@@ -57,4 +57,4 @@ MTL::Function* ME::Shader::GetFragmentFunction() const {
     return fragmentFunction;
 }
 
-#endif  // ME_MAC
+#endif  // ME_METAL

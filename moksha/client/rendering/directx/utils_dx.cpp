@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "utils_dx.h"
 
@@ -52,4 +52,4 @@ ID3D12Resource* ME::UtilsDirectX::CreateDefaultBufferResource(ID3D12Device* devi
     return defaultBuffer;
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

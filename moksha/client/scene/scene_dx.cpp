@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "scene_dx.h"
 
@@ -212,4 +212,4 @@ void ME::SceneDX::MakeSpriteInstanceBuffer() {
         spriteInstanceBuffer1->GetResource(), sizeof(ME::SpriteRendererInstanceData), instancedSpriteRenderers1.count);
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

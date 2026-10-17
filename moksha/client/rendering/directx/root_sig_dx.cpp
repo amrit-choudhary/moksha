@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "root_sig_dx.h"
 
@@ -413,4 +413,4 @@ CD3DX12_STATIC_SAMPLER_DESC* ME::RootSigDx::GetStaticSamplerDescriptors() {
     return staticSamplers;
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

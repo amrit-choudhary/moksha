@@ -17,9 +17,9 @@ ME::Renderer::~Renderer() {}
 void ME::Renderer::Init() {
 #if defined(ME_HEADLESS)
     platformRenderer = new ME::RendererNull();
-#elif defined(ME_MAC)
+#elif defined(ME_METAL)
     platformRenderer = new ME::RendererMetal();
-#elif defined(ME_WIN)
+#elif defined(ME_DX12)
     platformRenderer = new ME::RendererDX();
 #endif
     platformRenderer->Init();

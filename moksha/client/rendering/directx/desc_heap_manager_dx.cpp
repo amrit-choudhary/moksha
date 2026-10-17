@@ -1,8 +1,8 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "desc_heap_manager_dx.h"
 
-#endif  // ME_WIN
+#endif  // ME_DX12
 
 ME::DescHeapManagerDX::DescHeapManagerDX(ID3D12Device* device, ID3D12DescriptorHeap* descriptorHeap) {
     this->device = device;

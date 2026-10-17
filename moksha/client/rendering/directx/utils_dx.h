@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific utility functions and definitions.
@@ -23,4 +23,4 @@ ID3D12Resource* CreateDefaultBufferResource(ID3D12Device* device, ID3D12Graphics
 }  // namespace UtilsDirectX
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

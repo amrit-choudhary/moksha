@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "upload_buffer_dx.h"
 
@@ -55,4 +55,4 @@ void ME::UploadBufferDX::CopyData(uint32_t elementIndex, const void* data) {
     }
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

@@ -1,4 +1,4 @@
-#if ME_WIN
+#ifdef ME_DX12
 
 #include "renderer_dx.h"
 
@@ -627,4 +627,4 @@ D3D12_CPU_DESCRIPTOR_HANDLE ME::RendererDX::GetDepthStencilHandle() const {
     return dsvDescHeap->GetCPUDescriptorHandleForHeapStart();
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

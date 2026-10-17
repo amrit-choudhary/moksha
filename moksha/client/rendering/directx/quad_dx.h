@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * DirectX's specific quad class.
@@ -33,4 +33,4 @@ class QuadDX : public Quad {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

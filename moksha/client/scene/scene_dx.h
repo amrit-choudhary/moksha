@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 /**
  * It takes a cross platform scene and converts it to a DirectX 12 scene.
@@ -101,4 +101,4 @@ class SceneDX {
 
 }  // namespace ME
 
-#endif  // ME_WIN
+#endif  // ME_DX12

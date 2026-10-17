@@ -1,5 +1,5 @@
 #pragma once
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 /**
  * Metal's specific quad class.

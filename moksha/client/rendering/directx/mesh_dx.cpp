@@ -1,4 +1,4 @@
-#ifdef ME_WIN
+#ifdef ME_DX12
 
 #include "mesh_dx.h"
 
@@ -61,4 +61,4 @@ D3D12_INDEX_BUFFER_VIEW ME::MeshDX::GetIndexBufferView() const {
     return ibv;
 }
 
-#endif  // ME_WIN
+#endif  // ME_DX12

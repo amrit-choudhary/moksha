@@ -1,4 +1,4 @@
-#ifdef ME_MAC
+#ifdef ME_METAL
 
 /**
  * It takes a cross platform scene and converts it to a Metal scene.
