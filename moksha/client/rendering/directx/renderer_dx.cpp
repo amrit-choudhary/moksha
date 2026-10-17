@@ -6,7 +6,7 @@
 
 #include "d3dx12.h"
 #include "mesh_dx.h"
-#include "moksha/client/misc/global_vars.h"
+#include "moksha/client/app/app_config.h"
 #include "moksha/client/rendering/shared/camera.h"
 #include "moksha/client/rendering/shared/light.h"
 #include "moksha/client/rendering/shared/mesh.h"
@@ -20,6 +20,7 @@
 #include "moksha/shared/math/vec16.h"
 #include "moksha/shared/math/vec3.h"
 #include "moksha/shared/misc/engine_limits.h"
+#include "moksha/shared/misc/utils.h"
 #include "pso_dx.h"
 #include "quad_dx.h"
 #include "root_sig_dx.h"
@@ -137,7 +138,7 @@ void ME::RendererDX::End() {
     ME::Log("RendererDirectX::End");
 }
 
-bool ME::RendererDX::InitDX(HWND currenthWnd) {
+bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
 #ifdef _DEBUG
     // Enable the D3D12 debug layer.
     ComPtr<ID3D12Debug> debugController;
@@ -146,10 +147,10 @@ bool ME::RendererDX::InitDX(HWND currenthWnd) {
 #endif
 
     hWnd = currenthWnd;
+    window = inWindow;
 
-    // Get window size from global vars.
-    clientWidth = ME::GlobalVars::GetWindowWidth();
-    clientHeight = ME::GlobalVars::GetWindowHeight();
+    clientWidth = window->width;
+    clientHeight = window->height;
 
     if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) {
         MessageBoxW(hWnd, L"Failed to create DXGI Factory", L"Error", MB_OK);
@@ -522,7 +523,7 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
         const uint32_t cbPerPassHeapIndex = uiSceneDX->perPassCBHeapIndices[cbPerPassIndex];
 
         CBPerPassUISprite perPassData{};
-        perPassData.screenDimension = ME::GlobalVars::GetWindowSizeCombined();
+        perPassData.screenDimension = ME::Utils::Pack16To32(window->width, window->height);
         uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
         D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
@@ -568,7 +569,7 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
         const uint32_t cbPerPassHeapIndex = uiSceneDX->perPassCBHeapIndices[cbPerPassIndex];
 
         CBPerPassUIText perPassData{};
-        perPassData.screenDimension = ME::GlobalVars::GetWindowSizeCombined();
+        perPassData.screenDimension = ME::Utils::Pack16To32(window->width, window->height);
         uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
         D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);

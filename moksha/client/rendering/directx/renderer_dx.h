@@ -31,6 +31,7 @@ class SceneDX;
 class SceneUI;
 class SceneUIDX;
 class QuadDX;
+class WindowState;
 
 /**
  * Renderer class for DirectX 12 on Windows.
@@ -55,8 +56,8 @@ class RendererDX : public PlatformRenderer {
     // Will stop the timers to let it calculate average FPS.
     void End() override;
 
-    // Initialize DirectX 12.
-    bool InitDX(HWND hwnd);
+    // Initialize DirectX 12 for hwnd. window is the app's window state; its size sizes the swap chain.
+    bool InitDX(HWND hwnd, const WindowState* inWindow);
 
     void Draw();
 
@@ -73,6 +74,7 @@ class RendererDX : public PlatformRenderer {
     ME::SceneUIDX* debugUiSceneDX = nullptr;
 
     HWND hWnd;
+    const WindowState* window = nullptr;
     ComPtr<IDXGIFactory4> factory;
     ComPtr<ID3D12Device> device;
     ComPtr<ID3D12CommandQueue> commandQueue;

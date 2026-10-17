@@ -3,84 +3,72 @@
 #include "main_win.h"
 
 #include <cstdio>
-#include <iostream>
 
-ME::ClientApp::ClientApp() {
-    game = ME::CreateGame();
-}
+#include "moksha/logging/logging.h"
+#include "moksha/shared/file_io/ini/ini_parser.h"
+#include "moksha/shared/net/networking.h"
+
+ME::ClientApp::ClientApp() {}
 
 ME::ClientApp::~ClientApp() {
-    game->End();
-    // After the game ends, so its own cleanup can still clear handles; drops any it left behind.
-    timerManager.End();
-    gameClient.End();
-    contentClient.End();
-    if (networkingStarted) {
-        ME::Net::ShutdownNetworking();
-        networkingStarted = false;
+    Shutdown();
+    if (game != nullptr) {
+        ME::DestroyGame(game);
+        game = nullptr;
     }
-    inputManager.End();
-    timeManager.End();
-    physicsSystem.End();
-    animationSystem.End();
-    audioSystem.End();
-    uiSystem.End();
-    renderer.End();
-
-    ME::DebugSystem::SetInstance(nullptr);
-    debugSystem.End();
-
-    ME::DestroyGame(game);
-    game = nullptr;
 }
 
-void ME::ClientApp::Init(HWND hWnd) {
-    this->hWnd = hWnd;
+const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
+    config = AppConfig{};
+    game = ME::CreateGame(args, config);
+    config.ApplySettings(ME::INIParser::Load());
+    config.ApplyArgs(args);
+    return config;
+}
 
-    // Read game params from file.
-    ME::INIMap iniMap = ME::INIParser::Load();
-    fixedFrameRate = std::atoi(iniMap["settings"]["fixedFrameRate"].c_str());
-    vsync = std::atoi(iniMap["settings"]["vsync"].c_str()) != 0;
+bool ME::ClientApp::Init(HWND hWnd) {
+    if (game == nullptr) {
+        ME::LogError("ClientApp: CreateGame returned no game");
+        return false;
+    }
 
-    std::string serverIP = iniMap["settings"]["serverIP"];
-    if (serverIP.empty()) serverIP = "127.0.0.1";
-    std::string serverPortStr = iniMap["settings"]["serverPort"];
-    uint16_t serverPort = serverPortStr.empty() ? 9310 : static_cast<uint16_t>(std::atoi(serverPortStr.c_str()));
+    window.width = config.windowWidth;
+    window.height = config.windowHeight;
 
-    std::string contentServerIP = iniMap["settings"]["contentServerIP"];
-    if (contentServerIP.empty()) contentServerIP = "127.0.0.1";
-    std::string contentServerPortStr = iniMap["settings"]["contentServerPort"];
-    uint16_t contentServerPort =
-        contentServerPortStr.empty() ? 9311 : static_cast<uint16_t>(std::atoi(contentServerPortStr.c_str()));
+    engine.time = &timeManager;
+    engine.timers = &timerManager;
+    engine.input = &inputManager;
+    engine.physics = &physicsSystem;
+    engine.animation = &animationSystem;
+    engine.audio = &audioSystem;
+    engine.ui = &uiSystem;
+    engine.gameClient = &gameClient;
+    engine.contentClient = &contentClient;
+    engine.config = &config;
+    engine.window = &window;
 
-    debugSystem.Init();
+    debugSystem.Init(&window);
     ME::DebugSystem::SetInstance(&debugSystem);
 
-    inputManager.Init();
+    inputManager.Init(&window);
     winInputManager = static_cast<ME::Input::InputManagerWin*>(inputManager.GetPlatformInputManager());
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
-    gameClient.Init(serverIP.c_str(), serverPort);
+    gameClient.Init(config.serverIP.c_str(), config.serverPort);
     physicsSystem.Init();
     animationSystem.Init();
     audioSystem.Init();
     // Before game->Init, so the game can schedule timers from Init/Start.
-    timerManager.Init(static_cast<double>(fixedFrameRate));
+    timerManager.Init(config.fixedStepFPS);
+    uiSystem.Init(&window);
 
-    game->SetInputManagerRef(&inputManager);
-    game->SetGameClientRef(&gameClient);
-    game->SetPhysicsSystemRef(&physicsSystem);
-    game->SetAnimationSystemRef(&animationSystem);
-    game->SetAudioSystemRef(&audioSystem);
-    game->SetTimerManagerRef(&timerManager);
-    game->Init(&timeManager);
+    initialized = true;
+    game->Init(engine);
 
-    uiSystem.Init();
     uiSystem.SetUIScene(game->GetUIScene());
-    game->SetUISystemRef(&uiSystem);
 
-    renderer.InitDX(hWnd);
-    renderer.SetVsyncEnabled(vsync);
+    renderer.InitDX(hWnd, &window);
+    renderer.SetVsyncEnabled(config.vsync);
     renderer.SetScenes(game->GetScene(), game->GetUIScene());
     renderer.SetDebugUIScene(debugSystem.GetUIScene());
 
@@ -88,23 +76,18 @@ void ME::ClientApp::Init(HWND hWnd) {
 
     // Clock init after all systems are initialized.
     ME::Time::TimeConfig timeConfig;
-    timeConfig.fixedStepFPS = static_cast<double>(fixedFrameRate);
+    timeConfig.fixedStepFPS = config.fixedStepFPS;
     timeManager.Init(timeConfig);
 
     // Content sync runs in the background from here on; the game never waits for it.
-    contentClient.Init(contentServerIP.c_str(), contentServerPort, timeManager.GetTimeSinceStartup());
+    contentClient.Init(config.contentServerIP.c_str(), config.contentServerPort, timeManager.GetTimeSinceStartup());
 
     // Start the game.
     game->Start();
+    return true;
 }
 
-void ME::ClientApp::HandleInput(UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (winInputManager != nullptr) {
-        winInputManager->HandleInput(msg, wParam, lParam);
-    }
-}
-
-void ME::ClientApp::Update() {
+bool ME::ClientApp::Tick() {
     timeManager.BeginFrame();
     double deltaTime = timeManager.GetFrameDeltaTime();
 
@@ -131,20 +114,24 @@ void ME::ClientApp::Update() {
 
     inputManager.PostUpdate();
 
-    renderer.Update();
-    renderer.Draw();
+    if (!paused) {
+        renderer.Update();
+        renderer.Draw();
+    }
 
     gameClient.Update(deltaTime);
     contentClient.Update(timeManager.GetTimeSinceStartup());
     audioSystem.Update(deltaTime);
+
+    return !engine.IsQuitRequested();
 }
 
-void ME::ClientApp::Exit() {
-    // Clean up game systems here
-    std::cout << "Game exited." << std::endl;
-}
+void ME::ClientApp::Shutdown() {
+    if (!initialized) {
+        return;
+    }
+    initialized = false;
 
-void ME::ClientApp::ShutDownGameSystems() {
     game->End();
     // After the game ends, so its own cleanup can still clear handles; drops any it left behind.
     timerManager.End();
@@ -164,6 +151,28 @@ void ME::ClientApp::ShutDownGameSystems() {
 
     ME::DebugSystem::SetInstance(nullptr);
     debugSystem.End();
+}
+
+void ME::ClientApp::Pause() {
+    if (!initialized || paused) {
+        return;
+    }
+    paused = true;
+    game->OnPause();
+}
+
+void ME::ClientApp::Resume() {
+    if (!initialized || !paused) {
+        return;
+    }
+    paused = false;
+    game->OnResume();
+}
+
+void ME::ClientApp::HandleInput(UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (winInputManager != nullptr) {
+        winInputManager->HandleInput(msg, wParam, lParam);
+    }
 }
 
 #endif  // ME_WIN

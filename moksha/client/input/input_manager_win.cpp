@@ -2,7 +2,6 @@
 
 #include "input_manager_win.h"
 
-#include "moksha/client/misc/global_vars.h"
 #include "moksha/logging/logging.h"
 
 using namespace ME::Input;

@@ -8,8 +8,11 @@
 #include <cstdint>
 
 #include "moksha/client/anim/animation_system.h"
+#include "moksha/client/app/app_config.h"
+#include "moksha/client/app/engine.h"
 #include "moksha/client/audio/audio_system.h"
 #include "moksha/client/input/input_manager.h"
+#include "moksha/client/net/content_client.h"
 #include "moksha/client/net/game_client.h"
 #include "moksha/client/scene/scene.h"
 #include "moksha/client/scene/scene_ui.h"
@@ -36,8 +39,8 @@ class Game : public ICollisionListener {
 
     // Game control functions.
 
-    // Init game
-    virtual void Init(ME::Time::TimeManager* currentTimeManager);
+    // Called once all engine systems exist; engine stays valid until End. Overrides call Game::Init first.
+    virtual void Init(ME::Engine& engine);
 
     // Start game. This is called after all systems are initialized and before Update.
     virtual void Start();
@@ -54,13 +57,12 @@ class Game : public ICollisionListener {
     // End game.
     virtual void End();
 
-    void SetInputManagerRef(ME::Input::InputManager* ptrInput);
-    void SetGameClientRef(ME::GameClient* ptrGameClient);
-    void SetPhysicsSystemRef(ME::PhysicsSystem* ptrPhysicsSystem);
-    void SetAnimationSystemRef(ME::AnimationSystem* ptrAnimationSystem);
-    void SetAudioSystemRef(ME::AudioSystem* ptrAudioSystem);
-    void SetUISystemRef(ME::UISystem* ptrUISystem);
-    void SetTimerManagerRef(ME::Time::TimerManager* ptrTimerManager);
+    // The app went to the background (window minimized, app suspended, browser tab hidden). Frames stop until
+    // OnResume; on mobile and web the app may be closed without another call.
+    virtual void OnPause();
+
+    // The app is back in the foreground after OnPause.
+    virtual void OnResume();
 
     // This will be called from the PhysicsSystem when a collision is detected.
     // Remember to delete the result after use.
@@ -73,15 +75,9 @@ class Game : public ICollisionListener {
     virtual const char* GetDisplayName() const;
 
    protected:
-    ME::Time::TimeManager* timeManager = nullptr;
-    ME::Time::TimerManager* timerManager = nullptr;
-    ME::GameClient* gameClient = nullptr;
-    ME::Input::InputManager* inputManager = nullptr;
+    // Every engine system, set by Init.
+    ME::Engine* engine = nullptr;
     ME::Scene* scene = nullptr;
     ME::SceneUI* uiScene = nullptr;
-    ME::PhysicsSystem* physicsSystem = nullptr;
-    ME::AnimationSystem* animationSystem = nullptr;
-    ME::AudioSystem* audioSystem = nullptr;
-    ME::UISystem* uiSystem = nullptr;
 };
 }  // namespace ME

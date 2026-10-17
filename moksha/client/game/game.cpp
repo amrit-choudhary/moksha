@@ -13,10 +13,10 @@ Game::Game() {}
 
 Game::~Game() {}
 
-void Game::Init(ME::Time::TimeManager* currentTimeManager) {
+void Game::Init(ME::Engine& inEngine) {
     ME::Log("Game Start!");
 
-    timeManager = currentTimeManager;
+    engine = &inEngine;
 
     ME::DebugSystem::ScreenPrintSlot(1, GetDisplayName());
 }
@@ -28,42 +28,22 @@ void Game::Update(double deltaTime) {}
 void Game::FixedUpdate(double fixedDeltaTime) {}
 
 void Game::End() {
-    std::cout << "Game Run Time: " << timeManager->GetTimeSinceStartup() << '\n';
-    std::cout << "Average Frame Rate: " << timeManager->GetFrameCount() / timeManager->GetTimeSinceStartup() << '\n';
-    std::cout << "Average Sim Tick Rate: " << timeManager->GetFixedStepCount() / timeManager->GetTimeSinceStartup()
-              << '\n';
-    std::cout << "Total Frames: " << timeManager->GetFrameCount() << '\n';
+    const ME::Time::TimeManager* timeManager = engine != nullptr ? engine->time : nullptr;
+    if (timeManager != nullptr && timeManager->GetTimeSinceStartup() > 0.0) {
+        std::cout << "Game Run Time: " << timeManager->GetTimeSinceStartup() << '\n';
+        std::cout << "Average Frame Rate: " << timeManager->GetFrameCount() / timeManager->GetTimeSinceStartup()
+                  << '\n';
+        std::cout << "Average Sim Tick Rate: " << timeManager->GetFixedStepCount() / timeManager->GetTimeSinceStartup()
+                  << '\n';
+        std::cout << "Total Frames: " << timeManager->GetFrameCount() << '\n';
+    }
 
     ME::Log("Game Over!");
 }
 
-void ME::Game::SetInputManagerRef(ME::Input::InputManager* ptrInput) {
-    inputManager = ptrInput;
-}
+void ME::Game::OnPause() {}
 
-void ME::Game::SetGameClientRef(ME::GameClient* ptrGameClient) {
-    gameClient = ptrGameClient;
-}
-
-void ME::Game::SetPhysicsSystemRef(ME::PhysicsSystem* ptrPhysicsSystem) {
-    physicsSystem = ptrPhysicsSystem;
-}
-
-void ME::Game::SetAnimationSystemRef(ME::AnimationSystem* ptrAnimationSystem) {
-    animationSystem = ptrAnimationSystem;
-}
-
-void ME::Game::SetAudioSystemRef(ME::AudioSystem* ptrAudioSystem) {
-    audioSystem = ptrAudioSystem;
-}
-
-void ME::Game::SetUISystemRef(ME::UISystem* ptrUISystem) {
-    uiSystem = ptrUISystem;
-}
-
-void ME::Game::SetTimerManagerRef(ME::Time::TimerManager* ptrTimerManager) {
-    timerManager = ptrTimerManager;
-}
+void ME::Game::OnResume() {}
 
 void ME::Game::CollisionCallback(ColliderAABB* a, ColliderAABB* b, CollisionResultAABB* result) {
     delete result;

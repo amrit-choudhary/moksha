@@ -1,12 +1,9 @@
 #ifdef ME_WIN
 
 /**
- * Main entry point for the Windows application.
- * This file is specific to Windows and uses the Win32 API for application management.
+ * Windows entry and frame driver: creates the window from the app's config, pumps messages and repeats
+ * ClientApp::Tick until the window closes or the game quits. While minimized it waits instead of spinning.
  */
-
-#include <d3d12.h>
-#include <dxgi1_6.h>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -16,14 +13,17 @@
 #endif
 
 #include <windows.h>
-#include <wrl.h>
 
-#include <atomic>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
-#include <thread>
+#include <string>
 
 #include "moksha/client/main/main_win.h"
+#include "moksha/shared/misc/utils.h"
+#include "moksha/shared/platform/exe_path.h"
+
+namespace {
 
 void AttachDebugConsole() {
     AllocConsole();
@@ -33,7 +33,20 @@ void AttachDebugConsole() {
     std::cerr.clear();
 }
 
-using Microsoft::WRL::ComPtr;
+std::wstring ToWide(const std::string& text) {
+    const int length = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
+    if (length <= 0) {
+        return std::wstring{};
+    }
+    std::wstring wide(static_cast<size_t>(length), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, wide.data(), length);
+    wide.resize(static_cast<size_t>(length - 1));  // drop the terminating 0 written by the conversion
+    return wide;
+}
+
+ME::ClientApp* GetApp(HWND hwnd) {
+    return reinterpret_cast<ME::ClientApp*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
 
 LRESULT CALLBACK WindowProcW(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -49,7 +62,19 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             return 0;
         }
 
-        // Handle input messages and forward them to the game instance, which gives them to the input system.
+        case WM_SIZE: {
+            ME::ClientApp* pApp = GetApp(hwnd);
+            if (pApp != nullptr) {
+                if (wParam == SIZE_MINIMIZED) {
+                    pApp->Pause();
+                } else {
+                    pApp->Resume();
+                }
+            }
+            break;
+        }
+
+        // Input messages go to the app, which gives them to the input system.
         case WM_SYSKEYUP:
         case WM_SYSKEYDOWN:
         case WM_KEYUP:
@@ -59,8 +84,8 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_LBUTTONUP:
         case WM_RBUTTONDOWN:
         case WM_RBUTTONUP: {
-            ME::ClientApp* pApp = reinterpret_cast<ME::ClientApp*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-            if (pApp) {
+            ME::ClientApp* pApp = GetApp(hwnd);
+            if (pApp != nullptr) {
                 pApp->HandleInput(msg, wParam, lParam);
             }
             return 0;
@@ -70,58 +95,84 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+// Handles one message. False once WM_QUIT arrives.
+bool DispatchOne(MSG& msg) {
+    if (msg.message == WM_QUIT) {
+        return false;
+    }
+    TranslateMessage(&msg);
+    DispatchMessageW(&msg);
+    return true;
+}
+
+}  // namespace
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 #ifdef _DEBUG
     AttachDebugConsole();
 #endif
 
-    // Initialize the game
-    char exePath[MAX_PATH];
-    GetModuleFileName(NULL, exePath, MAX_PATH);
-    ME::Utils::SetPaths(exePath, nullptr);
+    // The CRT has already split the command line into __argc/__argv.
+    std::string exePath = ME::Platform::GetExecutablePath(__argc > 0 ? __argv[0] : nullptr);
+    ME::Utils::SetPaths(exePath.data(), nullptr);
+
+    ME::AppArgs args;
+    args.Set(__argc, __argv);
 
     ME::ClientApp app;
+    const ME::AppConfig& config = app.Configure(args);
 
-    // Initialize the window class.
     WNDCLASSEXW windowClass = {0};
     windowClass.cbSize = sizeof(WNDCLASSEXW);
     windowClass.style = CS_HREDRAW | CS_VREDRAW;
     windowClass.lpfnWndProc = WindowProcW;
     windowClass.hInstance = hInstance;
     windowClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    windowClass.lpszClassName = L"Moksha";
+    windowClass.lpszClassName = L"MokshaWindow";
     RegisterClassExW(&windowClass);
 
-    // Desired client area size
-    uint16_t clientWidth = 1200;
-    uint16_t clientHeight = 900;
-    ME::GlobalVars::SetWindowSize(clientWidth, clientHeight);
-
-    RECT rect = {0, 0, clientWidth, clientHeight};
+    // The config's size is the client area; grow the window by its borders and title bar.
+    RECT rect = {0, 0, config.windowWidth, config.windowHeight};
     AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, 0);
+    const int windowWidth = rect.right - rect.left;
+    const int windowHeight = rect.bottom - rect.top;
 
-    int windowWidth = rect.right - rect.left;
-    int windowHeight = rect.bottom - rect.top;
-
-    HWND hWnd = CreateWindowExW(0, windowClass.lpszClassName, L"Moksha", WS_OVERLAPPEDWINDOW, 60, 60, windowWidth,
+    const std::wstring title = ToWide(config.windowTitle);
+    HWND hWnd = CreateWindowExW(0, windowClass.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, 60, 60, windowWidth,
                                 windowHeight, nullptr, nullptr, hInstance, &app);
-
-    app.Init(hWnd);
+    if (hWnd == nullptr || !app.Init(hWnd)) {
+        app.Shutdown();
+        return 1;
+    }
     ShowWindow(hWnd, nCmdShow);
 
-    MSG msg = {};
-    while (msg.message != WM_QUIT) {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+    bool running = true;
+    while (running) {
+        MSG msg = {};
+
+        // Minimized: nothing to draw, so sleep until the next message instead of spinning.
+        if (IsIconic(hWnd)) {
+            if (GetMessageW(&msg, nullptr, 0, 0) <= 0) {
+                break;
+            }
+            DispatchOne(msg);
+            continue;
         }
 
-        // Update the game
-        app.Update();
+        while (running && PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            running = DispatchOne(msg);
+        }
+        if (!running) {
+            break;
+        }
+
+        if (!app.Tick()) {
+            // The game asked to quit; destroying the window posts WM_QUIT, which ends the loop.
+            DestroyWindow(hWnd);
+        }
     }
 
-    // Cleanup
-    app.ShutDownGameSystems();
+    app.Shutdown();
 
     FreeConsole();
     return 0;

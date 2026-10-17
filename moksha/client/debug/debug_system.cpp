@@ -8,9 +8,9 @@ ME::DebugSystem::DebugSystem() {}
 
 ME::DebugSystem::~DebugSystem() {}
 
-void ME::DebugSystem::Init() {
+void ME::DebugSystem::Init(const WindowState* window) {
     sceneUIDebug.Init();
-    uiSystem.Init();
+    uiSystem.Init(window);
     uiSystem.SetUIScene(&sceneUIDebug);
 }
 

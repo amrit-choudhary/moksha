@@ -13,13 +13,15 @@
 namespace ME {
 
 class UIElement;
+class WindowState;
 
 class UILayoutEngine {
    public:
     UILayoutEngine();
     ~UILayoutEngine();
 
-    void Init();
+    // Root elements are laid out against window's size.
+    void Init(const WindowState* inWindow);
     void End();
 
     // Walks `elements` (all of them, roots and children alike), finds roots
@@ -32,6 +34,8 @@ class UILayoutEngine {
     // UIRect member directly via the friend grant on UIElement), then recurses into its children
     // using its own just-computed absolute rect as their parent rect.
     void ResolveElement(UIElement* element, const UIRect& parentRect);
+
+    const WindowState* window = nullptr;
 };
 
 }  // namespace ME

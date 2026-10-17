@@ -1,19 +1,23 @@
 #include "ui_layout_engine.h"
 
-#include "moksha/client/misc/global_vars.h"
+#include "moksha/client/app/app_config.h"
 #include "ui_element.h"
 
 ME::UILayoutEngine::UILayoutEngine() {}
 
 ME::UILayoutEngine::~UILayoutEngine() {}
 
-void ME::UILayoutEngine::Init() {}
+void ME::UILayoutEngine::Init(const WindowState* inWindow) {
+    window = inWindow;
+}
 
 void ME::UILayoutEngine::End() {}
 
 void ME::UILayoutEngine::RecalculateLayouts(UIElement** elements, uint32_t count) {
-    Vec2 screenSize =
-        Vec2{static_cast<float>(GlobalVars::GetWindowWidth()), static_cast<float>(GlobalVars::GetWindowHeight())};
+    Vec2 screenSize = Vec2::Zero;
+    if (window != nullptr) {
+        screenSize = Vec2{static_cast<float>(window->width), static_cast<float>(window->height)};
+    }
 
     // Root elements resolve against the screen itself. TopLeft anchor/pivot + zero offset means
     // the dummy parent's own (zero) size never factors in, so an empty UIRect is a safe stand-in.

@@ -17,13 +17,15 @@ class SceneUI;
 class SpriteRenderer;
 class TextRenderer;
 class Transform;
+class WindowState;
 
 class UISystemDebug {
    public:
     UISystemDebug();
     ~UISystemDebug();
 
-    void Init();
+    // Lays the UI out against window, which must outlive this system.
+    void Init(const WindowState* inWindow);
     void Update(double deltaTime);
     void End();
 
@@ -31,6 +33,7 @@ class UISystemDebug {
 
    private:
     SceneUI* uiScene = nullptr;
+    const WindowState* window = nullptr;
     UILayoutEngine layoutEngine;
 
     // Per-frame scratch pointer arrays for the rebuild walk (sized Constants::MaxUIElementCount).

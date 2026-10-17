@@ -17,12 +17,15 @@
 
 namespace ME {
 
+class WindowState;
+
 class DebugSystem {
    public:
     DebugSystem();
     ~DebugSystem();
 
-    void Init();
+    // window is the app's window; the overlay is laid out against it.
+    void Init(const WindowState* window);
     void Update(double deltaTime);
     void End();
 

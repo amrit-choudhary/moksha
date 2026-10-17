@@ -1,8 +1,8 @@
 #include "ui_system.h"
 
 #include "button.h"
+#include "moksha/client/app/app_config.h"
 #include "moksha/client/input/input_manager.h"
-#include "moksha/client/misc/global_vars.h"
 #include "moksha/client/rendering/shared/sprite_renderer.h"
 #include "moksha/client/rendering/shared/text_renderer.h"
 #include "moksha/client/scene/scene_ui.h"
@@ -14,8 +14,9 @@ ME::UISystem::UISystem() {}
 
 ME::UISystem::~UISystem() {}
 
-void ME::UISystem::Init() {
-    layoutEngine.Init();
+void ME::UISystem::Init(const WindowState* inWindow) {
+    window = inWindow;
+    layoutEngine.Init(window);
 
     spriteTransformScratch = new Transform*[Constants::MaxUIElementCount];
     spriteRendererScratch = new SpriteRenderer*[Constants::MaxUIElementCount];
@@ -101,8 +102,8 @@ void ME::UISystem::SyncToScene() {
     uint32_t spriteCount = 0;
     uint32_t textCount = 0;
 
-    float windowWidth = static_cast<float>(GlobalVars::GetWindowWidth());
-    float windowHeight = static_cast<float>(GlobalVars::GetWindowHeight());
+    float windowWidth = window != nullptr ? static_cast<float>(window->width) : 0.0f;
+    float windowHeight = window != nullptr ? static_cast<float>(window->height) : 0.0f;
 
     UIElement** elements = uiScene->GetUIElements();
     uint32_t elementCount = uiScene->GetUIElementCount();

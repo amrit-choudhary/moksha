@@ -13,7 +13,6 @@
 #include "moksha/client/game/game_factory.h"
 #include "moksha/client/input/input_manager.h"
 #include "moksha/client/input/input_manager_mac.h"
-#include "moksha/client/misc/global_vars.h"
 #include "moksha/client/net/game_client.h"
 #include "moksha/client/rendering/metal/renderer_metal.h"
 #include "moksha/client/ui/ui_system.h"

@@ -140,7 +140,8 @@ InputManager::InputManager() {}
 
 InputManager::~InputManager() {}
 
-void InputManager::Init() {
+void InputManager::Init(const ME::WindowState* inWindow) {
+    window = inWindow;
 #ifdef ME_MAC
     platformInputManager = new InputManagerMac();
 #endif

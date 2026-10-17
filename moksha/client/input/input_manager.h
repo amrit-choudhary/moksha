@@ -9,7 +9,7 @@
 #include <thread>
 #include <unordered_map>
 
-#include "moksha/client/misc/global_vars.h"
+#include "moksha/client/app/app_config.h"
 #include "moksha/shared/math/vec2.h"
 #include "moksha/shared/math/vec2i.h"
 
@@ -184,7 +184,8 @@ class InputManager {
     InputManager();
     ~InputManager();
 
-    void Init();
+    // window is the app's window; the normalized and world-space mouse queries read its size.
+    void Init(const ME::WindowState* inWindow);
     void PreUpdate();
     void Update(double deltaTime);
     void PostUpdate();
@@ -213,21 +214,25 @@ class InputManager {
     /**
      * Get normalized mouse position (0.0 to 1.0), same top-left/Y-down origin as GetMousePos().
      */
-    static ME::Vec2 GetMousePosNorm() {
-        return ME::Vec2(static_cast<float>(mousePos.x) / ME::GlobalVars::GetWindowWidth(),
-                        static_cast<float>(mousePos.y) / ME::GlobalVars::GetWindowHeight());
+    ME::Vec2 GetMousePosNorm() const {
+        if (window == nullptr || window->width == 0 || window->height == 0) {
+            return ME::Vec2::Zero;
+        }
+        return ME::Vec2(static_cast<float>(mousePos.x) / window->width,
+                        static_cast<float>(mousePos.y) / window->height);
     }
 
     /**
      * Mouse position in world space (bottom-left origin, Y-up) — the engine's general
      * world-space convention, for gameplay math (e.g. aim-direction) rather than UI hit-testing.
      */
-    static ME::Vec2i GetMouseWorldPos() {
-        return ME::Vec2i{mousePos.x, ME::GlobalVars::GetWindowHeight() - mousePos.y};
+    ME::Vec2i GetMouseWorldPos() const {
+        const int height = window != nullptr ? window->height : 0;
+        return ME::Vec2i{mousePos.x, height - mousePos.y};
     }
 
     // Normalized (0.0 to 1.0) version of GetMouseWorldPos().
-    static ME::Vec2 GetMouseWorldPosNorm() {
+    ME::Vec2 GetMouseWorldPosNorm() const {
         ME::Vec2 norm = GetMousePosNorm();
         return ME::Vec2(norm.x, 1.0f - norm.y);
     }
@@ -269,6 +274,9 @@ class InputManager {
 
     // Platform specific input manager.
     PlatformInputManager* platformInputManager;
+
+    // The app's window, for the size-relative mouse queries.
+    const ME::WindowState* window = nullptr;
 };
 
 }  // namespace ME::Input
