@@ -38,6 +38,9 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
 - **RTTI and exceptions are disabled globally** (MSVC: `/GR- /EHs-c-` + `_HAS_EXCEPTIONS=0`,
   C4530 promoted to an error; else: `-fno-rtti -fno-exceptions`). Do not write or suggest code
   using `try`/`catch`/`throw`, `dynamic_cast`, or `typeid`.
+- The client builds as two variants from the same sources: `Moksha_Client` (windowed, graphics API from
+  `MOKSHA_RENDERER`) and `Moksha_ClientHeadless` (`ME_HEADLESS`: null renderer, input and audio). Each has its
+  entry OBJECT library (`Moksha_Entry`, `Moksha_EntryHeadless`). The API define is per target, never global.
 - `file(GLOB ...)` source lists are collected at configure time: after adding or removing a
   `.cpp`, re-run `cmake -B build`.
 

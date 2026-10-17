@@ -19,7 +19,7 @@
 #include <iostream>
 #include <string>
 
-#include "moksha/client/main/main_win.h"
+#include "moksha/client/app/client_app.h"
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
 

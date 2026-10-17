@@ -1,12 +1,21 @@
 #include "audio_system.h"
 
+#ifdef ME_HEADLESS
+#include "audio_impl_dummy.h"
+#else
 #include "audio_impl_miniaudio.h"
+#endif
 #include "moksha/client/scene/scene.h"
 #include "moksha/shared/misc/utils.h"
 
 void ME::AudioSystem::Init() {
     isInitialized = false;
+#ifdef ME_HEADLESS
+    // No audio device without a window: sounds load and play as no-ops.
+    audioImpl = new AudioImplDummy();
+#else
     audioImpl = new AudioImplMiniaudio();
+#endif
     audioImpl->Init(this);
     isInitialized = true;
 }

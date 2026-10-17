@@ -3,7 +3,7 @@
 /**
  * On-screen debug system: draws on top of everything via its own SceneUI + UISystemDebug,
  * completely separate from whatever SceneUI/UISystem a Game owns. Owned by ClientApp (see
- * main_win.h), not by Game. Two kinds of on-screen text:
+ * app/client_app.h), not by Game. Two kinds of on-screen text:
  *  - Slots: persistent, index-addressed rows (ScreenPrintSlot/ClearSlot/ClearAllSlot).
  *  - Transient log lines: time-limited rows (ScreenPrint/ClearAllTransient), FIFO-evicted
  *    (oldest first) when the pool is full.

@@ -11,7 +11,7 @@ endif()
 option(MOKSHA_BUILD_TESTS "Build the engine unit tests" ${PROJECT_IS_TOP_LEVEL})
 option(MOKSHA_BUILD_TOOLS "Build the engine tools" ${PROJECT_IS_TOP_LEVEL})
 
-# Graphics API of the client. NONE builds the headless (windowless) client.
+# Graphics API of the windowed client. NONE builds no windowed client; the headless client is built either way.
 if(WIN32)
     set(MOKSHA_DEFAULT_RENDERER DX12)
 elseif(APPLE)
@@ -19,16 +19,11 @@ elseif(APPLE)
 else()
     set(MOKSHA_DEFAULT_RENDERER NONE)
 endif()
-set(MOKSHA_RENDERER ${MOKSHA_DEFAULT_RENDERER} CACHE STRING "Graphics API: DX12, METAL or NONE (headless)")
+set(MOKSHA_RENDERER ${MOKSHA_DEFAULT_RENDERER} CACHE STRING "Graphics API: DX12, METAL or NONE (headless only)")
 set_property(CACHE MOKSHA_RENDERER PROPERTY STRINGS DX12 METAL NONE)
 
-# The client needs a graphics API until the headless client exists; servers never need it.
-if(MOKSHA_RENDERER STREQUAL "NONE")
-    set(MOKSHA_DEFAULT_BUILD_CLIENT OFF)
-else()
-    set(MOKSHA_DEFAULT_BUILD_CLIENT ON)
-endif()
-option(MOKSHA_BUILD_CLIENT "Build the client engine libraries" ${MOKSHA_DEFAULT_BUILD_CLIENT})
+# Every OS has at least the headless client; servers never need the client.
+option(MOKSHA_BUILD_CLIENT "Build the client engine libraries" ON)
 
 # MSVC adds /EHsc by default; strip it so /EHs-c- below takes effect without a D9025 override warning.
 if(MSVC)
@@ -67,13 +62,13 @@ else()
     message(FATAL_ERROR "Moksha: unsupported system '${CMAKE_SYSTEM_NAME}'")
 endif()
 
-# Graphics API.
+# Graphics API define, set per target: the windowed client gets this one, the headless client ME_HEADLESS.
 if(MOKSHA_RENDERER STREQUAL "DX12")
-    target_compile_definitions(Moksha_Options INTERFACE ME_DX12)
+    set(MOKSHA_GRAPHICS_API_DEFINE ME_DX12)
 elseif(MOKSHA_RENDERER STREQUAL "METAL")
-    target_compile_definitions(Moksha_Options INTERFACE ME_METAL)
+    set(MOKSHA_GRAPHICS_API_DEFINE ME_METAL)
 elseif(MOKSHA_RENDERER STREQUAL "NONE")
-    target_compile_definitions(Moksha_Options INTERFACE ME_HEADLESS)
+    set(MOKSHA_GRAPHICS_API_DEFINE "")
 else()
     message(FATAL_ERROR "Moksha: unknown MOKSHA_RENDERER '${MOKSHA_RENDERER}'")
 endif()

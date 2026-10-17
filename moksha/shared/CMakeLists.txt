@@ -13,6 +13,11 @@ target_include_directories(Moksha_Shared PUBLIC ${PROJECT_SOURCE_DIR})
 # PUBLIC, so anything linking shared can use logging directly.
 target_link_libraries(Moksha_Shared PUBLIC Moksha_Options Moksha_Logging)
 
+# Matrix conventions (row- or column-major, clip space) follow the windowed client's graphics API.
+if(MOKSHA_GRAPHICS_API_DEFINE)
+    target_compile_definitions(Moksha_Shared PRIVATE ${MOKSHA_GRAPHICS_API_DEFINE})
+endif()
+
 if(WIN32)
     # Winsock, used by the sockets. PUBLIC so every program linking shared gets it too.
     target_link_libraries(Moksha_Shared PUBLIC Ws2_32)

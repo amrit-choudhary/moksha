@@ -1,6 +1,6 @@
-#ifdef ME_WIN
+#if defined(ME_WIN) || defined(ME_HEADLESS)
 
-#include "main_win.h"
+#include "client_app.h"
 
 #include <cstdio>
 
@@ -26,7 +26,11 @@ const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
     return config;
 }
 
+#ifdef ME_HEADLESS
+bool ME::ClientApp::Init() {
+#else
 bool ME::ClientApp::Init(HWND hWnd) {
+#endif
     if (game == nullptr) {
         ME::LogError("ClientApp: CreateGame returned no game");
         return false;
@@ -51,7 +55,9 @@ bool ME::ClientApp::Init(HWND hWnd) {
     ME::DebugSystem::SetInstance(&debugSystem);
 
     inputManager.Init(&window);
+#ifndef ME_HEADLESS
     winInputManager = static_cast<ME::Input::InputManagerWin*>(inputManager.GetPlatformInputManager());
+#endif
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
     gameClient.Init(config.serverIP.c_str(), config.serverPort);
@@ -67,7 +73,11 @@ bool ME::ClientApp::Init(HWND hWnd) {
 
     uiSystem.SetUIScene(game->GetUIScene());
 
+#ifdef ME_HEADLESS
+    renderer.InitHeadless(&window);
+#else
     renderer.InitDX(hWnd, &window);
+#endif
     renderer.SetVsyncEnabled(config.vsync);
     renderer.SetScenes(game->GetScene(), game->GetUIScene());
     renderer.SetDebugUIScene(debugSystem.GetUIScene());
@@ -169,10 +179,16 @@ void ME::ClientApp::Resume() {
     game->OnResume();
 }
 
+const ME::Time::TimeManager& ME::ClientApp::GetTime() const {
+    return timeManager;
+}
+
+#ifndef ME_HEADLESS
 void ME::ClientApp::HandleInput(UINT msg, WPARAM wParam, LPARAM lParam) {
     if (winInputManager != nullptr) {
         winInputManager->HandleInput(msg, wParam, lParam);
     }
 }
+#endif
 
-#endif  // ME_WIN
+#endif  // ME_WIN || ME_HEADLESS

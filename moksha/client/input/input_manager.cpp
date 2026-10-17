@@ -1,8 +1,8 @@
 #include "input_manager.h"
-#ifdef ME_MAC
+#if defined(ME_MAC) && !defined(ME_HEADLESS)
 #include "input_manager_mac.h"
 #endif
-#ifdef ME_WIN
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
 #include "input_manager_win.h"
 #endif
 
@@ -142,10 +142,12 @@ InputManager::~InputManager() {}
 
 void InputManager::Init(const ME::WindowState* inWindow) {
     window = inWindow;
-#ifdef ME_MAC
+#if defined(ME_HEADLESS)
+    // No window, so no OS input: the base manager does nothing and every key stays up.
+    platformInputManager = new PlatformInputManager();
+#elif defined(ME_MAC)
     platformInputManager = new InputManagerMac();
-#endif
-#ifdef ME_WIN
+#elif defined(ME_WIN)
     platformInputManager = new InputManagerWin();
 #endif
 

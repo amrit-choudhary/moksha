@@ -46,7 +46,7 @@ class AudioImplDummy : public IAudioImpl {
     void SetMasterVolume(float volume) override {}
 
     // Gets the master volume for all audio.
-    float GetMasterVolume() override;
+    float GetMasterVolume() override { return masterVolume; }
 
     // Toggles mute for all sounds.
     void ToggleMuteAllSounds(bool bMute) override {}
