@@ -16,6 +16,9 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
   weight. If an API change makes the engine more consistent, change it, fix the samples in the
   same session, and bump the samples' engine pin.
 - When it isn't clear whether something belongs in the engine or a game, ask.
+- Game-facing docs: [docs/game_guide.md](docs/game_guide.md) (rules, lifecycle, traps; games import it into
+  their `CLAUDE.md`) and [docs/game_cookbook.md](docs/game_cookbook.md) (recipes). Update both in the same
+  change as any game-facing API or behavior, and keep their snippets compiling against the current API.
 
 ## Modules and includes
 - Engine code lives under `moksha/<module>/`; includes are qualified from the repo root:
