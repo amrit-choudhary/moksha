@@ -7,12 +7,15 @@
 #include <QuartzCore/QuartzCore.hpp>
 
 #include "metal_view.h"
+#include "moksha/client/app/app_config.h"
 #include "moksha/client/rendering/shared/camera.h"
 #include "moksha/client/rendering/shared/light.h"
 #include "moksha/client/rendering/shared/shader_constants.h"
 #include "moksha/client/rendering/shared/sprite_renderer.h"
 #include "moksha/client/scene/scene_metal.h"
+#include "moksha/client/scene/scene_ui_metal.h"
 #include "moksha/logging/logging.h"
+#include "moksha/shared/misc/utils.h"
 #include "pso_metal.h"
 #include "quad_metal.h"
 
@@ -40,12 +43,26 @@ void ME::RendererMetal::SetScene(ME::Scene* gameScene) {
 
 void ME::RendererMetal::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) {
     SetScene(gameScene);
-    // The UI passes come with SceneUIMetal; until then the UI scene is only updated.
+
+    delete uiSceneMetal;
+    uiSceneMetal = nullptr;
     uiScene = inUiScene;
+    if (residencySet == nullptr || inUiScene == nullptr) {
+        return;
+    }
+    uiSceneMetal = new ME::SceneUIMetal(device, residencySet, inUiScene);
+    residencySet->commit();
 }
 
 void ME::RendererMetal::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
+    delete debugUiSceneMetal;
+    debugUiSceneMetal = nullptr;
     debugUiScene = inDebugUiScene;
+    if (residencySet == nullptr || inDebugUiScene == nullptr) {
+        return;
+    }
+    debugUiSceneMetal = new ME::SceneUIMetal(device, residencySet, inDebugUiScene);
+    residencySet->commit();
 }
 
 void ME::RendererMetal::SetVsyncEnabled(bool enabled) {
@@ -63,11 +80,19 @@ void ME::RendererMetal::Update() {
     if (sceneMetal != nullptr) {
         sceneMetal->Update();
     }
+    // If UI scene is set, update it too.
     if (uiScene != nullptr) {
         uiScene->Update();
     }
+    if (uiSceneMetal != nullptr) {
+        uiSceneMetal->Update();
+    }
+    // If the debug system's UI scene is set, update it too.
     if (debugUiScene != nullptr) {
         debugUiScene->Update();
+    }
+    if (debugUiSceneMetal != nullptr) {
+        debugUiSceneMetal->Update();
     }
 }
 
@@ -78,12 +103,18 @@ void ME::RendererMetal::End() {
 
     delete sceneMetal;
     sceneMetal = nullptr;
+    delete uiSceneMetal;
+    uiSceneMetal = nullptr;
+    delete debugUiSceneMetal;
+    debugUiSceneMetal = nullptr;
     delete quad;
     quad = nullptr;
 
-    NS::Object* objects[] = {
-        depthTexture, depthStateDisabled, depthStateDefault, pso2DAtl, pso2DInsAtl,  residencySet, argumentTable,
-        compiler,     commandBuffer,      commandAllocator,  fence,    commandQueue, device};
+    NS::Object* objects[] = {depthTexture,  depthStateDisabled, depthStateDefault,
+                             pso2DAtl,      pso2DInsAtl,        pso2DUIText,
+                             pso2DUISprite, residencySet,       argumentTable,
+                             compiler,      commandBuffer,      commandAllocator,
+                             fence,         commandQueue,       device};
     for (NS::Object* object : objects) {
         if (object != nullptr) {
             object->release();
@@ -94,6 +125,8 @@ void ME::RendererMetal::End() {
     depthStateDefault = nullptr;
     pso2DAtl = nullptr;
     pso2DInsAtl = nullptr;
+    pso2DUIText = nullptr;
+    pso2DUISprite = nullptr;
     residencySet = nullptr;
     argumentTable = nullptr;
     compiler = nullptr;
@@ -147,6 +180,8 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
     // Create PSOs and depth states.
     pso2DAtl = PSOMetal::CreatePSO2DAtlas(compiler, "sprite_atlas.metal");
     pso2DInsAtl = PSOMetal::CreatePSO2DInstancedAtlas(compiler, "sprite_instanced_atlas.metal");
+    pso2DUIText = PSOMetal::CreatePSO2DUIText(compiler, "ui_text.metal");
+    pso2DUISprite = PSOMetal::CreatePSO2DUISprite(compiler, "ui_sprite.metal");
     depthStateDefault = PSOMetal::CreateDepthStateDefault(device);
     depthStateDisabled = PSOMetal::CreateDepthStateDisabled(device);
 
@@ -170,7 +205,7 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
 
 void ME::RendererMetal::Draw() {
     if (commandQueue == nullptr || fence == nullptr || sceneMetal == nullptr || pso2DAtl == nullptr ||
-        pso2DInsAtl == nullptr) {
+        pso2DInsAtl == nullptr || pso2DUIText == nullptr || pso2DUISprite == nullptr) {
         return;
     }
 
@@ -262,6 +297,15 @@ void ME::RendererMetal::Draw() {
     }
     // End Sprite Drawing.
 
+    ///////////////////////////
+    // UI Drawing (game's own UI, then the debug system on top of it).
+    DrawUIScene(encoder, uiSceneMetal);
+
+    DrawUIScene(encoder, debugUiSceneMetal);
+
+    /////////////////////
+    // Drawing End
+
     encoder->endEncoding();
     commandBuffer->endCommandBuffer();
 
@@ -305,6 +349,78 @@ void ME::RendererMetal::DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encod
 
     encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
                                    quad->indexBuffer->gpuAddress(), quad->indicesSize, instanceCount);
+}
+
+void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::SceneUIMetal* uiSceneMetal) {
+    if (uiSceneMetal == nullptr) {
+        return;
+    }
+
+    // UI is drawn over the sprites, in UI space (pixels from the top left) mapped by the window's size.
+    encoder->setDepthStencilState(depthStateDisabled);
+    const uint32_t screenDimension = ME::Utils::Pack16To32(window->width, window->height);
+
+    ///////////////////////////
+    // UI Sprite Drawing (atlas at texture slot 0).
+    if (uiSceneMetal->uiSpriteInstanceData.count != 0) {
+        encoder->setRenderPipelineState(pso2DUISprite);
+
+        const uint32_t textureIndex = 0;
+        const uint32_t atlasPropsIndex = 0;
+        const uint32_t cbPerPassIndex = 0;  // UI Sprite CB is at index 0.
+
+        CBPerPassUISprite perPassData{};
+        perPassData.screenDimension = screenDimension;
+        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
+        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(),
+                                  MetalBindings::PerPassBuffer);
+
+        ME::TextureAtlasProperties atlasProps = uiSceneMetal->textureAtlasProperties[atlasPropsIndex];
+        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
+        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+                                  MetalBindings::AtlasBuffer);
+
+        argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
+                                  MetalBindings::Texture);
+
+        uiSceneMetal->uiSpriteInstanceBuffer->CopyData(uiSceneMetal->uiSpriteInstanceData.data);
+        argumentTable->setAddress(uiSceneMetal->uiSpriteInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
+
+        encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
+                                       quad->indexBuffer->gpuAddress(), quad->indicesSize,
+                                       uiSceneMetal->uiSpriteInstanceData.count);
+    }
+
+    ///////////////////////////
+    // Text Drawing (font at texture slot 1).
+    if (uiSceneMetal->textInstanceData.count != 0) {
+        encoder->setRenderPipelineState(pso2DUIText);
+
+        const uint32_t textureIndex = 1;
+        const uint32_t atlasPropsIndex = 1;
+        const uint32_t cbPerPassIndex = 1;  // UI Text CB is at index 1.
+
+        CBPerPassUIText perPassData{};
+        perPassData.screenDimension = screenDimension;
+        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
+        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(),
+                                  MetalBindings::PerPassBuffer);
+
+        ME::TextureAtlasProperties atlasProps = uiSceneMetal->textureAtlasProperties[atlasPropsIndex];
+        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
+        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+                                  MetalBindings::AtlasBuffer);
+
+        argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
+                                  MetalBindings::Texture);
+
+        uiSceneMetal->textInstanceBuffer->CopyData(uiSceneMetal->textInstanceData.data);
+        argumentTable->setAddress(uiSceneMetal->textInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
+
+        encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
+                                       quad->indexBuffer->gpuAddress(), quad->indicesSize,
+                                       uiSceneMetal->textInstanceData.count);
+    }
 }
 
 void ME::RendererMetal::FlushCommandQueue() {

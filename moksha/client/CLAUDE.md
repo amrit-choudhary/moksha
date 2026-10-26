@@ -17,16 +17,16 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   source at startup). No root signature or descriptor heap: one argument table at the fixed indices in
   `MetalBindings` (`pso_metal.h`, Metal snapshots it at each draw) and one residency set holding every buffer and
   texture, added to the queue with the layer's set. Depth is a renderer-owned `Depth32Float` texture sized to the
-  drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws the plain sprite
-  pass and both instanced sets so far (instance data is read as packed columns: the C++ structs are 88 bytes). The
-  content view is an `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a
-  drawable only inside draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop.
-  The renderer reaches the view only through `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles
-  metal-cpp's implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
+  drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws every pass
+  RendererDX draws: plain sprites, both instanced sets, the UI sprite and text passes and the debug overlay
+  (`SceneUIMetal`); instance data is read as packed columns, since the C++ structs are 88 bytes. The content view is
+  an `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a drawable only
+  inside draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop. The renderer
+  reaches the view only through `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's
+  implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
 - Constant buffer layouts shared by both APIs are in `rendering/shared/shader_constants.h`. Mac work left, in order:
-  the UI passes and debug overlay (`SceneUIMetal`, `ui_sprite.metal`, `ui_text.metal`), Retina
-  (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs Xcode's Metal
-  toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
+  Retina (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs
+  Xcode's Metal toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
 - Metal shaders (`resources/shaders/metal/`) are self-contained `.metal` files (no `#include`: they compile from
   source at startup with `MTL4Compiler`), each mirroring its `.hlsl` and repeating the structs and atlas helper it
   uses. The `mac-metal` cook copies them and turns textures into the same RGBA8 `.dds` as `win-dx12`.
@@ -55,7 +55,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
   Metal (`rendering/metal/`, `scene/scene_metal.*`), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_HEADLESS`, never on the OS define.
-- The DX12 UI passes use fixed texture slots: a `SceneUI`'s sprite atlas at index 0 and font at index 1.
+- The UI passes (DX12 and Metal) use fixed texture slots: a `SceneUI`'s sprite atlas at index 0 and font at index 1.
 - **Metal code uses the Metal 4 API only** (`MTL4CommandQueue`, command allocators, argument tables, residency sets,
   explicit barriers, `MTL4Compiler`), never the older per-encoder binding style (`setVertexBytes`, `setFragmentTexture`).
   Its model matches DX12's, so Metal classes mirror the DX12 ones. Requires Apple silicon (M1+) and macOS/iOS 26+.

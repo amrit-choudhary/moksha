@@ -16,7 +16,9 @@
         ],
         "metal": [
             "shaders/metal/sprite_atlas.metal",
-            "shaders/metal/sprite_instanced_atlas.metal"
+            "shaders/metal/sprite_instanced_atlas.metal",
+            "shaders/metal/ui_text.metal",
+            "shaders/metal/ui_sprite.metal"
         ]
     }
 }

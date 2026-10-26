@@ -41,6 +41,12 @@ class PSOMetal {
     // Instanced sprites with texture atlases (shaders/metal/sprite_instanced_atlas.metal). Null on failure (logged).
     static MTL::RenderPipelineState* CreatePSO2DInstancedAtlas(MTL4::Compiler* compiler, const char* shaderName);
 
+    // UI sprites, instanced (shaders/metal/ui_sprite.metal). Null on failure (logged).
+    static MTL::RenderPipelineState* CreatePSO2DUISprite(MTL4::Compiler* compiler, const char* shaderName);
+
+    // UI text, instanced (shaders/metal/ui_text.metal). Null on failure (logged).
+    static MTL::RenderPipelineState* CreatePSO2DUIText(MTL4::Compiler* compiler, const char* shaderName);
+
     // Depth test less with writes: the DX default, used by the sprite passes.
     static MTL::DepthStencilState* CreateDepthStateDefault(MTL::Device* device);
 

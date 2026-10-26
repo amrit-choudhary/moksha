@@ -37,6 +37,7 @@ class UploadBufferMetal;
 class Scene;
 class SceneMetal;
 class SceneUI;
+class SceneUIMetal;
 class WindowState;
 
 /**
@@ -75,7 +76,9 @@ class RendererMetal : public PlatformRenderer {
     ME::Scene* scene = nullptr;
     ME::SceneMetal* sceneMetal = nullptr;
     ME::SceneUI* uiScene = nullptr;
+    ME::SceneUIMetal* uiSceneMetal = nullptr;
     ME::SceneUI* debugUiScene = nullptr;
+    ME::SceneUIMetal* debugUiSceneMetal = nullptr;
 
     const MetalView* view = nullptr;
     const WindowState* window = nullptr;
@@ -103,6 +106,10 @@ class RendererMetal : public PlatformRenderer {
     MTL::RenderPipelineState* pso2DAtl = nullptr;
     // Pipeline for 2D rendering with instancing and texture atlases.
     MTL::RenderPipelineState* pso2DInsAtl = nullptr;
+    // Pipeline for UI Text rendering.
+    MTL::RenderPipelineState* pso2DUIText = nullptr;
+    // Pipeline for UI Sprite rendering.
+    MTL::RenderPipelineState* pso2DUISprite = nullptr;
 
     // Depth test and writes for the sprite passes; none for the UI passes.
     MTL::DepthStencilState* depthStateDefault = nullptr;
@@ -120,6 +127,10 @@ class RendererMetal : public PlatformRenderer {
     void DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
                                 const ME::SpriteRendererInstanceData* instanceData,
                                 ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount);
+
+    // Issues the UI Sprite + UI Text draw passes for one SceneUIMetal. Shared by the main UI scene and the debug
+    // system's UI scene: same pipelines, different data. No-op if uiSceneMetal is nullptr.
+    void DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::SceneUIMetal* uiSceneMetal);
 
     // Makes depthTexture width x height pixels, replacing it (and its residency) if the size changed.
     void EnsureDepthTexture(uint32_t width, uint32_t height);

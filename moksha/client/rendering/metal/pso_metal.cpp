@@ -90,6 +90,14 @@ MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DInstancedAtlas(MTL4::Compiler
     return CreatePSO2DBlended(compiler, shaderName);
 }
 
+MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DUISprite(MTL4::Compiler* compiler, const char* shaderName) {
+    return CreatePSO2DBlended(compiler, shaderName);
+}
+
+MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DUIText(MTL4::Compiler* compiler, const char* shaderName) {
+    return CreatePSO2DBlended(compiler, shaderName);
+}
+
 MTL::DepthStencilState* ME::PSOMetal::CreateDepthStateDefault(MTL::Device* device) {
     MTL::DepthStencilDescriptor* descriptor = MTL::DepthStencilDescriptor::alloc()->init();
     descriptor->setDepthCompareFunction(MTL::CompareFunctionLess);
