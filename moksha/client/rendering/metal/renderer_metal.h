@@ -2,16 +2,24 @@
 #ifdef ME_METAL
 
 /**
- * Renderer class for Metal on macOS. Draws into the window's view through MetalView; for now it only clears and
- * presents. Must draw from inside the view's draw, where the view hands out a fresh drawable each frame.
+ * Renderer class for Metal on macOS, on the Metal 4 API. Draws into the window's view through MetalView; for now it
+ * only clears and presents. Must draw from inside the view's draw, where the view hands out a fresh drawable.
  */
+
+#include <cstdint>
 
 #include "moksha/client/rendering/shared/renderer.h"
 
 namespace MTL {
-class CommandQueue;
 class Device;
+class SharedEvent;
 }  // namespace MTL
+
+namespace MTL4 {
+class CommandAllocator;
+class CommandBuffer;
+class CommandQueue;
+}  // namespace MTL4
 
 namespace ME {
 
@@ -40,7 +48,7 @@ class RendererMetal : public PlatformRenderer {
     // Updates the scenes that were set.
     void Update() override;
 
-    // Releases the command queue and the device.
+    // Waits for the GPU, then releases every Metal object.
     void End() override;
 
     // Initialize Metal for view, using its device. view must outlive the renderer; window is the app's window state.
@@ -52,8 +60,6 @@ class RendererMetal : public PlatformRenderer {
 
    private:
     bool vsyncEnabled = true;
-    // The layer is only reachable through a drawable, so a vsync change is applied on the next Draw.
-    bool vsyncChanged = true;
 
     ME::Scene* scene = nullptr;
     ME::SceneUI* uiScene = nullptr;
@@ -62,7 +68,21 @@ class RendererMetal : public PlatformRenderer {
     const MetalView* view = nullptr;
     const WindowState* window = nullptr;
     MTL::Device* device = nullptr;
-    MTL::CommandQueue* commandQueue = nullptr;
+    MTL4::CommandQueue* commandQueue = nullptr;
+
+    // One frame in flight: the allocator is reset at the start of each frame, after the GPU finished the last.
+    MTL4::CommandAllocator* commandAllocator = nullptr;
+    MTL4::CommandBuffer* commandBuffer = nullptr;
+
+    // Signalled by the queue with currentFence when a frame's work completes.
+    MTL::SharedEvent* fence = nullptr;
+    uint64_t currentFence = 0;
+
+    // TEMP: drives the clear colour cycle in Draw.
+    uint64_t frameCount = 0;
+
+    // Blocks until the GPU has finished everything committed so far.
+    void FlushCommandQueue();
 };
 
 }  // namespace ME

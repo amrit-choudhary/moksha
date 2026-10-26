@@ -8,6 +8,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 #include <string>
 
@@ -189,8 +190,12 @@ class MTKMetalView : public ME::MetalView {
         return reinterpret_cast<MTL::Device*>((__bridge void*)view.device);
     }
 
-    MTL::RenderPassDescriptor* GetCurrentRenderPass() const override {
-        return reinterpret_cast<MTL::RenderPassDescriptor*>((__bridge void*)view.currentRenderPassDescriptor);
+    CA::MetalLayer* GetLayer() const override {
+        return reinterpret_cast<CA::MetalLayer*>((__bridge void*)view.layer);
+    }
+
+    MTL4::RenderPassDescriptor* GetCurrentRenderPass() const override {
+        return reinterpret_cast<MTL4::RenderPassDescriptor*>((__bridge void*)view.currentMTL4RenderPassDescriptor);
     }
 
     CA::MetalDrawable* GetCurrentDrawable() const override {

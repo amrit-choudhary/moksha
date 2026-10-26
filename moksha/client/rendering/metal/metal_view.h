@@ -9,12 +9,16 @@
 
 namespace CA {
 class MetalDrawable;
+class MetalLayer;
 }  // namespace CA
 
 namespace MTL {
 class Device;
-class RenderPassDescriptor;
 }  // namespace MTL
+
+namespace MTL4 {
+class RenderPassDescriptor;
+}  // namespace MTL4
 
 namespace ME {
 
@@ -25,9 +29,12 @@ class MetalView {
     // The GPU the view presents with. Not owned; retain it to keep it.
     virtual MTL::Device* GetDevice() const = 0;
 
-    // A render pass into this frame's drawable, or nullptr when the view has none to give (e.g. the window is
-    // hidden). Obtains the drawable, so call it as late as possible.
-    virtual MTL::RenderPassDescriptor* GetCurrentRenderPass() const = 0;
+    // The layer the view presents to (vsync, its residency set). Not owned.
+    virtual CA::MetalLayer* GetLayer() const = 0;
+
+    // A Metal 4 render pass into this frame's drawable, or nullptr when the view has none to give (e.g. the window
+    // is hidden). Obtains the drawable, so call it as late as possible.
+    virtual MTL4::RenderPassDescriptor* GetCurrentRenderPass() const = 0;
 
     // This frame's drawable, or nullptr together with GetCurrentRenderPass.
     virtual CA::MetalDrawable* GetCurrentDrawable() const = 0;

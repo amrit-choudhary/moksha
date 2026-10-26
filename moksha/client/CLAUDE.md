@@ -11,14 +11,18 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   pump with `nextEventMatchingMask`, `Tick`; Cmd+Q and closing end the loop, so `Shutdown` always runs),
   `platform/headless/headless_main.cpp` (plain `main`, `Tick` + `Time::WaitForNextFixedStep`). Keep the Mac
   driver parallel to the Windows one.
-- macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal`, which only
-  clears the window and presents. The content view is an `MTKView` the loop draws with `[view draw]` (it hands out
-  a drawable only inside draw), so `Tick` runs from `drawInMTKView`; waiting for the drawable paces the loop.
-  `metal_cpp_impl.cpp` compiles metal-cpp's implementation once. The other `rendering/metal/` files and
-  `scene_metal` predate the current `Scene` API and are left out of the build. Mac work left, in order: scene data
-  on the GPU (`scene_metal`), shaders and textures (cooked for `mac-metal`), sprites and the atlas sprite sets, the
-  DX12 UI passes (`scene_ui_dx`, UI sprites/text, debug overlay), Retina (`WindowState::dpiScale`) and resizing;
-  an `.app` bundle when distribution needs one.
+- macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4
+  (`MTL4CommandQueue`, one allocator and command buffer, the layer's residency set, one frame in flight flushed
+  with a shared event like DX12's `FlushCommandQueue`), which only clears and presents. The content view is an
+  `MTKView` the loop draws with `[view draw]` (it hands out a drawable only inside draw), so `Tick` runs from
+  `drawInMTKView`; waiting for the drawable paces the loop. The renderer reaches the view only through
+  `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's implementation once.
+- The other `rendering/metal/` files and `scene_metal` predate both the current `Scene` API and Metal 4 (device-made
+  pipelines, per-frame command buffers); they are out of the build and get rewritten on Metal 4, mirroring their
+  DX12 counterparts, as they're ported. Mac work left, in order: scene data on the GPU (`scene_metal`), shaders and
+  textures (cooked for `mac-metal`), sprites and the atlas sprite sets, the DX12 UI passes (`scene_ui_dx`, UI
+  sprites/text, debug overlay), Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution
+  needs one.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
@@ -38,6 +42,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   Metal (`rendering/metal/`, `scene/scene_metal.*`), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_HEADLESS`, never on the OS define.
 - The DX12 UI passes use fixed texture slots: a `SceneUI`'s sprite atlas at index 0 and font at index 1.
+- **Metal code uses the Metal 4 API only** (`MTL4CommandQueue`, command allocators, argument tables, residency sets,
+  explicit barriers, `MTL4Compiler`), never the older per-encoder binding style (`setVertexBytes`, `setFragmentTexture`).
+  Its model matches DX12's, so Metal classes mirror the DX12 ones. Requires Apple silicon (M1+) and macOS/iOS 26+.
 - Shaders are loaded cooked (`shaders/hlsl/<name>_vs.cso` / `_ps.cso`), textures as `.dds`; see
   [tools/CLAUDE.md](../../tools/CLAUDE.md) for the cook.
 

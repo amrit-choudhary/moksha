@@ -4,12 +4,22 @@
 
 #include <Metal/Metal.hpp>
 #include <QuartzCore/QuartzCore.hpp>
+#include <cmath>
 
 #include "metal_view.h"
 #include "moksha/logging/logging.h"
 
 // Same clear colour as the DX12 renderer.
 static const MTL::ClearColor kClearColor = MTL::ClearColor::Make(0.01, 0.01, 0.01, 1.0);
+
+// TEMP: the clear colour cycles between these two every frame, to check the render loop by eye. Remove with
+// frameCount once the renderer draws something.
+static const MTL::ClearColor kCycleColorA = MTL::ClearColor::Make(0.05, 0.10, 0.35, 1.0);
+static const MTL::ClearColor kCycleColorB = MTL::ClearColor::Make(0.45, 0.10, 0.25, 1.0);
+static constexpr double kCycleFrames = 240.0;
+
+// Longest wait for the GPU before giving up on a frame.
+static constexpr uint64_t kGpuWaitMilliseconds = 1000;
 
 void ME::RendererMetal::Init() {
     ME::Log("RendererMetal::Init");
@@ -30,7 +40,9 @@ void ME::RendererMetal::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
 
 void ME::RendererMetal::SetVsyncEnabled(bool enabled) {
     vsyncEnabled = enabled;
-    vsyncChanged = true;
+    if (view != nullptr) {
+        view->GetLayer()->setDisplaySyncEnabled(vsyncEnabled);
+    }
 }
 
 void ME::RendererMetal::Update() {
@@ -47,6 +59,21 @@ void ME::RendererMetal::Update() {
 }
 
 void ME::RendererMetal::End() {
+    if (commandQueue != nullptr && fence != nullptr) {
+        FlushCommandQueue();
+    }
+    if (commandBuffer != nullptr) {
+        commandBuffer->release();
+        commandBuffer = nullptr;
+    }
+    if (commandAllocator != nullptr) {
+        commandAllocator->release();
+        commandAllocator = nullptr;
+    }
+    if (fence != nullptr) {
+        fence->release();
+        fence = nullptr;
+    }
     if (commandQueue != nullptr) {
         commandQueue->release();
         commandQueue = nullptr;
@@ -67,18 +94,31 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
         return false;
     }
     device = view->GetDevice()->retain();
-    commandQueue = device->newCommandQueue();
+
+    commandQueue = device->newMTL4CommandQueue();
+    commandAllocator = device->newCommandAllocator();
+    commandBuffer = device->newCommandBuffer();
+    fence = device->newSharedEvent();
+    if (commandQueue == nullptr || commandAllocator == nullptr || commandBuffer == nullptr || fence == nullptr) {
+        ME::LogError("RendererMetal: couldn't create the Metal 4 command objects");
+        return false;
+    }
+
+    // Metal 4 makes nothing resident by itself; the layer's set keeps its drawables resident for this queue.
+    commandQueue->addResidencySet(view->GetLayer()->residencySet());
+    view->GetLayer()->setDisplaySyncEnabled(vsyncEnabled);
+
     ME::Log("RendererMetal::InitMetal");
     return true;
 }
 
 void ME::RendererMetal::Draw() {
-    if (commandQueue == nullptr) {
+    if (commandQueue == nullptr || fence == nullptr) {
         return;
     }
 
     // Both are nil while the view has no drawable to give (e.g. the window is hidden); skip the frame then.
-    MTL::RenderPassDescriptor* renderPass = view->GetCurrentRenderPass();
+    MTL4::RenderPassDescriptor* renderPass = view->GetCurrentRenderPass();
     CA::MetalDrawable* drawable = view->GetCurrentDrawable();
     if (renderPass == nullptr || drawable == nullptr) {
         return;
@@ -86,17 +126,40 @@ void ME::RendererMetal::Draw() {
     MTL::RenderPassColorAttachmentDescriptor* colorTarget = renderPass->colorAttachments()->object(0);
     colorTarget->setLoadAction(MTL::LoadActionClear);
     colorTarget->setClearColor(kClearColor);
-    if (vsyncChanged) {
-        drawable->layer()->setDisplaySyncEnabled(vsyncEnabled);
-        vsyncChanged = false;
-    }
 
-    MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
-    MTL::RenderCommandEncoder* encoder = commandBuffer->renderCommandEncoder(renderPass);
+    // TEMP: cycle the clear colour (see kCycleColorA).
+    const double t = 0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(frameCount) / kCycleFrames);
+    colorTarget->setClearColor(MTL::ClearColor::Make(kCycleColorA.red + (kCycleColorB.red - kCycleColorA.red) * t,
+                                                     kCycleColorA.green + (kCycleColorB.green - kCycleColorA.green) * t,
+                                                     kCycleColorA.blue + (kCycleColorB.blue - kCycleColorA.blue) * t,
+                                                     1.0));
+    ++frameCount;
+
+    // The previous frame was flushed, so its allocator memory is free to reuse.
+    commandAllocator->reset();
+    commandBuffer->beginCommandBuffer(commandAllocator);
+
+    MTL4::RenderCommandEncoder* encoder = commandBuffer->renderCommandEncoder(renderPass);
     encoder->endEncoding();
 
-    commandBuffer->presentDrawable(drawable);
-    commandBuffer->commit();
+    commandBuffer->endCommandBuffer();
+
+    // Rendering waits until the drawable is free; presenting waits until the work that drew it is done.
+    const MTL4::CommandBuffer* commandBuffers[] = {commandBuffer};
+    commandQueue->wait(drawable);
+    commandQueue->commit(commandBuffers, 1);
+    commandQueue->signalDrawable(drawable);
+    drawable->present();
+
+    FlushCommandQueue();
+}
+
+void ME::RendererMetal::FlushCommandQueue() {
+    ++currentFence;
+    commandQueue->signalEvent(fence, currentFence);
+    if (!fence->waitUntilSignaledValue(currentFence, kGpuWaitMilliseconds)) {
+        ME::LogError("RendererMetal: the GPU didn't finish a frame in time");
+    }
 }
 
 #endif  // ME_METAL

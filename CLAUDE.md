@@ -53,7 +53,7 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
   `.cpp`, re-run `cmake -B build`.
 
 ## Platforms
-Targets: Windows (DirectX 12, later Vulkan), macOS and iOS (Metal), Android (Vulkan), Linux
+Targets: Windows (DirectX 12, later Vulkan), macOS and iOS (Metal 4 only: Apple silicon, OS 26+), Android (Vulkan), Linux
 (Vulkan client later; servers and headless client), Web (Emscripten, WebGPU/WebGL). Every
 change is checked against all of them, even those not built yet:
 - **OS and graphics API are separate defines.**
