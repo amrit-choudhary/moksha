@@ -4,19 +4,12 @@
 
 #include <Metal/Metal.hpp>
 #include <QuartzCore/QuartzCore.hpp>
-#include <cmath>
 
 #include "metal_view.h"
 #include "moksha/logging/logging.h"
 
 // Same clear colour as the DX12 renderer.
 static const MTL::ClearColor kClearColor = MTL::ClearColor::Make(0.01, 0.01, 0.01, 1.0);
-
-// TEMP: the clear colour cycles between these two every frame, to check the render loop by eye. Remove with
-// frameCount once the renderer draws something.
-static const MTL::ClearColor kCycleColorA = MTL::ClearColor::Make(0.05, 0.10, 0.35, 1.0);
-static const MTL::ClearColor kCycleColorB = MTL::ClearColor::Make(0.45, 0.10, 0.25, 1.0);
-static constexpr double kCycleFrames = 240.0;
 
 // Longest wait for the GPU before giving up on a frame.
 static constexpr uint64_t kGpuWaitMilliseconds = 1000;
@@ -126,14 +119,6 @@ void ME::RendererMetal::Draw() {
     MTL::RenderPassColorAttachmentDescriptor* colorTarget = renderPass->colorAttachments()->object(0);
     colorTarget->setLoadAction(MTL::LoadActionClear);
     colorTarget->setClearColor(kClearColor);
-
-    // TEMP: cycle the clear colour (see kCycleColorA).
-    const double t = 0.5 - 0.5 * std::cos(6.283185307179586 * static_cast<double>(frameCount) / kCycleFrames);
-    colorTarget->setClearColor(MTL::ClearColor::Make(kCycleColorA.red + (kCycleColorB.red - kCycleColorA.red) * t,
-                                                     kCycleColorA.green + (kCycleColorB.green - kCycleColorA.green) * t,
-                                                     kCycleColorA.blue + (kCycleColorB.blue - kCycleColorA.blue) * t,
-                                                     1.0));
-    ++frameCount;
 
     // The previous frame was flushed, so its allocator memory is free to reuse.
     commandAllocator->reset();

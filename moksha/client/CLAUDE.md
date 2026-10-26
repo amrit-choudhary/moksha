@@ -14,8 +14,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4
   (`MTL4CommandQueue`, one allocator and command buffer, the layer's residency set, one frame in flight flushed
   with a shared event like DX12's `FlushCommandQueue`), which only clears and presents. The content view is an
-  `MTKView` the loop draws with `[view draw]` (it hands out a drawable only inside draw), so `Tick` runs from
-  `drawInMTKView`; waiting for the drawable paces the loop. The renderer reaches the view only through
+  `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a drawable only inside
+  draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop. The renderer reaches the view only through
   `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's implementation once.
 - The other `rendering/metal/` files and `scene_metal` predate both the current `Scene` API and Metal 4 (device-made
   pipelines, per-frame command buffers); they are out of the build and get rewritten on Metal 4, mirroring their

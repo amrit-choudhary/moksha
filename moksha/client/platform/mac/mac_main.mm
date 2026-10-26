@@ -17,24 +17,13 @@
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
 
-// Window and app events (close, Cmd+Q, minimize) and the view's frames: the macOS side of win_main's WindowProcW.
-@interface MEWindowDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, MTKViewDelegate>
+// Window and app events (close, Cmd+Q, minimize): the macOS side of win_main's WindowProcW.
+@interface MEWindowDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @property(nonatomic, assign) ME::ClientApp* app;
 @property(nonatomic, assign) bool quitRequested;
-@property(nonatomic, assign) bool gameQuit;
 @end
 
 @implementation MEWindowDelegate
-
-// One frame: the view calls this from its draw, where it hands out the frame's drawable.
-- (void)drawInMTKView:(nonnull MTKView*)view {
-    if (self.app != nullptr && !self.app->Tick()) {
-        self.gameQuit = true;
-    }
-}
-
-- (void)mtkView:(nonnull MTKView*)view drawableSizeWillChange:(CGSize)size {
-}
 
 - (void)windowWillClose:(NSNotification*)notification {
     self.quitRequested = true;
@@ -63,9 +52,19 @@
 // The window's content view, which Metal draws into. Input events go to the app, which gives them to the input system.
 @interface MEView : MTKView
 @property(nonatomic, assign) ME::ClientApp* app;
+// Set once the game asked to quit (Tick returned false).
+@property(nonatomic, assign) bool gameQuit;
 @end
 
 @implementation MEView
+
+// One frame. MTKView calls this from draw, the only place it hands out the frame's drawable; overriding it (rather
+// than setting a delegate) is how a subclass draws.
+- (void)drawRect:(NSRect)dirtyRect {
+    if (self.app != nullptr && !self.app->Tick()) {
+        self.gameQuit = true;
+    }
+}
 
 - (BOOL)acceptsFirstResponder {
     return YES;
@@ -289,7 +288,6 @@ int main(int argc, char* argv[]) {
         }
         windowDelegate.app = &app;
         view.app = &app;
-        [view setDelegate:windowDelegate];
         [window makeKeyAndOrderFront:nil];
         if (@available(macOS 14.0, *)) {
             [NSApp activate];
@@ -316,17 +314,16 @@ int main(int argc, char* argv[]) {
                     break;
                 }
 
-                // Runs app.Tick through drawInMTKView. Waiting for the drawable paces the loop, as Present does on
-                // Windows.
+                // Runs app.Tick through the view's drawRect. Waiting for the drawable paces the loop, as Present does
+                // on Windows.
                 [view draw];
-                if (windowDelegate.gameQuit) {
+                if (view.gameQuit) {
                     // The game asked to quit; closing the window sets quitRequested, which ends the loop.
                     [window close];
                 }
             }
         }
 
-        [view setDelegate:nil];
         windowDelegate.app = nullptr;
         view.app = nullptr;
         app.Shutdown();

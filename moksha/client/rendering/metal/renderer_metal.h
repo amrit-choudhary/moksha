@@ -78,9 +78,6 @@ class RendererMetal : public PlatformRenderer {
     MTL::SharedEvent* fence = nullptr;
     uint64_t currentFence = 0;
 
-    // TEMP: drives the clear colour cycle in Draw.
-    uint64_t frameCount = 0;
-
     // Blocks until the GPU has finished everything committed so far.
     void FlushCommandQueue();
 };
