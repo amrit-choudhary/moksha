@@ -11,21 +11,27 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   pump with `nextEventMatchingMask`, `Tick`; Cmd+Q and closing end the loop, so `Shutdown` always runs),
   `platform/headless/headless_main.cpp` (plain `main`, `Tick` + `Time::WaitForNextFixedStep`). Keep the Mac
   driver parallel to the Windows one.
-- macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4
-  (`MTL4CommandQueue`, one allocator and command buffer, the layer's residency set, one frame in flight flushed
-  with a shared event like DX12's `FlushCommandQueue`), which only clears and presents. The content view is an
-  `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a drawable only inside
-  draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop. The renderer reaches the view only through
-  `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's implementation once.
-- The other `rendering/metal/` files and `scene_metal` predate both the current `Scene` API and Metal 4 (device-made
-  pipelines, per-frame command buffers); they are out of the build and get rewritten on Metal 4, mirroring their
-  DX12 counterparts, as they're ported. Mac work left, in order: scene data on the GPU (`scene_metal`), sprites
-  and the atlas sprite sets, the DX12 UI passes (`scene_ui_dx`, UI sprites/text, debug overlay), Retina
-  (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs Xcode's
-  Metal toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
+- macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4,
+  mirroring `RendererDX` class for class: `SceneMetal` (`SceneDX`), `UploadBufferMetal`, `TextureMetal`,
+  `QuadMetal`, `PSOMetal` (pipelines through `MTL4Compiler`, plus depth states), `ShaderMetal` (compiles a `.metal`
+  source at startup). No root signature or descriptor heap: one argument table at the fixed indices in
+  `MetalBindings` (`pso_metal.h`, Metal snapshots it at each draw) and one residency set holding every buffer and
+  texture, added to the queue with the layer's set. Depth is a renderer-owned `Depth32Float` texture sized to the
+  drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws the plain sprite
+  pass and both instanced sets so far (instance data is read as packed columns: the C++ structs are 88 bytes). The
+  content view is an `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a
+  drawable only inside draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop.
+  The renderer reaches the view only through `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles
+  metal-cpp's implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
+- Constant buffer layouts shared by both APIs are in `rendering/shared/shader_constants.h`. Mac work left, in order:
+  the UI passes and debug overlay (`SceneUIMetal`, `ui_sprite.metal`, `ui_text.metal`), Retina
+  (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs Xcode's Metal
+  toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
 - Metal shaders (`resources/shaders/metal/`) are self-contained `.metal` files (no `#include`: they compile from
   source at startup with `MTL4Compiler`), each mirroring its `.hlsl` and repeating the structs and atlas helper it
   uses. The `mac-metal` cook copies them and turns textures into the same RGBA8 `.dds` as `win-dx12`.
+- DX12 known issue: `SceneDX::MakeSpriteInstanceBuffer` returns early when instanced set 0 is empty, so a scene using
+  only set 1 gets no buffer for it (`SceneMetal` creates each set independently).
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
   with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
   (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus; a

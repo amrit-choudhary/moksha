@@ -164,12 +164,14 @@ Mat4 ME::Mat4::PerspectiveDX(float fov, float aspect, float near, float far) {
         0.0f, 0.0f, 1.0f, 0.0f};
 }
 
+// Metal and DX12 share clip space (depth 0..1, +z forward) and the shaders multiply the same way, so this matches
+// OrthographicDX.
 Mat4 ME::Mat4::OrthographicMTL(float left, float right, float bottom, float top, float near, float far) {
     return Mat4{
         2.0f / (right - left), 0.0f, 0.0f, 0.0f,
         0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
-        0.0f, 0.0f, -2.0f / (far - near), 0.0f,
-        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f};
+        0.0f, 0.0f, 1.0f / (far - near), 0.0f,
+        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -near / (far - near), 1.0f};
 }
 
 Mat4 ME::Mat4::OrthographicDX(float left, float right, float bottom, float top, float near, float far) {

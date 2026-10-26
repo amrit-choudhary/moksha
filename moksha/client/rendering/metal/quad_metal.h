@@ -2,32 +2,34 @@
 #ifdef ME_METAL
 
 /**
- * Metal's specific quad class.
- * Has MTL buffers for vertex, index and instance data.
- * This class is used to load and manage quads using Metal.
+ * Metal's quad class, the counterpart of QuadDX: the shared Quad's vertices and 16-bit indices in GPU buffers.
+ * The owner adds both buffers to a residency set.
  */
 
-#include <simd/simd.h>
-
-#include <Metal/Metal.hpp>
-
 #include "moksha/client/rendering/shared/quad.h"
+
+namespace MTL {
+class Buffer;
+class Device;
+}  // namespace MTL
 
 namespace ME {
 
 class QuadMetal : public Quad {
    public:
-    /**
-     * 1. Create Metal buffers for vertex, index and instance data.
-     * 2. Upload the data to the GPU.
-     */
-    QuadMetal(const char* path, MTL::Device* device, MTL::CommandQueue* cmdQueue);
+    QuadMetal();
     ~QuadMetal() override;
 
-    MTL::Buffer* vertexBuffer;
-    MTL::Buffer* indexBuffer;
+    QuadMetal(const QuadMetal&) = delete;
+    QuadMetal& operator=(const QuadMetal&) = delete;
+
+    // Create the vertex and index buffers on the GPU.
+    void CreateBuffers(MTL::Device* device);
+
+    MTL::Buffer* vertexBuffer = nullptr;
+    MTL::Buffer* indexBuffer = nullptr;
 };
 
 }  // namespace ME
 
-#endif
+#endif  // ME_METAL

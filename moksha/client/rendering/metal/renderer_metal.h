@@ -2,8 +2,8 @@
 #ifdef ME_METAL
 
 /**
- * Renderer class for Metal on macOS, on the Metal 4 API. Draws into the window's view through MetalView; for now it
- * only clears and presents. Must draw from inside the view's draw, where the view hands out a fresh drawable.
+ * Renderer class for Metal on macOS, on the Metal 4 API, mirroring RendererDX pass for pass. Draws into the window's
+ * view through MetalView, from inside the view's draw, where the view hands out a fresh drawable.
  */
 
 #include <cstdint>
@@ -11,20 +11,31 @@
 #include "moksha/client/rendering/shared/renderer.h"
 
 namespace MTL {
+class DepthStencilState;
 class Device;
+class RenderPipelineState;
+class ResidencySet;
 class SharedEvent;
+class Texture;
 }  // namespace MTL
 
 namespace MTL4 {
+class ArgumentTable;
 class CommandAllocator;
 class CommandBuffer;
 class CommandQueue;
+class Compiler;
+class RenderCommandEncoder;
 }  // namespace MTL4
 
 namespace ME {
 
 class MetalView;
+class QuadMetal;
+class SpriteRendererInstanceData;
+class UploadBufferMetal;
 class Scene;
+class SceneMetal;
 class SceneUI;
 class WindowState;
 
@@ -62,6 +73,7 @@ class RendererMetal : public PlatformRenderer {
     bool vsyncEnabled = true;
 
     ME::Scene* scene = nullptr;
+    ME::SceneMetal* sceneMetal = nullptr;
     ME::SceneUI* uiScene = nullptr;
     ME::SceneUI* debugUiScene = nullptr;
 
@@ -78,8 +90,39 @@ class RendererMetal : public PlatformRenderer {
     MTL::SharedEvent* fence = nullptr;
     uint64_t currentFence = 0;
 
+    // Compiles the shaders and pipelines at startup.
+    MTL4::Compiler* compiler = nullptr;
+
+    // Resource bindings for every pass, at the indices in MetalBindings; Metal snapshots it at each draw.
+    MTL4::ArgumentTable* argumentTable = nullptr;
+
+    // Every buffer and texture the renderer and its scenes create; added to the queue with the layer's set.
+    MTL::ResidencySet* residencySet = nullptr;
+
+    // Pipeline for 2D rendering with texture atlases. No instancing.
+    MTL::RenderPipelineState* pso2DAtl = nullptr;
+    // Pipeline for 2D rendering with instancing and texture atlases.
+    MTL::RenderPipelineState* pso2DInsAtl = nullptr;
+
+    // Depth test and writes for the sprite passes; none for the UI passes.
+    MTL::DepthStencilState* depthStateDefault = nullptr;
+    MTL::DepthStencilState* depthStateDisabled = nullptr;
+
+    // Depth buffer, sized to the drawable; recreated when the drawable's size changes.
+    MTL::Texture* depthTexture = nullptr;
+
+    ME::QuadMetal* quad = nullptr;
+
     // Blocks until the GPU has finished everything committed so far.
     void FlushCommandQueue();
+
+    // Issues one instanced sprite set: its texture and atlas slot, instance data and count. Shared by both sets.
+    void DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
+                                const ME::SpriteRendererInstanceData* instanceData,
+                                ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount);
+
+    // Makes depthTexture width x height pixels, replacing it (and its residency) if the size changed.
+    void EnsureDepthTexture(uint32_t width, uint32_t height);
 };
 
 }  // namespace ME

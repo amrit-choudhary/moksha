@@ -14,16 +14,12 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     endif()
     add_subdirectory(third_party/miniaudio-0.11.23)
 
-    # Only this graphics API's renderer files. On Metal, only the renderer and metal-cpp's implementation so far:
-    # the other rendering/metal files and scene_metal predate the current Scene API and come back as they're ported.
+    # Only this graphics API's renderer files.
     set(CLIENT_SOURCES ${SOURCES})
     if(MOKSHA_RENDERER STREQUAL "DX12")
         list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/metal/|/scene/scene_(ui_)?metal\.")
     elseif(MOKSHA_RENDERER STREQUAL "METAL")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.")
-        list(APPEND CLIENT_SOURCES
-             "${CMAKE_CURRENT_SOURCE_DIR}/rendering/metal/renderer_metal.cpp"
-             "${CMAKE_CURRENT_SOURCE_DIR}/rendering/metal/metal_cpp_impl.cpp")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/directx/|/scene/scene_(ui_)?dx\.")
     endif()
 
     add_library(Moksha_Client STATIC ${CLIENT_SOURCES})

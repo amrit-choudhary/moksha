@@ -2,134 +2,117 @@
 
 #include "scene_metal.h"
 
+#include <Metal/Metal.hpp>
+
+#include "moksha/client/rendering/shared/shader_constants.h"
 #include "moksha/shared/misc/engine_limits.h"
 
-ME::SceneMetal::SceneMetal(MTL::Device* device, MTL::CommandQueue* cmdQueue, ME::Scene* gameScene) {
-    this->device = device;
-    this->cmdQueue = cmdQueue;
-
+ME::SceneMetal::SceneMetal(MTL::Device* inDevice, MTL::ResidencySet* inResidencySet, ME::Scene* gameScene) {
+    device = inDevice;
+    residencySet = inResidencySet;
     scene = gameScene;
-    this->ambientLight = scene->ambientLight;
-    this->directionalLight = scene->directionalLight;
-    this->camera = scene->camera;
-    this->spriteCamera = scene->spriteCamera;
 
-    meshes = new ME::MeshMetal*[Constants::MaxMeshCount];
-    quads = new ME::QuadMetal*[Constants::MaxQuadCount];
-    textures = new ME::TextureMetal*[Constants::MaxTextureCount];
+    ambientLight = scene->ambientLight;
+    directionalLight = scene->directionalLight;
+    spriteCamera = scene->spriteCamera;
+
     spriteTextures = new ME::TextureMetal*[Constants::MaxSpriteTextureCount];
-    textureSamplerStates = new MTL::SamplerState*[Constants::MaxSamplerCount];
+    perPassCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
+    perSpriteCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
+    textureAtlasCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
 
-    transforms = scene->transforms;
-    transformCount = scene->transformCount;
-    spriteTransforms = scene->spriteTransforms;
-    spriteTransformCount = scene->spriteTransformCount;
-    instancedSpriteTransforms = scene->instancedSpriteTransforms;
-    instancedSpriteTransformCount = scene->instancedSpriteTransformCount;
-    textTransforms = scene->textTransforms;
-    textTransformsCount = scene->textTransformsCount;
-
-    meshRenderers = scene->meshRenderers;
-    meshRendererCount = scene->meshRendererCount;
-    spriteRenderers = scene->spriteRenderers;
-    spriteRendererCount = scene->spriteRendererCount;
-    instancedSpriteRenderers = scene->instancedSpriteRenderers;
-    instancedSpriteRendererCount = scene->instancedSpriteRendererCount;
-    spriteInstanceData = scene->spriteInstanceData;
     textureAtlasProperties = scene->textureAtlasProperties;
-    textRenderers = scene->textRenderers;
-    textRendererCount = scene->textRendererCount;
-    textInstanceData = scene->textInstanceData;
-    textInstanceDataCount = scene->textInstanceDataCount;
+    spriteTransforms = scene->spriteTransforms;
+    spriteRenderers = scene->spriteRenderers;
 
-    MakeMeshes();
-    MakeQuads();
-    MakeTextures();
+    instancedSpriteRenderers0 = scene->instancedSpriteRenderers0;
+    spriteInstanceData0 = scene->spriteInstanceData0;
+    instancedSpriteRenderers1 = scene->instancedSpriteRenderers1;
+    spriteInstanceData1 = scene->spriteInstanceData1;
+
+    MakeConstantBuffers();
     MakeSpriteTextures();
-    MakeShaders();
-    MakeTextureSamplers();
-
     MakeSpriteInstanceBuffer();
-    MakeTextInstanceBuffer();
+
+    // Only read while constructing: the game deletes its scene before the renderer ends.
+    scene = nullptr;
 }
 
 ME::SceneMetal::~SceneMetal() {
-    delete ambientLight;
-    delete directionalLight;
-    delete camera;
-
-    for (uint8_t i = 0; i < scene->meshPaths.count; i++) {
-        delete meshes[i];
-    }
-    delete[] meshes;
-
-    for (uint8_t i = 0; i < scene->quadPaths.count; i++) {
-        delete quads[i];
-    }
-    delete[] quads;
-
-    for (uint8_t i = 0; i < scene->texturePaths.count; i++) {
-        delete textures[i];
-    }
-    delete[] textures;
-
-    for (uint8_t i = 0; i < scene->spriteTexturePaths.count; i++) {
+    for (uint32_t i = 0; i < spriteTextureCount; ++i) {
         delete spriteTextures[i];
     }
     delete[] spriteTextures;
 
-    for (uint8_t i = 0; i < scene->textureSamplers.count; i++) {
-        textureSamplerStates[i]->release();
+    for (uint32_t i = 0; i < perPassCBCount; ++i) {
+        delete perPassCBs[i];
     }
-    delete[] textureSamplerStates;
-}
+    delete[] perPassCBs;
 
-void ME::SceneMetal::MakeMeshes() {
-    for (uint8_t i = 0; i < scene->meshPaths.count; i++) {
-        meshes[i] = new ME::MeshMetal(scene->meshPaths[i], device, cmdQueue);
+    for (uint32_t i = 0; i < perSpriteCBCount; ++i) {
+        delete perSpriteCBs[i];
     }
-}
+    delete[] perSpriteCBs;
 
-void ME::SceneMetal::MakeQuads() {
-    for (uint8_t i = 0; i < scene->quadPaths.count; i++) {
-        quads[i] = new ME::QuadMetal(scene->quadPaths[i], device, cmdQueue);
+    for (uint32_t i = 0; i < textureAtlasCBCount; ++i) {
+        delete textureAtlasCBs[i];
     }
-}
+    delete[] textureAtlasCBs;
 
-void ME::SceneMetal::MakeTextures() {
-    for (uint8_t i = 0; i < scene->texturePaths.count; i++) {
-        textures[i] = new ME::TextureMetal(scene->texturePaths[i], device, true, cmdQueue);
-    }
-}
-
-void ME::SceneMetal::MakeSpriteTextures() {
-    for (uint8_t i = 0; i < scene->spriteTexturePaths.count; i++) {
-        spriteTextures[i] = new ME::TextureMetal(scene->spriteTexturePaths[i], device, false, cmdQueue);
-    }
-}
-
-void ME::SceneMetal::MakeShaders() {}
-
-void ME::SceneMetal::MakeTextureSamplers() {
-    for (uint8_t i = 0; i < scene->textureSamplers.count; i++) {
-        if (scene->textureSamplers[i].filter == ME::TextureFilter::Nearest) {
-            textureSamplerStates[i] = ME::TextureMetal::GetSamplerStateNearest(device);
-        } else {
-            textureSamplerStates[i] = ME::TextureMetal::GetSamplerStateLinear(device);
-        }
-    }
-}
-
-void ME::SceneMetal::MakeSpriteInstanceBuffer() {
-    spriteInstanceBuffer = device->newBuffer(sizeof(ME::SpriteRendererInstanceData) * instancedSpriteRendererCount,
-                                             MTL::ResourceStorageModeManaged);
-}
-
-void ME::SceneMetal::MakeTextInstanceBuffer() {
-    textInstanceBuffer = device->newBuffer(sizeof(ME::TextRendererInstanceData) * textInstanceDataCount,
-                                           MTL::ResourceStorageModeManaged);
+    delete spriteInstanceBuffer0;
+    delete spriteInstanceBuffer1;
 }
 
 void ME::SceneMetal::Update() {}
 
-#endif
+void ME::SceneMetal::MakeSpriteTextures() {
+    spriteTextureCount = static_cast<uint32_t>(scene->spriteTexturePaths.count);
+    for (uint32_t i = 0; i < spriteTextureCount; ++i) {
+        spriteTextures[i] = new ME::TextureMetal(scene->spriteTexturePaths[i], device);
+        spriteTextures[i]->CreateBuffers(device);
+        if (spriteTextures[i]->GetTexture() != nullptr) {
+            residencySet->addAllocation(spriteTextures[i]->GetTexture());
+        }
+    }
+}
+
+void ME::SceneMetal::MakeConstantBuffers() {
+    // Per-pass constants for sprite rendering.
+    perPassCBCount = 1;
+    perPassCBs[0] = AddResident(new ME::UploadBufferMetal(device, true, 1, sizeof(ME::CBPerPass)));
+
+    // One per sprite renderer, as in SceneDX.
+    perSpriteCBCount = static_cast<uint32_t>(spriteRenderers.count);
+    for (uint32_t i = 0; i < perSpriteCBCount; ++i) {
+        perSpriteCBs[i] = AddResident(new ME::UploadBufferMetal(device, true, 1, sizeof(ME::CBPerSprite)));
+    }
+
+    textureAtlasCBCount = static_cast<uint32_t>(scene->textureAtlasProperties.count);
+    for (uint32_t i = 0; i < textureAtlasCBCount; ++i) {
+        textureAtlasCBs[i] =
+            AddResident(new ME::UploadBufferMetal(device, true, 1, sizeof(ME::TextureAtlasProperties)));
+    }
+}
+
+void ME::SceneMetal::MakeSpriteInstanceBuffer() {
+    // Each set independently (SceneDX skips set 1 when set 0 is empty).
+    if (instancedSpriteRenderers0.count != 0) {
+        spriteInstanceBuffer0 =
+            AddResident(new ME::UploadBufferMetal(device, false, static_cast<uint32_t>(instancedSpriteRenderers0.count),
+                                                  sizeof(ME::SpriteRendererInstanceData)));
+    }
+    if (instancedSpriteRenderers1.count != 0) {
+        spriteInstanceBuffer1 =
+            AddResident(new ME::UploadBufferMetal(device, false, static_cast<uint32_t>(instancedSpriteRenderers1.count),
+                                                  sizeof(ME::SpriteRendererInstanceData)));
+    }
+}
+
+ME::UploadBufferMetal* ME::SceneMetal::AddResident(ME::UploadBufferMetal* buffer) {
+    if (buffer->GetBuffer() != nullptr) {
+        residencySet->addAllocation(buffer->GetBuffer());
+    }
+    return buffer;
+}
+
+#endif  // ME_METAL

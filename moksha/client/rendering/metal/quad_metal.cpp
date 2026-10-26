@@ -2,19 +2,24 @@
 
 #include "quad_metal.h"
 
-ME::QuadMetal::QuadMetal(const char* path, MTL::Device* device, MTL::CommandQueue* cmdQueue) : Quad() {
-    vertexBuffer = device->newBuffer(verticesSize, MTL::ResourceStorageModeManaged);
-    indexBuffer = device->newBuffer(indicesSize, MTL::ResourceStorageModeManaged);
+#include <Metal/Metal.hpp>
 
-    memcpy(vertexBuffer->contents(), vertices, verticesSize);
-    vertexBuffer->didModifyRange(NS::Range::Make(0, vertexBuffer->length()));
-    memcpy(indexBuffer->contents(), indices, indicesSize);
-    indexBuffer->didModifyRange(NS::Range::Make(0, indexBuffer->length()));
-}
+ME::QuadMetal::QuadMetal() : Quad() {}
 
 ME::QuadMetal::~QuadMetal() {
-    vertexBuffer->release();
-    indexBuffer->release();
+    if (vertexBuffer != nullptr) {
+        vertexBuffer->release();
+        vertexBuffer = nullptr;
+    }
+    if (indexBuffer != nullptr) {
+        indexBuffer->release();
+        indexBuffer = nullptr;
+    }
 }
 
-#endif
+void ME::QuadMetal::CreateBuffers(MTL::Device* device) {
+    vertexBuffer = device->newBuffer(vertices, verticesSize, MTL::ResourceStorageModeShared);
+    indexBuffer = device->newBuffer(indices, indicesSize, MTL::ResourceStorageModeShared);
+}
+
+#endif  // ME_METAL

@@ -1,89 +1,77 @@
+#pragma once
 #ifdef ME_METAL
 
 /**
- * It takes a cross platform scene and converts it to a Metal scene.
- * This will create metal sepcific objects like buffers, textures, shaders, etc.
+ * Takes a cross platform scene and creates its Metal resources: the counterpart of SceneDX. Sprite textures and
+ * constant buffers are created here and added to the renderer's residency set (Metal 4 makes nothing resident by
+ * itself); the renderer commits the set. The game's Scene is read only while constructing.
  */
 
-#pragma once
+#include <cstdint>
 
-#include <simd/simd.h>
-
-#include <Metal/Metal.hpp>
-
-#include "moksha/client/rendering/metal/mesh_metal.h"
-#include "moksha/client/rendering/metal/quad_metal.h"
 #include "moksha/client/rendering/metal/texture_metal.h"
+#include "moksha/client/rendering/metal/upload_buffer_metal.h"
 #include "scene.h"
+
+namespace MTL {
+class Device;
+class ResidencySet;
+}  // namespace MTL
 
 namespace ME {
 
 class SceneMetal {
    public:
     SceneMetal() = delete;
-    SceneMetal(MTL::Device* device, MTL::CommandQueue* cmdQueue, ME::Scene* gameScene);
+    SceneMetal(MTL::Device* device, MTL::ResidencySet* residencySet, ME::Scene* gameScene);
     ~SceneMetal();
 
-    // Init game
-    void Init();
+    SceneMetal(const SceneMetal&) = delete;
+    SceneMetal& operator=(const SceneMetal&) = delete;
 
-    // Update scene. Mostly used to update the transforms and instance count. Actual scene change is done in the
-    // ME::Scene class.
+    // Updates Metal-side data before drawing; called from RendererMetal::Update after Scene::Update.
     void Update();
 
-    void End();
+    ME::Light* ambientLight = nullptr;
+    ME::Light* directionalLight = nullptr;
+    ME::Camera* spriteCamera = nullptr;
 
-    ME::Light* ambientLight;
-    ME::Light* directionalLight;
-    ME::Camera* camera;
-    ME::Camera* spriteCamera;
-
-    ME::MeshMetal** meshes;
-    ME::QuadMetal** quads;
-    ME::TextureMetal** textures;
-    ME::TextureMetal** spriteTextures;
+    ME::TextureMetal** spriteTextures = nullptr;
+    uint32_t spriteTextureCount = 0;
     ME::Span<ME::TextureAtlasProperties> textureAtlasProperties;
-    MTL::SamplerState** textureSamplerStates;
-    ME::Transform** transforms;
-    ME::MeshRenderer** meshRenderers;
-    ME::Transform** spriteTransforms;
-    ME::SpriteRenderer** spriteRenderers;
-    ME::Transform** instancedSpriteTransforms;
-    ME::SpriteRenderer** instancedSpriteRenderers;
-    ME::Transform** textTransforms;
-    ME::TextRenderer** textRenderers;
+    ME::Span<ME::Transform> spriteTransforms;
+    ME::Span<ME::SpriteRenderer> spriteRenderers;
 
-    uint16_t transformCount;
-    uint16_t meshRendererCount;
-    uint16_t spriteTransformCount;
-    uint16_t spriteRendererCount;
-    uint32_t instancedSpriteTransformCount;
-    uint32_t instancedSpriteRendererCount;
-    uint32_t textTransformsCount;
-    uint32_t textRendererCount;
-    uint32_t textInstanceDataCount;
+    // Instanced sets, sized once from their counts at construction (game_guide: "Instanced sets are sized once").
+    ME::Span<ME::SpriteRenderer> instancedSpriteRenderers0;
+    ME::SpriteRendererInstanceData* spriteInstanceData0 = nullptr;
+    ME::UploadBufferMetal* spriteInstanceBuffer0 = nullptr;
 
-    ME::SpriteRendererInstanceData** spriteInstanceData;
-    MTL::Buffer* spriteInstanceBuffer;
+    ME::Span<ME::SpriteRenderer> instancedSpriteRenderers1;
+    ME::SpriteRendererInstanceData* spriteInstanceData1 = nullptr;
+    ME::UploadBufferMetal* spriteInstanceBuffer1 = nullptr;
 
-    ME::TextRendererInstanceData** textInstanceData;
-    MTL::Buffer* textInstanceBuffer;
+    uint32_t perPassCBCount = 0;
+    uint32_t textureAtlasCBCount = 0;
+    uint32_t perSpriteCBCount = 0;
+
+    ME::UploadBufferMetal** perPassCBs = nullptr;
+    ME::UploadBufferMetal** perSpriteCBs = nullptr;
+    ME::UploadBufferMetal** textureAtlasCBs = nullptr;
 
    private:
-    MTL::Device* device;
-    MTL::CommandQueue* cmdQueue;
-    ME::Scene* scene;
+    MTL::Device* device = nullptr;
+    MTL::ResidencySet* residencySet = nullptr;
+    ME::Scene* scene = nullptr;
 
-    void MakeMeshes();
-    void MakeQuads();
-    void MakeTextures();
     void MakeSpriteTextures();
-    void MakeShaders();
-    void MakeTextureSamplers();
+    void MakeConstantBuffers();
     void MakeSpriteInstanceBuffer();
-    void MakeTextInstanceBuffer();
+
+    // Adds the buffer to the residency set and returns it.
+    ME::UploadBufferMetal* AddResident(ME::UploadBufferMetal* buffer);
 };
 
 }  // namespace ME
 
-#endif
+#endif  // ME_METAL

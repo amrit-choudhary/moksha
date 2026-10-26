@@ -7,39 +7,11 @@
 
 #include <d3d12.h>
 
+#include "moksha/client/rendering/shared/shader_constants.h"
 #include "moksha/shared/math/vec16.h"
 #include "shader_dx.h"
 
 namespace ME {
-
-/** Constant buffer structure for shaders. */
-class CBPerPass {
-   public:
-    ME::Vec16 viewMatrix;
-    ME::Vec16 projectionMatrix;
-    ME::LightDataAmbient ambientLightData;
-    ME::LightDataDirectional directionalLightData;
-};
-
-/** Constant buffer structure for UI Text shaders. */
-class CBPerPassUIText {
-   public:
-    // Packed screen dimension: high 16 bits = width, low 16 bits = height.
-    uint32_t screenDimension;
-};
-
-/** Constant buffer structure for UI Sprite shaders. */
-class CBPerPassUISprite {
-   public:
-    // Packed screen dimension: high 16 bits = width, low 16 bits = height.
-    uint32_t screenDimension;
-};
-
-/** Constant buffer structure for shaders. */
-class CBPerObject {
-   public:
-    ME::Vec16 modelMatrix;
-};
 
 class PSODirectX {
    public:

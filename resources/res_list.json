@@ -15,9 +15,8 @@
             "shaders/hlsl/ui_sprite.hlsl"
         ],
         "metal": [
-            "shaders/metal/basic.metal",
-            "shaders/metal/sprite.metal",
-            "shaders/metal/sprite_instanced.metal"
+            "shaders/metal/sprite_atlas.metal",
+            "shaders/metal/sprite_instanced_atlas.metal"
         ]
     }
 }
