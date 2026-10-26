@@ -23,6 +23,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   textures (cooked for `mac-metal`), sprites and the atlas sprite sets, the DX12 UI passes (`scene_ui_dx`, UI
   sprites/text, debug overlay), Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution
   needs one.
+- Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
+  with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
+  (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus; a
+  fully covered window stalls about 1 s per frame in the drawable wait (watch the occlusion state and skip drawing;
+  undecided whether the game keeps running or pauses then).
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
