@@ -30,8 +30,11 @@
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
 #include "moksha/client/input/input_manager_mac.h"
 #endif
-#ifdef ME_DX12
+#if defined(ME_DX12)
 #include "moksha/client/rendering/directx/renderer_dx.h"
+#elif defined(ME_METAL)
+#include "moksha/client/rendering/metal/metal_view.h"
+#include "moksha/client/rendering/metal/renderer_metal.h"
 #else
 #include "moksha/client/rendering/null/renderer_null.h"
 #endif
@@ -55,9 +58,12 @@ class ClientApp {
 #if defined(ME_WIN) && !defined(ME_HEADLESS)
     // Initializes every system for hWnd (whose client area must match the config's size) and starts the game.
     bool Init(HWND hWnd);
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+    // Initializes every system for view (the window's content view, sized to the config) and starts the game.
+    // Tick must run inside the view's draw callback, where the view hands out the frame's drawable.
+    bool Init(const MetalView* view);
 #else
-    // Initializes every system and starts the game. Headless has no window; on macOS the driver owns the window,
-    // whose content size must match the config's.
+    // Initializes every system without a window and starts the game. The config's size is kept for layout.
     bool Init();
 #endif
 
@@ -106,10 +112,11 @@ class ClientApp {
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
     Input::InputManagerMac* macInputManager = nullptr;
 #endif
-#ifdef ME_DX12
+#if defined(ME_DX12)
     RendererDX renderer;
+#elif defined(ME_METAL)
+    RendererMetal renderer;
 #else
-    // Headless, and Metal until its renderer is ported to ClientApp.
     RendererNull renderer;
 #endif
 

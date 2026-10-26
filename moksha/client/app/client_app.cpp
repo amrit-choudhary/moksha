@@ -28,6 +28,8 @@ const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
 
 #if defined(ME_WIN) && !defined(ME_HEADLESS)
 bool ME::ClientApp::Init(HWND hWnd) {
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+bool ME::ClientApp::Init(const MetalView* view) {
 #else
 bool ME::ClientApp::Init() {
 #endif
@@ -75,8 +77,10 @@ bool ME::ClientApp::Init() {
 
     uiSystem.SetUIScene(game->GetUIScene());
 
-#ifdef ME_DX12
+#if defined(ME_DX12)
     renderer.InitDX(hWnd, &window);
+#elif defined(ME_METAL)
+    renderer.InitMetal(view, &window);
 #else
     renderer.InitNull(&window);
 #endif

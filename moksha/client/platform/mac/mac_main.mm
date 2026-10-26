@@ -6,21 +6,34 @@
  */
 
 #import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 
 #include <string>
 
 #include "moksha/client/app/client_app.h"
+#include "moksha/logging/logging.h"
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
-#include "moksha/shared/time/frame_pacer.h"
 
-// Window and app events (close, Cmd+Q, minimize): the macOS side of win_main's WindowProcW.
-@interface MEWindowDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
+// Window and app events (close, Cmd+Q, minimize) and the view's frames: the macOS side of win_main's WindowProcW.
+@interface MEWindowDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate, MTKViewDelegate>
 @property(nonatomic, assign) ME::ClientApp* app;
 @property(nonatomic, assign) bool quitRequested;
+@property(nonatomic, assign) bool gameQuit;
 @end
 
 @implementation MEWindowDelegate
+
+// One frame: the view calls this from its draw, where it hands out the frame's drawable.
+- (void)drawInMTKView:(nonnull MTKView*)view {
+    if (self.app != nullptr && !self.app->Tick()) {
+        self.gameQuit = true;
+    }
+}
+
+- (void)mtkView:(nonnull MTKView*)view drawableSizeWillChange:(CGSize)size {
+}
 
 - (void)windowWillClose:(NSNotification*)notification {
     self.quitRequested = true;
@@ -46,8 +59,8 @@
 
 @end
 
-// The window's content view. Input events go to the app, which gives them to the input system.
-@interface MEView : NSView
+// The window's content view, which Metal draws into. Input events go to the app, which gives them to the input system.
+@interface MEView : MTKView
 @property(nonatomic, assign) ME::ClientApp* app;
 @end
 
@@ -166,6 +179,28 @@
 
 namespace {
 
+// The Metal renderer's access to the view (rendering/metal/metal_view.h). The Objective-C objects are handed over as
+// their metal-cpp types, which wrap the same objects; ownership stays with the view.
+class MTKMetalView : public ME::MetalView {
+   public:
+    explicit MTKMetalView(MTKView* inView) : view(inView) {}
+
+    MTL::Device* GetDevice() const override {
+        return reinterpret_cast<MTL::Device*>((__bridge void*)view.device);
+    }
+
+    MTL::RenderPassDescriptor* GetCurrentRenderPass() const override {
+        return reinterpret_cast<MTL::RenderPassDescriptor*>((__bridge void*)view.currentRenderPassDescriptor);
+    }
+
+    CA::MetalDrawable* GetCurrentDrawable() const override {
+        return reinterpret_cast<CA::MetalDrawable*>((__bridge void*)view.currentDrawable);
+    }
+
+   private:
+    MTKView* view = nil;
+};
+
 NSString* ToNSString(const std::string& text) {
     NSString* string = [NSString stringWithUTF8String:text.c_str()];
     return string != nil ? string : @"";
@@ -228,16 +263,28 @@ int main(int argc, char* argv[]) {
         [window setDelegate:windowDelegate];
         [window center];
 
-        MEView* view = [[MEView alloc] initWithFrame:contentRect];
+        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+        if (device == nil) {
+            ME::LogError("macOS: no Metal device");
+            return 1;
+        }
+
+        // Drawn only when the loop calls draw, never by the view's own timer. sRGB like the DX12 back buffer.
+        MEView* view = [[MEView alloc] initWithFrame:contentRect device:device];
+        [view setColorPixelFormat:MTLPixelFormatBGRA8Unorm_sRGB];
+        [view setPaused:YES];
+        [view setEnableSetNeedsDisplay:NO];
         [window setContentView:view];
         [window makeFirstResponder:view];
 
-        if (!app.Init()) {
+        MTKMetalView metalView(view);
+        if (!app.Init(&metalView)) {
             app.Shutdown();
             return 1;
         }
         windowDelegate.app = &app;
         view.app = &app;
+        [view setDelegate:windowDelegate];
         [window makeKeyAndOrderFront:nil];
         if (@available(macOS 14.0, *)) {
             [NSApp activate];
@@ -264,17 +311,17 @@ int main(int argc, char* argv[]) {
                     break;
                 }
 
-                if (!app.Tick()) {
+                // Runs app.Tick through drawInMTKView. Waiting for the drawable paces the loop, as Present does on
+                // Windows.
+                [view draw];
+                if (windowDelegate.gameQuit) {
                     // The game asked to quit; closing the window sets quitRequested, which ends the loop.
                     [window close];
-                    continue;
                 }
-
-                // No GPU renderer waits on the display yet (Metal isn't ported), so pace to the fixed step.
-                ME::Time::WaitForNextFixedStep(app.GetTime());
             }
         }
 
+        [view setDelegate:nil];
         windowDelegate.app = nullptr;
         view.app = nullptr;
         app.Shutdown();

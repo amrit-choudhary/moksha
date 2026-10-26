@@ -11,12 +11,14 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   pump with `nextEventMatchingMask`, `Tick`; Cmd+Q and closing end the loop, so `Shutdown` always runs),
   `platform/headless/headless_main.cpp` (plain `main`, `Tick` + `Time::WaitForNextFixedStep`). Keep the Mac
   driver parallel to the Windows one.
-- macOS today: a plain executable with `resources/` beside it, input and miniaudio, but the null renderer (the window
-  stays empty, and the loop paces with `WaitForNextFixedStep`). `rendering/metal/` and `scene_metal` predate the
-  current `Scene` API and are left out of the build. Mac work left, in order: port the Metal renderer to
-  `ClientApp` (a layer-backed view; presenting replaces the fixed-step wait), cook shaders and textures for
-  `mac-metal`, Retina (`WindowState::dpiScale`) and resizing; then the DX12 UI passes (`scene_ui_dx`, UI
-  sprites/text, debug overlay) and the atlas sprite sets on Metal; an `.app` bundle when distribution needs one.
+- macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal`, which only
+  clears the window and presents. The content view is an `MTKView` the loop draws with `[view draw]` (it hands out
+  a drawable only inside draw), so `Tick` runs from `drawInMTKView`; waiting for the drawable paces the loop.
+  `metal_cpp_impl.cpp` compiles metal-cpp's implementation once. The other `rendering/metal/` files and
+  `scene_metal` predate the current `Scene` API and are left out of the build. Mac work left, in order: scene data
+  on the GPU (`scene_metal`), shaders and textures (cooked for `mac-metal`), sprites and the atlas sprite sets, the
+  DX12 UI passes (`scene_ui_dx`, UI sprites/text, debug overlay), Retina (`WindowState::dpiScale`) and resizing;
+  an `.app` bundle when distribution needs one.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
@@ -61,4 +63,7 @@ All file reads go through `Vfs` (`moksha/shared/file_io/vfs.h`) with paths relat
 (`Resources`, `Dlc`, `UserData`). Never build paths from `GetResourcesPath()` or open files directly.
 
 ## Vendored
-`third_party/` (miniaudio, metal-cpp): opaque, don't modify.
+`third_party/` (miniaudio, metal-cpp): opaque, don't modify. `metal/metal-cpp` is Apple's
+`release/metal-cpp_macOS27.0.1_iOS27.0.1` (github.com/apple/metal-cpp); update it by replacing the folder. No
+metal-cpp-extensions: the renderer reaches the MTKView only through `rendering/metal/metal_view.h`, which
+`platform/mac/mac_main.mm` implements in Objective-C++.

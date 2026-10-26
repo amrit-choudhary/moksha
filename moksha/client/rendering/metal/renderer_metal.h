@@ -1,31 +1,27 @@
+#pragma once
 #ifdef ME_METAL
 
 /**
- * Rendering for Metal platform.
+ * Renderer class for Metal on macOS. Draws into the window's view through MetalView; for now it only clears and
+ * presents. Must draw from inside the view's draw, where the view hands out a fresh drawable each frame.
  */
 
-#pragma once
-
-#include <simd/simd.h>
-
-#include <AppKit/AppKit.hpp>
-#include <Metal/Metal.hpp>
-#include <MetalKit/MetalKit.hpp>
-
-#include "depth_stencil_state_metal.h"
-#include "mesh_metal.h"
-#include "moksha/client/rendering/shared/light.h"
 #include "moksha/client/rendering/shared/renderer.h"
-#include "moksha/client/scene/scene_metal.h"
-#include "quad_metal.h"
-#include "render_pipeline_state_metal.h"
-#include "texture_metal.h"
+
+namespace MTL {
+class CommandQueue;
+class Device;
+}  // namespace MTL
 
 namespace ME {
 
+class MetalView;
+class Scene;
+class SceneUI;
+class WindowState;
+
 /**
- * Renderer for Metal.
- * This class is used to render the game using Metal.
+ * Renderer class for Metal on macOS.
  */
 class RendererMetal : public PlatformRenderer {
    public:
@@ -35,24 +31,38 @@ class RendererMetal : public PlatformRenderer {
     // Sets scene for the renderer.
     void SetScene(ME::Scene* gameScene) override;
 
-    // Will return true if game should tick based on FFR.
+    // Sets both game and UI scenes for the renderer.
+    void SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) override;
+
+    // Sets the debug system's UI scene, drawn in its own pass after the main UI scene.
+    void SetDebugUIScene(ME::SceneUI* debugUiScene) override;
+
+    // Updates the scenes that were set.
     void Update() override;
 
-    // Will stop the timers to let it calculate average FPS.
+    // Releases the command queue and the device.
     void End() override;
 
-    void InitMTL(MTL::Device* device, MTK::View* view);
+    // Initialize Metal for view, using its device. view must outlive the renderer; window is the app's window state.
+    bool InitMetal(const MetalView* inView, const WindowState* inWindow);
 
     void Draw();
 
     void SetVsyncEnabled(bool enabled) override;
 
    private:
-    MTL::Device* device;
-    MTK::View* view;
-    MTL::CommandQueue* commandQueue;
-    ME::SceneMetal* scene;
     bool vsyncEnabled = true;
+    // The layer is only reachable through a drawable, so a vsync change is applied on the next Draw.
+    bool vsyncChanged = true;
+
+    ME::Scene* scene = nullptr;
+    ME::SceneUI* uiScene = nullptr;
+    ME::SceneUI* debugUiScene = nullptr;
+
+    const MetalView* view = nullptr;
+    const WindowState* window = nullptr;
+    MTL::Device* device = nullptr;
+    MTL::CommandQueue* commandQueue = nullptr;
 };
 
 }  // namespace ME

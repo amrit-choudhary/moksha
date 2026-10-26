@@ -9,9 +9,7 @@
 
 #include <simd/simd.h>
 
-#include <AppKit/AppKit.hpp>
 #include <Metal/Metal.hpp>
-#include <MetalKit/MetalKit.hpp>
 
 #include "moksha/client/rendering/metal/mesh_metal.h"
 #include "moksha/client/rendering/metal/quad_metal.h"

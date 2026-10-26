@@ -7,9 +7,7 @@
 
 #pragma once
 
-#include <AppKit/AppKit.hpp>
 #include <Metal/Metal.hpp>
-#include <MetalKit/MetalKit.hpp>
 
 namespace ME {
 

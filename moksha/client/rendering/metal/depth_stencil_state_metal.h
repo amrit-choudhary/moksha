@@ -7,9 +7,7 @@
 
 #include <simd/simd.h>
 
-#include <AppKit/AppKit.hpp>
 #include <Metal/Metal.hpp>
-#include <MetalKit/MetalKit.hpp>
 
 #include "moksha/client/rendering/shared/material.h"
 
