@@ -10,8 +10,9 @@ Project rules: [root CLAUDE.md](../CLAUDE.md).
 - `res_list.json` (paths relative to the list's folder): `copy` (files as they are), `textures` (png →
   `.dds` via texconv for `win-dx12`), `shaders` (`{"hlsl": [...], "metal": [...]}`; each target cooks its
   graphics API's language; hlsl → `<name>_vs.cso` + `<name>_ps.cso` via dxc). Unknown keys are errors.
-- Targets: `win-dx12`, `headless` (copies only; headless clients and servers). `mac-metal`, `ios-metal`,
-  `android-vulkan`, `web-webgpu` are reserved and report "not supported yet".
+- Targets: `win-dx12`, `headless` (copies only; headless clients and servers), `mac-metal` (copies only until the
+  Metal renderer is ported). `ios-metal`, `android-vulkan`, `web-webgpu` are reserved and report "not supported
+  yet".
 - Skips outputs newer than their sources; a shader is rebuilt when any file in its folder changes.
 - Cross-compiled builds pass a host-built cook with `MOKSHA_COOK_EXECUTABLE`.
 

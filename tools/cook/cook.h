@@ -25,7 +25,7 @@ enum class CookTarget : uint8_t {
     None,           // unknown name
     WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
     Headless,       // headless clients and servers: copies only, nothing is drawn
-    MacMetal,       // not supported yet
+    MacMetal,       // macOS, Metal: copies only until the Metal renderer is ported
     IosMetal,       // not supported yet
     AndroidVulkan,  // not supported yet
     WebWebGPU,      // not supported yet

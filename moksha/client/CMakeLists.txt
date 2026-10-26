@@ -14,7 +14,16 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     endif()
     add_subdirectory(third_party/miniaudio-0.11.23)
 
-    add_library(Moksha_Client STATIC ${SOURCES})
+    # Only this graphics API's renderer files. The Metal renderer isn't ported to ClientApp yet, so Metal builds
+    # leave it out too and draw with the null renderer until it is.
+    set(CLIENT_SOURCES ${SOURCES})
+    if(MOKSHA_RENDERER STREQUAL "DX12")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/metal/|/scene/scene_(ui_)?metal\.")
+    elseif(MOKSHA_RENDERER STREQUAL "METAL")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.")
+    endif()
+
+    add_library(Moksha_Client STATIC ${CLIENT_SOURCES})
 
     target_include_directories(Moksha_Client PUBLIC ${PROJECT_SOURCE_DIR})
     target_compile_definitions(Moksha_Client PUBLIC ${MOKSHA_GRAPHICS_API_DEFINE})
@@ -51,7 +60,7 @@ endif()
 # Headless client: the same sources without the GPU, OS input, audio device and windowed app files.
 set(HEADLESS_SOURCES ${SOURCES})
 list(FILTER HEADLESS_SOURCES EXCLUDE REGEX
-     "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.|/input/input_manager_(win|mac)\.|/main/|/audio/audio_impl_miniaudio\.")
+     "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.|/input/input_manager_(win|mac)\.|/audio/audio_impl_miniaudio\.")
 
 add_library(Moksha_ClientHeadless STATIC ${HEADLESS_SOURCES})
 

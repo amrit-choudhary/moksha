@@ -18,7 +18,7 @@ class InputManagerMac : public PlatformInputManager {
     void PostUpdate() override;
     void End() override;
 
-    // Handle macOS-specific input events, forwarded synchronously from MEView (NSEvent-derived).
+    // macOS input events, forwarded from the view (platform/mac) through ClientApp.
     void HandleKeyEvent(uint16_t keyCode, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);

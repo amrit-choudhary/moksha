@@ -1,11 +1,14 @@
-#if defined(ME_WIN) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_HEADLESS)
 
 /**
  * The client app: owns every engine system and the game, and runs one frame per Tick. A per-platform driver
- * (platform/win, platform/headless) creates the window, if any, and repeats Tick; this class never loops by itself.
+ * (platform/win, platform/mac, platform/headless) creates the window, if any, and repeats Tick; this class never
+ * loops by itself.
  */
 
 #pragma once
+
+#include <cstdint>
 
 #include "moksha/client/anim/animation_system.h"
 #include "moksha/client/app/app_config.h"
@@ -22,13 +25,15 @@
 #include "moksha/shared/time/time_manager.h"
 #include "moksha/shared/time/timer_manager.h"
 
-#ifdef ME_HEADLESS
-#include "moksha/client/rendering/null/renderer_null.h"
-#else
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
 #include "moksha/client/input/input_manager_win.h"
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+#include "moksha/client/input/input_manager_mac.h"
 #endif
 #ifdef ME_DX12
 #include "moksha/client/rendering/directx/renderer_dx.h"
+#else
+#include "moksha/client/rendering/null/renderer_null.h"
 #endif
 
 namespace ME {
@@ -47,12 +52,13 @@ class ClientApp {
     // line. Call once, before the window exists; the window is created from the returned config.
     const AppConfig& Configure(const AppArgs& args);
 
-#ifdef ME_HEADLESS
-    // Initializes every system without a window and starts the game. The config's size is kept for layout.
-    bool Init();
-#else
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
     // Initializes every system for hWnd (whose client area must match the config's size) and starts the game.
     bool Init(HWND hWnd);
+#else
+    // Initializes every system and starts the game. Headless has no window; on macOS the driver owns the window,
+    // whose content size must match the config's.
+    bool Init();
 #endif
 
     // Runs one frame. False once the game called engine->Quit(); the window should then close.
@@ -68,9 +74,15 @@ class ClientApp {
     // The app's clock, for drivers that pace the loop themselves.
     const Time::TimeManager& GetTime() const;
 
-#ifndef ME_HEADLESS
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
     // Feeds a Windows input message to the input system.
     void HandleInput(UINT msg, WPARAM wParam, LPARAM lParam);
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+    // Feed macOS input events to the input system: a virtual key code, a position in view points (top-left
+    // origin), and a button number (0 left, 1 right, 2 middle, 3-4 extra).
+    void HandleKeyEvent(uint16_t keyCode, bool isDown);
+    void HandleMouseMove(float x, float y);
+    void HandleMouseButton(int button, bool isDown);
 #endif
 
    private:
@@ -89,13 +101,16 @@ class ClientApp {
     AudioSystem audioSystem;
     UISystem uiSystem;
     DebugSystem debugSystem;
-#ifdef ME_HEADLESS
-    RendererNull renderer;
-#else
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
     Input::InputManagerWin* winInputManager = nullptr;
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+    Input::InputManagerMac* macInputManager = nullptr;
 #endif
 #ifdef ME_DX12
     RendererDX renderer;
+#else
+    // Headless, and Metal until its renderer is ported to ClientApp.
+    RendererNull renderer;
 #endif
 
     bool initialized = false;
@@ -106,4 +121,4 @@ class ClientApp {
 
 }  // namespace ME
 
-#endif  // ME_WIN || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_HEADLESS

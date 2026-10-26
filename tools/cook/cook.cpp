@@ -166,7 +166,7 @@ ME::Cook::CookTarget ME::Cook::ParseTarget(const char* name) {
 }
 
 bool ME::Cook::Cooker::Init(CookTarget inTarget, const fs::path& inOutDir, const CookTools& inTools) {
-    if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless) {
+    if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal) {
         std::cerr << "Cook: error: this target is not supported yet\n";
         return false;
     }
@@ -274,8 +274,8 @@ bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const 
     if (!GetArray(root, "textures", listPath, entries)) {
         return false;
     }
-    // Nothing is drawn headless, so textures are left out.
-    if (target == CookTarget::Headless) {
+    // Nothing is drawn headless, or on Metal until its renderer is ported, so textures are left out.
+    if (target == CookTarget::Headless || target == CookTarget::MacMetal) {
         return true;
     }
 
@@ -326,7 +326,7 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
         PrintError(listPath, "shaders", "must be an object of languages, e.g. {\"hlsl\": [...]}");
         return false;
     }
-    // Nothing is drawn headless; other languages belong to other graphics APIs.
+    // Nothing is drawn headless, or on Metal until its renderer is ported; other languages belong to other APIs.
     if (target != CookTarget::WinDX12) {
         return true;
     }

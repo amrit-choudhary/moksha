@@ -1,4 +1,4 @@
-#if defined(ME_WIN) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_HEADLESS)
 
 #include "client_app.h"
 
@@ -26,10 +26,10 @@ const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
     return config;
 }
 
-#ifdef ME_HEADLESS
-bool ME::ClientApp::Init() {
-#else
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
 bool ME::ClientApp::Init(HWND hWnd) {
+#else
+bool ME::ClientApp::Init() {
 #endif
     if (game == nullptr) {
         ME::LogError("ClientApp: CreateGame returned no game");
@@ -55,8 +55,10 @@ bool ME::ClientApp::Init(HWND hWnd) {
     ME::DebugSystem::SetInstance(&debugSystem);
 
     inputManager.Init(&window);
-#ifndef ME_HEADLESS
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
     winInputManager = static_cast<ME::Input::InputManagerWin*>(inputManager.GetPlatformInputManager());
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+    macInputManager = static_cast<ME::Input::InputManagerMac*>(inputManager.GetPlatformInputManager());
 #endif
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
@@ -73,10 +75,10 @@ bool ME::ClientApp::Init(HWND hWnd) {
 
     uiSystem.SetUIScene(game->GetUIScene());
 
-#ifdef ME_HEADLESS
-    renderer.InitHeadless(&window);
-#else
+#ifdef ME_DX12
     renderer.InitDX(hWnd, &window);
+#else
+    renderer.InitNull(&window);
 #endif
     renderer.SetVsyncEnabled(config.vsync);
     renderer.SetScenes(game->GetScene(), game->GetUIScene());
@@ -183,12 +185,30 @@ const ME::Time::TimeManager& ME::ClientApp::GetTime() const {
     return timeManager;
 }
 
-#ifndef ME_HEADLESS
+#if defined(ME_WIN) && !defined(ME_HEADLESS)
 void ME::ClientApp::HandleInput(UINT msg, WPARAM wParam, LPARAM lParam) {
     if (winInputManager != nullptr) {
         winInputManager->HandleInput(msg, wParam, lParam);
     }
 }
+#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+void ME::ClientApp::HandleKeyEvent(uint16_t keyCode, bool isDown) {
+    if (macInputManager != nullptr) {
+        macInputManager->HandleKeyEvent(keyCode, isDown);
+    }
+}
+
+void ME::ClientApp::HandleMouseMove(float x, float y) {
+    if (macInputManager != nullptr) {
+        macInputManager->HandleMouseMove(x, y);
+    }
+}
+
+void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
+    if (macInputManager != nullptr) {
+        macInputManager->HandleMouseButton(button, isDown);
+    }
+}
 #endif
 
-#endif  // ME_WIN || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_HEADLESS

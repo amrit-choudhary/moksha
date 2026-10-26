@@ -172,11 +172,9 @@ void InputManagerMac::HandleMouseMove(float x, float y) {
 }
 
 void InputManagerMac::HandleMouseButton(int button, bool isDown) {
-    // MEView (metal_view.mm) only forwards button 0 (left) and 1 (right) today.
-    if (button == 0) {
-        InputManager::SetMouseButtonState(MouseButton::Left, isDown);
-    } else if (button == 1) {
-        InputManager::SetMouseButtonState(MouseButton::Right, isDown);
+    // NSEvent button numbers: 0 left, 1 right, 2 middle, 3-4 extra; the same order as MouseButton.
+    if (button >= 0 && button < static_cast<int>(InputManager::kMouseButtonCount)) {
+        InputManager::SetMouseButtonState(static_cast<MouseButton>(button), isDown);
     }
 }
 

@@ -3,11 +3,10 @@
 #include <iostream>
 #include <string>
 
-#ifdef ME_HEADLESS
-#include "moksha/client/rendering/null/renderer_null.h"
-#else
+#ifdef ME_DX12
 #include "moksha/client/rendering/directx/renderer_dx.h"
-#include "moksha/client/rendering/metal/renderer_metal.h"
+#else
+#include "moksha/client/rendering/null/renderer_null.h"
 #endif
 
 ME::Renderer::Renderer() {}
@@ -15,12 +14,11 @@ ME::Renderer::Renderer() {}
 ME::Renderer::~Renderer() {}
 
 void ME::Renderer::Init() {
-#if defined(ME_HEADLESS)
-    platformRenderer = new ME::RendererNull();
-#elif defined(ME_METAL)
-    platformRenderer = new ME::RendererMetal();
-#elif defined(ME_DX12)
+#ifdef ME_DX12
     platformRenderer = new ME::RendererDX();
+#else
+    // Headless, and Metal until its renderer is ported.
+    platformRenderer = new ME::RendererNull();
 #endif
     platformRenderer->Init();
 }

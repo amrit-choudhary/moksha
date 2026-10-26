@@ -1,6 +1,6 @@
 /**
  * Moksha_Cook: cooks res_list.json files for one target platform into one output folder (see cook.h).
- *   Moksha_Cook --target <win-dx12|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] <res_list.json>...
+ *   Moksha_Cook --target <win-dx12|mac-metal|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] <res_list.json>...
  * Lists cook in the order given; a later list may not produce a path an earlier one already produced.
  */
 
@@ -15,8 +15,9 @@ namespace {
 constexpr uint32_t MaxLists = 16;
 
 void PrintUsage() {
-    std::cerr << "Usage: Moksha_Cook --target <win-dx12|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] "
-                 "<res_list.json>...\n";
+    std::cerr
+        << "Usage: Moksha_Cook --target <win-dx12|mac-metal|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] "
+           "<res_list.json>...\n";
 }
 
 }  // namespace

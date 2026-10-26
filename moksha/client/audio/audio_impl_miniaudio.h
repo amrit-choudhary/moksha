@@ -5,6 +5,9 @@
  * This class implements the IAudioImpl interface using the MiniAudio library.
  */
 
+#include <cstddef>
+#include <cstdint>
+
 #include "audio_system.h"
 
 namespace ME {

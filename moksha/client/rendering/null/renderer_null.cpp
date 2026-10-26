@@ -4,9 +4,9 @@
 
 void ME::RendererNull::Init() {}
 
-bool ME::RendererNull::InitHeadless(const WindowState* inWindow) {
+bool ME::RendererNull::InitNull(const WindowState* inWindow) {
     window = inWindow;
-    ME::Log("RendererNull::Init (headless, nothing is drawn)");
+    ME::Log("RendererNull::Init (nothing is drawn)");
     return true;
 }
 

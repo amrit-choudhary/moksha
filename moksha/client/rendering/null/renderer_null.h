@@ -1,6 +1,6 @@
 /**
- * Renderer of the headless client: draws nothing and needs no window or GPU, but updates the game, UI and debug
- * scenes every frame like the GPU renderers do, so scene state behaves the same without a screen.
+ * Renderer that draws nothing and needs no GPU: the headless client's, and a windowed platform's until its GPU
+ * renderer is ported. Updates the game, UI and debug scenes every frame like the GPU renderers do.
  */
 #pragma once
 
@@ -15,7 +15,7 @@ class RendererNull : public PlatformRenderer {
     void Init() override;
 
     // Keeps the app's window state; the size is only used for layout, nothing is created.
-    bool InitHeadless(const WindowState* inWindow);
+    bool InitNull(const WindowState* inWindow);
 
     void SetScene(ME::Scene* gameScene) override;
     void SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) override;
