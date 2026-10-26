@@ -19,10 +19,13 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's implementation once.
 - The other `rendering/metal/` files and `scene_metal` predate both the current `Scene` API and Metal 4 (device-made
   pipelines, per-frame command buffers); they are out of the build and get rewritten on Metal 4, mirroring their
-  DX12 counterparts, as they're ported. Mac work left, in order: scene data on the GPU (`scene_metal`), shaders and
-  textures (cooked for `mac-metal`), sprites and the atlas sprite sets, the DX12 UI passes (`scene_ui_dx`, UI
-  sprites/text, debug overlay), Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution
-  needs one.
+  DX12 counterparts, as they're ported. Mac work left, in order: scene data on the GPU (`scene_metal`), sprites
+  and the atlas sprite sets, the DX12 UI passes (`scene_ui_dx`, UI sprites/text, debug overlay), Retina
+  (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs Xcode's
+  Metal toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
+- Metal shaders (`resources/shaders/metal/`) are self-contained `.metal` files (no `#include`: they compile from
+  source at startup with `MTL4Compiler`), each mirroring its `.hlsl` and repeating the structs and atlas helper it
+  uses. The `mac-metal` cook copies them and turns textures into the same RGBA8 `.dds` as `win-dx12`.
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
   with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
   (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus; a

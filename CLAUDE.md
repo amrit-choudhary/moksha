@@ -114,4 +114,4 @@ House style (follow the surrounding code):
 
 ## Dependencies
 Vendored, treat as opaque (don't modify or deep-dive): cJSON, miniaudio, metal-cpp,
-stb_perlin.
+stb_perlin, stb_image (cook only, `tools/cook/stb_image.*`).

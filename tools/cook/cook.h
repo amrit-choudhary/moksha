@@ -5,9 +5,11 @@
  *
  * res_list.json, paths relative to the list's own folder, '/' separated:
  *   "copy":     files copied as they are (config, atlas and game data).
- *   "textures": png images; win-dx12 converts each to a .dds next to where the png would go.
- *   "shaders":  {"hlsl": [...], "metal": [...]}; each target cooks the language its graphics API uses.
- * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder changed.
+ *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (win-dx12 with texconv,
+ *               mac-metal in the cook itself).
+ *   "shaders":  {"hlsl": [...], "metal": [...]}; each target cooks the language its graphics API uses: win-dx12
+ *               compiles hlsl with dxc, mac-metal copies metal sources (the client compiles them at startup).
+ * Outputs newer than their sources are skipped; an hlsl shader is rebuilt when anything in its folder changed.
  */
 #pragma once
 
@@ -25,7 +27,7 @@ enum class CookTarget : uint8_t {
     None,           // unknown name
     WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
     Headless,       // headless clients and servers: copies only, nothing is drawn
-    MacMetal,       // macOS, Metal: copies only until the Metal renderer is ported
+    MacMetal,       // macOS, Metal 4: metal sources copied, png -> dds in the cook
     IosMetal,       // not supported yet
     AndroidVulkan,  // not supported yet
     WebWebGPU,      // not supported yet
@@ -73,6 +75,10 @@ class Cooker {
     bool CookCopies(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookTextures(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookShaders(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
+    bool CookMetalShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
+
+    // Copies each entry of a path array as it is, skipping outputs newer than their source.
+    bool CopyEntries(cJSON* entries, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
 
     // Records relPath as produced by listPath. False if another entry already produces it or the table is full.
     bool ClaimOutput(const std::string& relPath, const std::filesystem::path& listPath);

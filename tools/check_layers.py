@@ -36,7 +36,7 @@ def module_of(path):
 
 
 # Vendored files that live next to engine code instead of in a third_party folder.
-VENDORED_FILES = {"d3dx12.h", "stb_perlin.h", "stb_perlin.cpp"}
+VENDORED_FILES = {"d3dx12.h", "stb_perlin.h", "stb_perlin.cpp", "stb_image.h", "stb_image.cpp"}
 
 
 def is_vendored(path):

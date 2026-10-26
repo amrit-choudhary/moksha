@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include "moksha/shared/third_party/json/cJSON.h"
+#include "png_to_dds.h"
 
 namespace fs = std::filesystem;
 
@@ -237,6 +238,18 @@ bool ME::Cook::Cooker::CookCopies(cJSON* root, const fs::path& srcRoot, const fs
     if (!GetArray(root, "copy", listPath, entries)) {
         return false;
     }
+    return CopyEntries(entries, srcRoot, listPath);
+}
+
+bool ME::Cook::Cooker::CookMetalShaders(cJSON* shaders, const fs::path& srcRoot, const fs::path& listPath) {
+    cJSON* entries = nullptr;
+    if (!GetArray(shaders, "metal", listPath, entries)) {
+        return false;
+    }
+    return CopyEntries(entries, srcRoot, listPath);
+}
+
+bool ME::Cook::Cooker::CopyEntries(cJSON* entries, const fs::path& srcRoot, const fs::path& listPath) {
     const cJSON* item = nullptr;
     cJSON_ArrayForEach(item, entries) {
         const char* entry = GetEntry(item, listPath);
@@ -274,8 +287,8 @@ bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const 
     if (!GetArray(root, "textures", listPath, entries)) {
         return false;
     }
-    // Nothing is drawn headless, or on Metal until its renderer is ported, so textures are left out.
-    if (target == CookTarget::Headless || target == CookTarget::MacMetal) {
+    // Nothing is drawn headless, so textures are left out.
+    if (target == CookTarget::Headless) {
         return true;
     }
 
@@ -305,12 +318,21 @@ bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const 
         if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
             return false;
         }
-        const std::string command = Quote(tools.texconv) + " -nologo -f R8G8B8A8_UNORM -m 1 -ft DDS -y -o " +
-                                    Quote(dst.parent_path().string()) + " " + Quote(src.string());
-        std::error_code ec;
-        if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
-            PrintError(listPath, entry, "texconv failed (is it on PATH, or passed with --texconv?)");
-            return false;
+        // texconv only runs on Windows; Metal targets decode the PNG in the cook, into the same uncompressed DDS.
+        if (target == CookTarget::MacMetal) {
+            std::string error;
+            if (!ConvertPngToDds(src, dst, error)) {
+                PrintError(listPath, entry, error);
+                return false;
+            }
+        } else {
+            const std::string command = Quote(tools.texconv) + " -nologo -f R8G8B8A8_UNORM -m 1 -ft DDS -y -o " +
+                                        Quote(dst.parent_path().string()) + " " + Quote(src.string());
+            std::error_code ec;
+            if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
+                PrintError(listPath, entry, "texconv failed (is it on PATH, or passed with --texconv?)");
+                return false;
+            }
         }
         ++cookedCount;
     }
@@ -326,7 +348,11 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
         PrintError(listPath, "shaders", "must be an object of languages, e.g. {\"hlsl\": [...]}");
         return false;
     }
-    // Nothing is drawn headless, or on Metal until its renderer is ported; other languages belong to other APIs.
+    // Metal shaders ship as source, compiled by the client at startup.
+    if (target == CookTarget::MacMetal) {
+        return CookMetalShaders(shaders, srcRoot, listPath);
+    }
+    // Nothing is drawn headless; other languages belong to other graphics APIs.
     if (target != CookTarget::WinDX12) {
         return true;
     }
