@@ -238,18 +238,6 @@ bool ME::Cook::Cooker::CookCopies(cJSON* root, const fs::path& srcRoot, const fs
     if (!GetArray(root, "copy", listPath, entries)) {
         return false;
     }
-    return CopyEntries(entries, srcRoot, listPath);
-}
-
-bool ME::Cook::Cooker::CookMetalShaders(cJSON* shaders, const fs::path& srcRoot, const fs::path& listPath) {
-    cJSON* entries = nullptr;
-    if (!GetArray(shaders, "metal", listPath, entries)) {
-        return false;
-    }
-    return CopyEntries(entries, srcRoot, listPath);
-}
-
-bool ME::Cook::Cooker::CopyEntries(cJSON* entries, const fs::path& srcRoot, const fs::path& listPath) {
     const cJSON* item = nullptr;
     cJSON_ArrayForEach(item, entries) {
         const char* entry = GetEntry(item, listPath);
@@ -275,6 +263,61 @@ bool ME::Cook::Cooker::CopyEntries(cJSON* entries, const fs::path& srcRoot, cons
         fs::copy_file(src, dst, fs::copy_options::overwrite_existing, ec);
         if (ec) {
             PrintError(listPath, entry, "copy failed: " + ec.message());
+            return false;
+        }
+        ++cookedCount;
+    }
+    return true;
+}
+
+bool ME::Cook::Cooker::CookMetalShaders(cJSON* shaders, const fs::path& srcRoot, const fs::path& listPath) {
+    cJSON* entries = nullptr;
+    if (!GetArray(shaders, "metal", listPath, entries)) {
+        return false;
+    }
+    // xcode-select may point at the Command Line Tools, which have no Metal compiler; DEVELOPER_DIR picks Xcode.
+    const std::string xcrun = tools.metalDeveloperDir.empty()
+                                  ? std::string("xcrun")
+                                  : "DEVELOPER_DIR=" + Quote(tools.metalDeveloperDir) + " xcrun";
+    const cJSON* item = nullptr;
+    cJSON_ArrayForEach(item, entries) {
+        const char* entry = GetEntry(item, listPath);
+        if (entry == nullptr) {
+            return false;
+        }
+        fs::path relOut(entry);
+        relOut.replace_extension(".metallib");
+        if (!ClaimOutput(relOut.generic_string(), listPath)) {
+            return false;
+        }
+
+        const fs::path src = srcRoot / entry;
+        fs::file_time_type srcTime;
+        if (!GetSourceTime(src, listPath, entry, srcTime)) {
+            return false;
+        }
+        // Any change in the shader's folder (its includes live there) rebuilds it.
+        fs::file_time_type folderTime;
+        if (GetNewestInFolder(src.parent_path(), folderTime) && folderTime > srcTime) {
+            srcTime = folderTime;
+        }
+        const fs::path dst = outDir / relOut;
+        if (IsUpToDate(srcTime, dst)) {
+            ++upToDateCount;
+            continue;
+        }
+
+        if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
+            return false;
+        }
+        // Metal 4 needs macOS 26, so the library targets it rather than the build machine's macOS.
+        const std::string command = xcrun + " -sdk macosx metal -mmacosx-version-min=26.0 -I " +
+                                    Quote(src.parent_path().string()) + " -o " + Quote(dst.string()) + " " +
+                                    Quote(src.string());
+        std::error_code ec;
+        if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
+            PrintError(listPath, entry,
+                       "metal failed (needs Xcode with the Metal toolchain; --metal-developer-dir picks it)");
             return false;
         }
         ++cookedCount;
@@ -348,7 +391,6 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
         PrintError(listPath, "shaders", "must be an object of languages, e.g. {\"hlsl\": [...]}");
         return false;
     }
-    // Metal shaders ship as source, compiled by the client at startup.
     if (target == CookTarget::MacMetal) {
         return CookMetalShaders(shaders, srcRoot, listPath);
     }

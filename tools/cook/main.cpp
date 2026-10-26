@@ -1,6 +1,7 @@
 /**
  * Moksha_Cook: cooks res_list.json files for one target platform into one output folder (see cook.h).
- *   Moksha_Cook --target <win-dx12|mac-metal|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] <res_list.json>...
+ *   Moksha_Cook --target <win-dx12|mac-metal|headless> --out <dir> [--dxc <exe>] [--texconv <exe>]
+ *               [--metal-developer-dir <dir>] <res_list.json>...
  * Lists cook in the order given; a later list may not produce a path an earlier one already produced.
  */
 
@@ -17,7 +18,7 @@ constexpr uint32_t MaxLists = 16;
 void PrintUsage() {
     std::cerr
         << "Usage: Moksha_Cook --target <win-dx12|mac-metal|headless> --out <dir> [--dxc <exe>] [--texconv <exe>] "
-           "<res_list.json>...\n";
+           "[--metal-developer-dir <dir>] <res_list.json>...\n";
 }
 
 }  // namespace
@@ -40,6 +41,8 @@ int main(int argc, char** argv) {
             tools.dxc = argv[++i];
         } else if (std::strcmp(arg, "--texconv") == 0 && hasValue) {
             tools.texconv = argv[++i];
+        } else if (std::strcmp(arg, "--metal-developer-dir") == 0 && hasValue) {
+            tools.metalDeveloperDir = argv[++i];
         } else if (std::strncmp(arg, "--", 2) == 0) {
             std::cerr << "Cook: error: unknown option or missing value: " << arg << '\n';
             PrintUsage();

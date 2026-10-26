@@ -20,6 +20,29 @@ if(CMAKE_HOST_WIN32)
     find_program(MOKSHA_TEXCONV texconv DOC "DirectXTex texconv used by Moksha_Cook")
 endif()
 
+# The mac-metal cook compiles shaders with `xcrun metal`, which needs Xcode and its Metal toolchain. xcode-select may
+# point at the Command Line Tools (no Metal compiler), so fall back to Xcode's folder; set this to override.
+if(CMAKE_HOST_APPLE)
+    set(MOKSHA_METAL_DEVELOPER_DIR "" CACHE PATH "Developer folder whose xcrun finds the Metal compiler (empty: detect)")
+    set(_mokshaMetalDeveloperDir "${MOKSHA_METAL_DEVELOPER_DIR}")
+    if(NOT _mokshaMetalDeveloperDir)
+        execute_process(COMMAND xcrun -sdk macosx -f metal RESULT_VARIABLE _mokshaMetalFound OUTPUT_QUIET ERROR_QUIET)
+        set(_mokshaXcodeDir "/Applications/Xcode.app/Contents/Developer")
+        if(NOT _mokshaMetalFound EQUAL 0 AND EXISTS "${_mokshaXcodeDir}")
+            execute_process(COMMAND ${CMAKE_COMMAND} -E env DEVELOPER_DIR=${_mokshaXcodeDir} xcrun -sdk macosx -f metal
+                            RESULT_VARIABLE _mokshaMetalFound OUTPUT_QUIET ERROR_QUIET)
+            if(_mokshaMetalFound EQUAL 0)
+                set(_mokshaMetalDeveloperDir "${_mokshaXcodeDir}")
+            endif()
+        endif()
+        if(NOT _mokshaMetalFound EQUAL 0)
+            message(WARNING "Moksha: no Metal compiler found; install Xcode and its Metal toolchain (Xcode > Settings > "
+                            "Components), or set MOKSHA_METAL_DEVELOPER_DIR. mac-metal shader cooking will fail.")
+        endif()
+    endif()
+    set(MOKSHA_METAL_DEVELOPER_DIR_FOUND "${_mokshaMetalDeveloperDir}" CACHE INTERNAL "")
+endif()
+
 # Cook target name for the windowed client of this platform; empty when there is none yet.
 function(_moksha_windowed_cook_target outVar)
     set(name "")
@@ -48,6 +71,9 @@ function(_moksha_add_cook target cookTarget engineList resList)
     endif()
     if(MOKSHA_TEXCONV)
         list(APPEND toolArgs --texconv "${MOKSHA_TEXCONV}")
+    endif()
+    if(MOKSHA_METAL_DEVELOPER_DIR_FOUND)
+        list(APPEND toolArgs --metal-developer-dir "${MOKSHA_METAL_DEVELOPER_DIR_FOUND}")
     endif()
 
     add_custom_target(${target}_cook

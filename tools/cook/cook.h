@@ -7,9 +7,9 @@
  *   "copy":     files copied as they are (config, atlas and game data).
  *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (win-dx12 with texconv,
  *               mac-metal in the cook itself).
- *   "shaders":  {"hlsl": [...], "metal": [...]}; each target cooks the language its graphics API uses: win-dx12
- *               compiles hlsl with dxc, mac-metal copies metal sources (the client compiles them at startup).
- * Outputs newer than their sources are skipped; an hlsl shader is rebuilt when anything in its folder changed.
+ *   "shaders":  {"hlsl": [...], "metal": [...]}; each target compiles the language its graphics API uses: win-dx12
+ *               hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal metal with `xcrun metal` (<name>.metallib).
+ * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its includes) changed.
  */
 #pragma once
 
@@ -27,7 +27,7 @@ enum class CookTarget : uint8_t {
     None,           // unknown name
     WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
     Headless,       // headless clients and servers: copies only, nothing is drawn
-    MacMetal,       // macOS, Metal 4: metal sources copied, png -> dds in the cook
+    MacMetal,       // macOS, Metal 4: metal -> .metallib via xcrun, png -> dds in the cook
     IosMetal,       // not supported yet
     AndroidVulkan,  // not supported yet
     WebWebGPU,      // not supported yet
@@ -41,6 +41,8 @@ class CookTools {
    public:
     std::string dxc = "dxc";
     std::string texconv = "texconv";
+    // Developer folder for `xcrun metal` (DEVELOPER_DIR); empty uses the one xcode-select picked.
+    std::string metalDeveloperDir;
 };
 
 // One cooked file and the res_list.json that produces it.
@@ -76,9 +78,6 @@ class Cooker {
     bool CookTextures(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookShaders(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookMetalShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
-
-    // Copies each entry of a path array as it is, skipping outputs newer than their source.
-    bool CopyEntries(cJSON* entries, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
 
     // Records relPath as produced by listPath. False if another entry already produces it or the table is full.
     bool ClaimOutput(const std::string& relPath, const std::filesystem::path& listPath);

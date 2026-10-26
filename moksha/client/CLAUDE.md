@@ -13,8 +13,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   driver parallel to the Windows one.
 - macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4,
   mirroring `RendererDX` class for class: `SceneMetal` (`SceneDX`), `UploadBufferMetal`, `TextureMetal`,
-  `QuadMetal`, `PSOMetal` (pipelines through `MTL4Compiler`, plus depth states), `ShaderMetal` (compiles a `.metal`
-  source at startup). No root signature or descriptor heap: one argument table at the fixed indices in
+  `QuadMetal`, `PSOMetal` (pipelines through `MTL4Compiler`, plus depth states), `ShaderMetal` (loads the cooked
+  `.metallib` through `Vfs`). No root signature or descriptor heap: one argument table at the fixed indices in
   `MetalBindings` (`pso_metal.h`, Metal snapshots it at each draw) and one residency set holding every buffer and
   texture, added to the queue with the layer's set. Depth is a renderer-owned `Depth32Float` texture sized to the
   drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws every pass
@@ -25,11 +25,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   reaches the view only through `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's
   implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
 - Constant buffer layouts shared by both APIs are in `rendering/shared/shader_constants.h`. Mac work left, in order:
-  Retina (`WindowState::dpiScale`) and resizing; offline-compiled shaders (a `.metallib` from the cook, needs
-  Xcode's Metal toolchain) instead of compiling at startup; an `.app` bundle when distribution needs one.
-- Metal shaders (`resources/shaders/metal/`) are self-contained `.metal` files (no `#include`: they compile from
-  source at startup with `MTL4Compiler`), each mirroring its `.hlsl` and repeating the structs and atlas helper it
-  uses. The `mac-metal` cook copies them and turns textures into the same RGBA8 `.dds` as `win-dx12`.
+  Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution needs one.
+- Metal shaders (`resources/shaders/metal/`) mirror the hlsl ones file for file: each pass's `.metal` includes
+  `structs.metal` and `helpers.metal` (the counterparts of `structs.hlsl`, `helpers.hlsl`). The `mac-metal` cook
+  compiles each listed shader to a `.metallib` (Xcode's Metal compiler, macOS 26 minimum) and turns textures into the
+  same RGBA8 `.dds` as `win-dx12`; nothing compiles at startup.
 - DX12 known issue: `SceneDX::MakeSpriteInstanceBuffer` returns early when instanced set 0 is empty, so a scene using
   only set 1 gets no buffer for it (`SceneMetal` creates each set independently).
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
