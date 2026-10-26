@@ -2,7 +2,7 @@
 //
 // Foundation/NSData.hpp
 //
-// Copyright 2020-2023 Apple Inc.
+// Copyright 2020-2024 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,16 +32,16 @@ namespace NS
 class Data : public Copying<Data>
 {
 public:
-    void*    mutableBytes() const;
-    UInteger length() const;
+    const void*    bytes() const;
+    UInteger       length() const;
 };
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_NS_INLINE void* NS::Data::mutableBytes() const
+_NS_INLINE const void* NS::Data::bytes() const
 {
-    return Object::sendMessage<void*>(this, _NS_PRIVATE_SEL(mutableBytes));
+    return Object::sendMessage<void*>(this, _NS_PRIVATE_SEL(bytes));
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 //
 // MetalFX/MTLFXTemporalScaler.hpp
 //
-// Copyright 2020-2023 Apple Inc.
+// Copyright 2020-2025 Apple Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,11 @@
 #include "../Metal/Metal.hpp"
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+namespace MTL4FX
+{
+    class TemporalScaler;
+}
 
 namespace MTLFX
 {
@@ -67,18 +72,39 @@ namespace MTLFX
         bool                                        isInputContentPropertiesEnabled() const;
         void                                        setInputContentPropertiesEnabled( bool enabled );
 
+        bool                                        requiresSynchronousInitialization() const;
+        void                                        setRequiresSynchronousInitialization(bool requiresSynchronousInitialization);
+
+        bool                                        isReactiveMaskTextureEnabled() const;
+        void                                        setReactiveMaskTextureEnabled( bool enabled );
+
+        MTL::PixelFormat                            reactiveMaskTextureFormat() const;
+        void                                        setReactiveMaskTextureFormat( MTL::PixelFormat pixelFormat );
+
         float                                       inputContentMinScale() const;
         void                                        setInputContentMinScale( float scale );
 
         float                                       inputContentMaxScale() const;
         void                                        setInputContentMaxScale( float scale );
 
+        bool                                        isOutputResolutionMotionVectorsEnabled() const;
+        void                                        setOutputResolutionMotionVectorsEnabled( bool enabled );
+
         class TemporalScaler*                       newTemporalScaler( const MTL::Device* pDevice ) const;
+        MTL4FX::TemporalScaler*                     newTemporalScaler( const MTL::Device* pDevice, const MTL4::Compiler* pCompiler) const;
+
+        static float                                supportedInputContentMinScale( const MTL::Device* pDevice );
+        static float                                supportedInputContentMaxScale( const MTL::Device* pDevice );
 
         static bool                                 supportsDevice( const MTL::Device* pDevice );
+        static bool                                 supportsMetal4FX( const MTL::Device* pDevice );
     };
 
-    class TemporalScaler : public NS::Referencing< TemporalScaler >
+    class FrameInterpolatableScaler : public NS::Copying< FrameInterpolatableScaler >
+    {
+	};
+
+    class TemporalScalerBase : public NS::Referencing< TemporalScaler, FrameInterpolatableScaler >
     {
     public:
         MTL::TextureUsage                           colorTextureUsage() const;
@@ -122,6 +148,14 @@ namespace MTLFX
         float                                       motionVectorScaleY() const;
         void                                        setMotionVectorScaleY( float scale );
 
+        MTL::Texture*                               reactiveMaskTexture() const;
+        void                                        setReactiveMaskTexture( MTL::Texture* reactiveMaskTexture );
+
+        MTL::TextureUsage                           reactiveMaskTextureUsage() const;
+
+        [[deprecated("please use reactiveMaskTextureUsage")]]
+        MTL::TextureUsage                           reactiveTextureUsage() const;
+
         bool                                        reset() const;
         void                                        setReset( bool reset );
 
@@ -139,9 +173,38 @@ namespace MTLFX
         float                                       inputContentMinScale() const;
         float                                       inputContentMaxScale() const;
 
+        NS::UInteger                                colorContentOffsetX() const;
+        void                                        setColorContentOffsetX( NS::UInteger offset );
+        NS::UInteger                                colorContentOffsetY() const;
+        void                                        setColorContentOffsetY( NS::UInteger offset );
+
+        NS::UInteger                                depthContentOffsetX() const;
+        void                                        setDepthContentOffsetX( NS::UInteger offset );
+        NS::UInteger                                depthContentOffsetY() const;
+        void                                        setDepthContentOffsetY( NS::UInteger offset );
+
+        NS::UInteger                                motionContentOffsetX() const;
+        void                                        setMotionContentOffsetX( NS::UInteger offset );
+        NS::UInteger                                motionContentOffsetY() const;
+        void                                        setMotionContentOffsetY( NS::UInteger offset );
+
+        NS::UInteger                                reactiveMaskContentOffsetX() const;
+        void                                        setReactiveMaskContentOffsetX( NS::UInteger offset );
+        NS::UInteger                                reactiveMaskContentOffsetY() const;
+        void                                        setReactiveMaskContentOffsetY( NS::UInteger offset );
+
+        NS::UInteger                                outputOffsetX() const;
+        void                                        setOutputOffsetX( NS::UInteger offset );
+        NS::UInteger                                outputOffsetY() const;
+        void                                        setOutputOffsetY( NS::UInteger offset );
+
         MTL::Fence*                                 fence() const;
         void                                        setFence( MTL::Fence* pFence );
+    };
 
+    class TemporalScaler : public NS::Referencing< TemporalScaler, TemporalScalerBase >
+    {
+    public:
         void                                        encodeToCommandBuffer( MTL::CommandBuffer* pCommandBuffer );
     };
 }
@@ -171,7 +234,7 @@ _MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerDescriptor::colorTextureForm
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setColorTextureFormat( MTL::PixelFormat format )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setColorTextureFormat_ ), format );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setColorTextureFormat_ ), format );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -185,7 +248,7 @@ _MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerDescriptor::depthTextureForm
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setDepthTextureFormat( MTL::PixelFormat format )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setDepthTextureFormat_ ), format );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setDepthTextureFormat_ ), format );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -199,7 +262,7 @@ _MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerDescriptor::motionTextureFor
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setMotionTextureFormat( MTL::PixelFormat format )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setMotionTextureFormat_ ), format );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionTextureFormat_ ), format );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -213,7 +276,7 @@ _MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerDescriptor::outputTextureFor
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setOutputTextureFormat( MTL::PixelFormat format )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setOutputTextureFormat_ ), format );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputTextureFormat_ ), format );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -227,7 +290,7 @@ _MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerDescriptor::inputWidth() const
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setInputWidth( NS::UInteger width )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputWidth_ ), width );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputWidth_ ), width );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -241,7 +304,7 @@ _MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerDescriptor::inputHeight() const
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setInputHeight( NS::UInteger height )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputHeight_ ), height );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputHeight_ ), height );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -255,7 +318,7 @@ _MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerDescriptor::outputWidth() const
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setOutputWidth( NS::UInteger width )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setOutputWidth_ ), width );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputWidth_ ), width );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -269,7 +332,7 @@ _MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerDescriptor::outputHeight() const
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setOutputHeight( NS::UInteger height )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setOutputHeight_ ), height );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputHeight_ ), height );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -283,7 +346,7 @@ _MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::isAutoExposureEnabled() cons
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setAutoExposureEnabled( bool enabled )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setAutoExposureEnabled_ ), enabled );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setAutoExposureEnabled_ ), enabled );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -297,7 +360,50 @@ _MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::isInputContentPropertiesEnab
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setInputContentPropertiesEnabled( bool enabled )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputContentPropertiesEnabled_ ), enabled );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputContentPropertiesEnabled_ ), enabled );
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::requiresSynchronousInitialization() const
+{
+    return Object::sendMessage< bool >( this, _MTLFX_PRIVATE_SEL( requiresSynchronousInitialization ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setRequiresSynchronousInitialization(bool requiresSynchronousInitialization)
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setRequiresSynchronousInitialization_ ), requiresSynchronousInitialization );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::isReactiveMaskTextureEnabled() const
+{
+    return Object::sendMessage< bool >( this, _MTLFX_PRIVATE_SEL( isReactiveMaskTextureEnabled ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setReactiveMaskTextureEnabled( bool enabled )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReactiveMaskTextureEnabled_ ), enabled );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerDescriptor::reactiveMaskTextureFormat() const
+{
+    return Object::sendMessage< MTL::PixelFormat >( this, _MTLFX_PRIVATE_SEL( reactiveMaskTextureFormat ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setReactiveMaskTextureFormat( MTL::PixelFormat pixelFormat )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReactiveMaskTextureFormat_ ), pixelFormat );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -311,7 +417,7 @@ _MTLFX_INLINE float MTLFX::TemporalScalerDescriptor::inputContentMinScale() cons
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setInputContentMinScale( float scale )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputContentMinScale_ ), scale );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputContentMinScale_ ), scale );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -325,7 +431,21 @@ _MTLFX_INLINE float MTLFX::TemporalScalerDescriptor::inputContentMaxScale() cons
 
 _MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setInputContentMaxScale( float scale )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputContentMaxScale_ ), scale );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputContentMaxScale_ ), scale );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::isOutputResolutionMotionVectorsEnabled() const
+{
+    return Object::sendMessage< bool >( this, _MTLFX_PRIVATE_SEL( isOutputResolutionMotionVectorsEnabled ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerDescriptor::setOutputResolutionMotionVectorsEnabled( bool enabled )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputResolutionMotionVectorsEnabled_ ), enabled );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -337,6 +457,45 @@ _MTLFX_INLINE MTLFX::TemporalScaler* MTLFX::TemporalScalerDescriptor::newTempora
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+_MTLFX_INLINE MTL4FX::TemporalScaler* MTLFX::TemporalScalerDescriptor::newTemporalScaler( const MTL::Device* pDevice, const MTL4::Compiler* pCompiler ) const
+{
+    return Object::sendMessage< MTL4FX::TemporalScaler* >( this, _MTLFX_PRIVATE_SEL( newTemporalScalerWithDevice_compiler_ ), pDevice, pCompiler );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE float MTLFX::TemporalScalerDescriptor::supportedInputContentMinScale( const MTL::Device* pDevice )
+{
+    float scale = 1.0f;
+
+    if ( nullptr != methodSignatureForSelector( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportedInputContentMinScaleForDevice_ ) ) )
+    {
+        scale = sendMessage< float >( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportedInputContentMinScaleForDevice_ ), pDevice );
+    }
+
+    return scale;
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE float MTLFX::TemporalScalerDescriptor::supportedInputContentMaxScale( const MTL::Device* pDevice )
+{
+    float scale = 1.0f;
+
+    if ( nullptr != methodSignatureForSelector( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportedInputContentMaxScaleForDevice_ ) ) )
+    {
+        scale = sendMessage< float >( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportedInputContentMaxScaleForDevice_ ), pDevice );
+    }
+    else if ( supportsDevice( pDevice ) )
+    {
+        scale = 2.0f;
+    }
+
+    return scale;
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 _MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::supportsDevice( const MTL::Device* pDevice )
 {
     return Object::sendMessageSafe< bool >( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportsDevice_ ), pDevice );
@@ -344,317 +503,492 @@ _MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::supportsDevice( const MTL::D
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScaler::colorTextureUsage() const
+_MTLFX_INLINE bool MTLFX::TemporalScalerDescriptor::supportsMetal4FX( const MTL::Device* pDevice )
+{
+    return Object::sendMessageSafe< bool >( _NS_PRIVATE_CLS( MTLFXTemporalScalerDescriptor ), _MTLFX_PRIVATE_SEL( supportsMetal4FX_ ), pDevice );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::colorTextureUsage() const
 {
     return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( colorTextureUsage ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScaler::depthTextureUsage() const
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::depthTextureUsage() const
 {
     return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( depthTextureUsage ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScaler::motionTextureUsage() const
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::motionTextureUsage() const
 {
     return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( motionTextureUsage ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScaler::outputTextureUsage() const
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::outputTextureUsage() const
 {
     return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( outputTextureUsage ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::inputContentWidth() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::inputContentWidth() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( inputContentWidth ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setInputContentWidth( NS::UInteger width )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setInputContentWidth( NS::UInteger width )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputContentWidth_ ), width );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputContentWidth_ ), width );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::inputContentHeight() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::inputContentHeight() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( inputContentHeight ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setInputContentHeight( NS::UInteger height )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setInputContentHeight( NS::UInteger height )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setInputContentHeight_ ), height );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setInputContentHeight_ ), height );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScaler::colorTexture() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::colorTexture() const
 {
     return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( colorTexture ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setColorTexture( MTL::Texture* pTexture )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setColorTexture( MTL::Texture* pTexture )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setColorTexture_ ), pTexture );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setColorTexture_ ), pTexture );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScaler::depthTexture() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::depthTexture() const
 {
     return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( depthTexture ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setDepthTexture( MTL::Texture* pTexture )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setDepthTexture( MTL::Texture* pTexture )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setDepthTexture_ ), pTexture );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setDepthTexture_ ), pTexture );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScaler::motionTexture() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::motionTexture() const
 {
     return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( motionTexture ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setMotionTexture( MTL::Texture* pTexture )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setMotionTexture( MTL::Texture* pTexture )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setMotionTexture_ ), pTexture );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionTexture_ ), pTexture );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScaler::outputTexture() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::outputTexture() const
 {
     return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( outputTexture ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setOutputTexture( MTL::Texture* pTexture )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setOutputTexture( MTL::Texture* pTexture )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setOutputTexture_ ), pTexture );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputTexture_ ), pTexture );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScaler::exposureTexture() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::exposureTexture() const
 {
     return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( exposureTexture ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setExposureTexture( MTL::Texture* pTexture )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setExposureTexture( MTL::Texture* pTexture )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setExposureTexture_ ), pTexture );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setExposureTexture_ ), pTexture );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::preExposure() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::preExposure() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( preExposure ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setPreExposure( float preExposure )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setPreExposure( float preExposure )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setPreExposure_ ), preExposure );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setPreExposure_ ), preExposure );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::jitterOffsetX() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::jitterOffsetX() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( jitterOffsetX ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setJitterOffsetX( float offset )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setJitterOffsetX( float offset )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setJitterOffsetX_ ), offset );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setJitterOffsetX_ ), offset );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::jitterOffsetY() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::jitterOffsetY() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( jitterOffsetY ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setJitterOffsetY( float offset )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setJitterOffsetY( float offset )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setJitterOffsetY_ ), offset );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setJitterOffsetY_ ), offset );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::motionVectorScaleX() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::motionVectorScaleX() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( motionVectorScaleX ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setMotionVectorScaleX( float scale )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setMotionVectorScaleX( float scale )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setMotionVectorScaleX_ ), scale );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionVectorScaleX_ ), scale );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::motionVectorScaleY() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::motionVectorScaleY() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( motionVectorScaleY ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setMotionVectorScaleY( float scale )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setMotionVectorScaleY( float scale )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setMotionVectorScaleY_ ), scale );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionVectorScaleY_ ), scale );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE bool MTLFX::TemporalScaler::reset() const
+_MTLFX_INLINE MTL::Texture* MTLFX::TemporalScalerBase::reactiveMaskTexture() const
+{
+    return Object::sendMessage< MTL::Texture* >( this, _MTLFX_PRIVATE_SEL( reactiveMaskTexture ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setReactiveMaskTexture( MTL::Texture* reactiveMaskTexture )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReactiveMaskTexture_ ), reactiveMaskTexture );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::reactiveMaskTextureUsage() const
+{
+    return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( reactiveMaskTextureUsage ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE MTL::TextureUsage MTLFX::TemporalScalerBase::reactiveTextureUsage() const
+{
+    return Object::sendMessage< MTL::TextureUsage >( this, _MTLFX_PRIVATE_SEL( reactiveTextureUsage ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE bool MTLFX::TemporalScalerBase::reset() const
 {
     return Object::sendMessage< bool >( this, _MTLFX_PRIVATE_SEL( reset ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setReset( bool reset )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setReset( bool reset )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setReset_ ), reset );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReset_ ), reset );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE bool MTLFX::TemporalScaler::isDepthReversed() const
+_MTLFX_INLINE bool MTLFX::TemporalScalerBase::isDepthReversed() const
 {
     return Object::sendMessage< bool >( this, _MTLFX_PRIVATE_SEL( isDepthReversed ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setDepthReversed( bool depthReversed )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setDepthReversed( bool depthReversed )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setDepthReversed_ ), depthReversed );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setDepthReversed_ ), depthReversed );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScaler::colorTextureFormat() const
+_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerBase::colorTextureFormat() const
 {
     return Object::sendMessage< MTL::PixelFormat >( this, _MTLFX_PRIVATE_SEL( colorTextureFormat ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScaler::depthTextureFormat() const
+_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerBase::depthTextureFormat() const
 {
     return Object::sendMessage< MTL::PixelFormat >( this, _MTLFX_PRIVATE_SEL( depthTextureFormat ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScaler::motionTextureFormat() const
+_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerBase::motionTextureFormat() const
 {
     return Object::sendMessage< MTL::PixelFormat >( this, _MTLFX_PRIVATE_SEL( motionTextureFormat ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScaler::outputTextureFormat() const
+_MTLFX_INLINE MTL::PixelFormat MTLFX::TemporalScalerBase::outputTextureFormat() const
 {
     return Object::sendMessage< MTL::PixelFormat >( this, _MTLFX_PRIVATE_SEL( outputTextureFormat ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::inputWidth() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::inputWidth() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( inputWidth ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::inputHeight() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::inputHeight() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( inputHeight ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::outputWidth() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::outputWidth() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( outputWidth ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE NS::UInteger MTLFX::TemporalScaler::outputHeight() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::outputHeight() const
 {
     return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( outputHeight ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::inputContentMinScale() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::inputContentMinScale() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( inputContentMinScale ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE float MTLFX::TemporalScaler::inputContentMaxScale() const
+_MTLFX_INLINE float MTLFX::TemporalScalerBase::inputContentMaxScale() const
 {
     return Object::sendMessage< float >( this, _MTLFX_PRIVATE_SEL( inputContentMaxScale ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE MTL::Fence* MTLFX::TemporalScaler::fence() const
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::colorContentOffsetX() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( colorContentOffsetX ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setColorContentOffsetX( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setColorContentOffsetX_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::colorContentOffsetY() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( colorContentOffsetY ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setColorContentOffsetY( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setColorContentOffsetY_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::depthContentOffsetX() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( depthContentOffsetX ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setDepthContentOffsetX( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setDepthContentOffsetX_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::depthContentOffsetY() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( depthContentOffsetY ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setDepthContentOffsetY( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setDepthContentOffsetY_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::motionContentOffsetX() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( motionContentOffsetX ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setMotionContentOffsetX( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionContentOffsetX_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::motionContentOffsetY() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( motionContentOffsetY ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setMotionContentOffsetY( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setMotionContentOffsetY_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::reactiveMaskContentOffsetX() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( reactiveMaskContentOffsetX ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setReactiveMaskContentOffsetX( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReactiveMaskContentOffsetX_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::reactiveMaskContentOffsetY() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( reactiveMaskContentOffsetY ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setReactiveMaskContentOffsetY( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setReactiveMaskContentOffsetY_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::outputOffsetX() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( outputOffsetX ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setOutputOffsetX( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputOffsetX_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE NS::UInteger MTLFX::TemporalScalerBase::outputOffsetY() const
+{
+    return Object::sendMessage< NS::UInteger >( this, _MTLFX_PRIVATE_SEL( outputOffsetY ) );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setOutputOffsetY( NS::UInteger offset )
+{
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setOutputOffsetY_ ), offset );
+}
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+_MTLFX_INLINE MTL::Fence* MTLFX::TemporalScalerBase::fence() const
 {
     return Object::sendMessage< MTL::Fence* >( this, _MTLFX_PRIVATE_SEL( fence ) );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-_MTLFX_INLINE void MTLFX::TemporalScaler::setFence( MTL::Fence* pFence )
+_MTLFX_INLINE void MTLFX::TemporalScalerBase::setFence( MTL::Fence* pFence )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( setFence_ ), pFence );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( setFence_ ), pFence );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 _MTLFX_INLINE void MTLFX::TemporalScaler::encodeToCommandBuffer( MTL::CommandBuffer* pCommandBuffer )
 {
-    Object::sendMessage< void >( this, _MTL_PRIVATE_SEL( encodeToCommandBuffer_ ), pCommandBuffer );
+    Object::sendMessage< void >( this, _MTLFX_PRIVATE_SEL( encodeToCommandBuffer_ ), pCommandBuffer );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
