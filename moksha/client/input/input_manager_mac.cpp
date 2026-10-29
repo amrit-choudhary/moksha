@@ -127,24 +127,7 @@ void InputManagerMac::Init() {}
 void InputManagerMac::Update(double deltaTime) {}
 
 void InputManagerMac::PostUpdate() {
-    // Loop through all the keys and update their states for the next frame.
-    for (auto& pair : InputManager::GlobalKeyState) {
-        KeyCode key = pair.first;
-        KeyState state = pair.second;
-
-        switch (state) {
-            case KeyState::DownWasUp:
-                InputManager::GlobalKeyState[key] = KeyState::DownWasDown;
-                break;
-            case KeyState::UpWasDown:
-                InputManager::GlobalKeyState[key] = KeyState::UpWasUp;
-                break;
-            default:
-                break;
-        }
-    }
-
-    InputManager::AdvanceMouseButtonStates();
+    InputManager::AdvanceStates();
 }
 
 void InputManagerMac::End() {}
@@ -155,15 +138,7 @@ void InputManagerMac::HandleKeyEvent(uint16_t keyCode, bool isDown) {
         return;
     }
 
-    KeyCode key = it->second;
-    KeyState current = InputManager::GlobalKeyState[key];
-    bool wasPreviouslyDown = (current == KeyState::DownWasDown || current == KeyState::DownWasUp);
-
-    if (isDown) {
-        InputManager::GlobalKeyState[key] = wasPreviouslyDown ? KeyState::DownWasDown : KeyState::DownWasUp;
-    } else {
-        InputManager::GlobalKeyState[key] = wasPreviouslyDown ? KeyState::UpWasDown : KeyState::UpWasUp;
-    }
+    InputManager::SetKeyState(it->second, isDown);
 }
 
 void InputManagerMac::HandleMouseMove(float x, float y) {

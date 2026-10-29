@@ -179,11 +179,13 @@ bool InputManager::GetKeyUp(KeyCode keyCode) {
 }
 
 bool ME::Input::InputManager::GetKeyReleased(ME::Input::KeyCode keyCode) {
-    return (GlobalKeyState[keyCode] == KeyState::UpWasDown);
+    const size_t index = static_cast<size_t>(keyCode);
+    return index < kKeyCount && keyReleased[index];
 }
 
 bool ME::Input::InputManager::GetKeyPressed(ME::Input::KeyCode keyCode) {
-    return (GlobalKeyState[keyCode] == KeyState::DownWasUp);
+    const size_t index = static_cast<size_t>(keyCode);
+    return index < kKeyCount && keyPressed[index];
 }
 
 bool InputManager::GetMouseButtonDown(MouseButton button) {
@@ -197,36 +199,70 @@ bool InputManager::GetMouseButtonUp(MouseButton button) {
 }
 
 bool InputManager::GetMouseButtonReleased(MouseButton button) {
-    return GlobalMouseButtonState[static_cast<uint8_t>(button)] == KeyState::UpWasDown;
+    const size_t index = static_cast<size_t>(button);
+    return index < kMouseButtonCount && mouseButtonReleased[index];
 }
 
 bool InputManager::GetMouseButtonPressed(MouseButton button) {
-    return GlobalMouseButtonState[static_cast<uint8_t>(button)] == KeyState::DownWasUp;
+    const size_t index = static_cast<size_t>(button);
+    return index < kMouseButtonCount && mouseButtonPressed[index];
+}
+
+// Moves state to down or up and reports the edge: 1 pressed, -1 released, 0 no change (e.g. key repeat).
+static int ApplyTransition(KeyState& state, bool isDown) {
+    const bool wasDown = (state == KeyState::DownWasDown || state == KeyState::DownWasUp);
+    if (isDown) {
+        state = wasDown ? KeyState::DownWasDown : KeyState::DownWasUp;
+        return wasDown ? 0 : 1;
+    }
+    state = wasDown ? KeyState::UpWasDown : KeyState::UpWasUp;
+    return wasDown ? -1 : 0;
+}
+
+void InputManager::SetKeyState(KeyCode keyCode, bool isDown) {
+    const int edge = ApplyTransition(GlobalKeyState[keyCode], isDown);
+    const size_t index = static_cast<size_t>(keyCode);
+    if (index >= kKeyCount) {
+        return;
+    }
+    keyPressed[index] = keyPressed[index] || edge > 0;
+    keyReleased[index] = keyReleased[index] || edge < 0;
 }
 
 void InputManager::SetMouseButtonState(MouseButton button, bool isDown) {
-    KeyState& state = GlobalMouseButtonState[static_cast<uint8_t>(button)];
-    bool wasPreviouslyDown = (state == KeyState::DownWasDown || state == KeyState::DownWasUp);
+    const size_t index = static_cast<size_t>(button);
+    if (index >= kMouseButtonCount) {
+        return;
+    }
+    const int edge = ApplyTransition(GlobalMouseButtonState[index], isDown);
+    mouseButtonPressed[index] = mouseButtonPressed[index] || edge > 0;
+    mouseButtonReleased[index] = mouseButtonReleased[index] || edge < 0;
+}
 
-    if (isDown) {
-        state = wasPreviouslyDown ? KeyState::DownWasDown : KeyState::DownWasUp;
-    } else {
-        state = wasPreviouslyDown ? KeyState::UpWasDown : KeyState::UpWasUp;
+// Settles a just-pressed or just-released state into held or up.
+static void AdvanceState(KeyState& state) {
+    if (state == KeyState::DownWasUp) {
+        state = KeyState::DownWasDown;
+    } else if (state == KeyState::UpWasDown) {
+        state = KeyState::UpWasUp;
     }
 }
 
-void InputManager::AdvanceMouseButtonStates() {
+void InputManager::AdvanceStates() {
+    for (auto& pair : GlobalKeyState) {
+        AdvanceState(pair.second);
+    }
     for (size_t i = 0; i < kMouseButtonCount; ++i) {
-        switch (GlobalMouseButtonState[i]) {
-            case KeyState::DownWasUp:
-                GlobalMouseButtonState[i] = KeyState::DownWasDown;
-                break;
-            case KeyState::UpWasDown:
-                GlobalMouseButtonState[i] = KeyState::UpWasUp;
-                break;
-            default:
-                break;
-        }
+        AdvanceState(GlobalMouseButtonState[i]);
+    }
+
+    for (size_t i = 0; i < kKeyCount; ++i) {
+        keyPressed[i] = false;
+        keyReleased[i] = false;
+    }
+    for (size_t i = 0; i < kMouseButtonCount; ++i) {
+        mouseButtonPressed[i] = false;
+        mouseButtonReleased[i] = false;
     }
 }
 

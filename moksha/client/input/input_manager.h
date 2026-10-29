@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
-#include <thread>
 #include <unordered_map>
 
 #include "moksha/client/app/app_config.h"
@@ -200,7 +200,7 @@ class InputManager {
     // Check if key was released this frame.
     static bool GetKeyReleased(ME::Input::KeyCode keyCode);
 
-    // Check if key was pressed this frame.
+    // Check if key was pressed this frame, even if it was released again within the same frame.
     static bool GetKeyPressed(ME::Input::KeyCode keyCode);
 
     /**
@@ -246,21 +246,23 @@ class InputManager {
     // Check if a mouse button was released this frame.
     static bool GetMouseButtonReleased(MouseButton button);
 
-    // Check if a mouse button was pressed this frame.
+    // Check if a mouse button was pressed this frame, even if it was released again within the same frame.
     static bool GetMouseButtonPressed(MouseButton button);
 
     PlatformInputManager* GetPlatformInputManager();
 
    private:
     static const size_t kMouseButtonCount = 5;
+    static const size_t kKeyCount = static_cast<size_t>(KeyCode::Apostrophe) + 1;
 
-    // Shared down/up transition logic for both platform backends. Mouse messages carry no
-    // repeat bits (unlike WM_KEYDOWN), so state is derived from the previous frame instead.
+    // Down/up transitions shared by the platform backends. Edges are latched until AdvanceStates, so a press and a
+    // release that land in the same frame both report.
+    static void SetKeyState(KeyCode keyCode, bool isDown);
     static void SetMouseButtonState(MouseButton button, bool isDown);
 
-    // Advance DownWasUp -> DownWasDown and UpWasDown -> UpWasUp for all mouse buttons, same as
-    // each platform backend already does for GlobalKeyState in its own PostUpdate().
-    static void AdvanceMouseButtonStates();
+    // Advances DownWasUp -> DownWasDown and UpWasDown -> UpWasUp for every key and mouse button and clears the
+    // latched edges. Each platform backend calls it once per frame from its PostUpdate().
+    static void AdvanceStates();
 
     // Global key state map.
     static std::unordered_map<ME::Input::KeyCode, ME::Input::KeyState> GlobalKeyState;
@@ -268,6 +270,12 @@ class InputManager {
     // Mouse button state, indexed by MouseButton. Reuses KeyState since the same
     // down/up/held/released transitions apply.
     static ME::Input::KeyState GlobalMouseButtonState[kMouseButtonCount];
+
+    // Edges seen since the last AdvanceStates, indexed by KeyCode and MouseButton.
+    inline static bool keyPressed[kKeyCount] = {};
+    inline static bool keyReleased[kKeyCount] = {};
+    inline static bool mouseButtonPressed[kMouseButtonCount] = {};
+    inline static bool mouseButtonReleased[kMouseButtonCount] = {};
 
     // Mouse position.
     inline static ME::Vec2i mousePos = ME::Vec2i::Zero;

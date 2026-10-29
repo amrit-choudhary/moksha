@@ -171,34 +171,11 @@ void InputManagerWin::Update(double deltaTime) {
         // use pointer-sized type to avoid truncation on x64
         uintptr_t lp = static_cast<uintptr_t>(event.lParam);
         constexpr uintptr_t TRANSITION_MASK = (uintptr_t{1} << 31);  // 1 => transition = key released
-        constexpr uintptr_t PREV_STATE_MASK = (uintptr_t{1} << 30);  // 1 => key was previously down
 
+        // Auto-repeat downs are ignored by the shared transition, which tracks the previous state itself.
         bool isKeyUp = (lp & TRANSITION_MASK) != 0;
-        bool wasPreviouslyDown = (lp & PREV_STATE_MASK) != 0;
-
-        // On Key Press Down
-        if (!isKeyUp) {
-            KeyCode keyCode = KeyCodeMap[static_cast<uint16_t>(event.wParam)];
-            if (wasPreviouslyDown) {
-                // Key is being held down
-                InputManager::GlobalKeyState[keyCode] = KeyState::DownWasDown;
-            } else {
-                // Key was just pressed
-                InputManager::GlobalKeyState[keyCode] = KeyState::DownWasUp;
-            }
-        }
-
-        // On Key Released
-        if (isKeyUp) {
-            KeyCode keyCode = KeyCodeMap[static_cast<uint16_t>(event.wParam)];
-            if (wasPreviouslyDown) {
-                // Key was just released
-                InputManager::GlobalKeyState[keyCode] = KeyState::UpWasDown;
-            } else {
-                // Key is up and was previously up
-                InputManager::GlobalKeyState[keyCode] = KeyState::UpWasUp;
-            }
-        }
+        KeyCode keyCode = KeyCodeMap[static_cast<uint16_t>(event.wParam)];
+        InputManager::SetKeyState(keyCode, !isKeyUp);
     }
 
     // After processing all the events, reset the read buffer.
@@ -206,27 +183,7 @@ void InputManagerWin::Update(double deltaTime) {
 }
 
 void ME::Input::InputManagerWin::PostUpdate() {
-    // Loop through all the keys and update their states for the next frame.
-    for (auto& pair : InputManager::GlobalKeyState) {
-        KeyCode key = pair.first;
-        KeyState state = pair.second;
-
-        switch (state) {
-            case KeyState::DownWasUp:
-                // Transition from just pressed to being held down.
-                InputManager::GlobalKeyState[key] = KeyState::DownWasDown;
-                break;
-            case KeyState::UpWasDown:
-                // Transition from just released to being up.
-                InputManager::GlobalKeyState[key] = KeyState::UpWasUp;
-                break;
-            default:
-                // No state change needed for DownWasDown and UpWasUp.
-                break;
-        }
-    }
-
-    InputManager::AdvanceMouseButtonStates();
+    InputManager::AdvanceStates();
 }
 
 void InputManagerWin::End() {}
