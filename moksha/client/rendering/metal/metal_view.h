@@ -2,9 +2,9 @@
 #ifdef ME_METAL
 
 /**
- * What the Metal renderer needs from the window's view, as metal-cpp objects. The platform driver implements it over
- * its native view (platform/mac: an MTKView), so the renderer stays plain C++. Frame objects are valid only while
- * the frame is drawn, from inside the view's draw.
+ * What the Metal renderer needs from the window's view, as metal-cpp objects. The platform implements it over its
+ * native view (platform/mac: an MTKView), so the renderer stays plain C++ and OS-neutral. Frame objects are valid
+ * only while the frame is drawn, from inside the view's draw.
  */
 
 namespace CA {
@@ -29,8 +29,11 @@ class MetalView {
     // The GPU the view presents with. Not owned; retain it to keep it.
     virtual MTL::Device* GetDevice() const = 0;
 
-    // The layer the view presents to (vsync, its residency set). Not owned.
+    // The layer the view presents to (drawable size, its residency set). Not owned.
     virtual CA::MetalLayer* GetLayer() const = 0;
+
+    // Asks for presents synced to the display, or as fast as possible. An OS that always syncs (iOS) ignores it.
+    virtual void SetVsync(bool enabled) const = 0;
 
     // A Metal 4 render pass into this frame's drawable, or nullptr when the view has none to give (e.g. the window
     // is hidden). Obtains the drawable, so call it as late as possible.

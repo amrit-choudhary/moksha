@@ -22,8 +22,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   (`SceneUIMetal`); instance data is read as packed columns, since the C++ structs are 88 bytes. The content view is
   an `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a drawable only
   inside draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop. The renderer
-  reaches the view only through `rendering/metal/metal_view.h`. `metal_cpp_impl.cpp` compiles metal-cpp's
-  implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
+  reaches the view only through `rendering/metal/metal_view.h`, which each OS implements over its own view
+  (`platform/mac/mac_metal_view.*`); vsync goes through it too, since `displaySyncEnabled` is macOS-only.
+  `metal_cpp_impl.cpp` compiles metal-cpp's implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
 - Constant buffer layouts shared by both APIs are in `rendering/shared/shader_constants.h`. Mac work left, in order:
   Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution needs one.
 - Metal shaders (`resources/shaders/metal/`) mirror the hlsl ones file for file: each pass's `.metal` includes
@@ -87,4 +88,4 @@ All file reads go through `Vfs` (`moksha/shared/file_io/vfs.h`) with paths relat
 `third_party/` (miniaudio, metal-cpp): opaque, don't modify. `metal/metal-cpp` is Apple's
 `release/metal-cpp_macOS27.0.1_iOS27.0.1` (github.com/apple/metal-cpp); update it by replacing the folder. No
 metal-cpp-extensions: the renderer reaches the MTKView only through `rendering/metal/metal_view.h`, which
-`platform/mac/mac_main.mm` implements in Objective-C++.
+`platform/mac/mac_metal_view.mm` implements in Objective-C++.

@@ -68,7 +68,7 @@ void ME::RendererMetal::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
 void ME::RendererMetal::SetVsyncEnabled(bool enabled) {
     vsyncEnabled = enabled;
     if (view != nullptr) {
-        view->GetLayer()->setDisplaySyncEnabled(vsyncEnabled);
+        view->SetVsync(vsyncEnabled);
     }
 }
 
@@ -197,7 +197,7 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
     // Metal 4 makes nothing resident by itself: the renderer's set, and the layer's for its drawables.
     commandQueue->addResidencySet(residencySet);
     commandQueue->addResidencySet(view->GetLayer()->residencySet());
-    view->GetLayer()->setDisplaySyncEnabled(vsyncEnabled);
+    view->SetVsync(vsyncEnabled);
 
     ME::Log("RendererMetal::InitMetal");
     return true;

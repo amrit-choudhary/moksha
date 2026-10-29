@@ -8,11 +8,11 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
-#import <QuartzCore/CAMetalLayer.h>
 
 #include <string>
 
 #include "moksha/client/app/client_app.h"
+#include "moksha/client/platform/mac/mac_metal_view.h"
 #include "moksha/logging/logging.h"
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
@@ -179,32 +179,6 @@
 
 namespace {
 
-// The Metal renderer's access to the view (rendering/metal/metal_view.h). The Objective-C objects are handed over as
-// their metal-cpp types, which wrap the same objects; ownership stays with the view.
-class MTKMetalView : public ME::MetalView {
-   public:
-    explicit MTKMetalView(MTKView* inView) : view(inView) {}
-
-    MTL::Device* GetDevice() const override {
-        return reinterpret_cast<MTL::Device*>((__bridge void*)view.device);
-    }
-
-    CA::MetalLayer* GetLayer() const override {
-        return reinterpret_cast<CA::MetalLayer*>((__bridge void*)view.layer);
-    }
-
-    MTL4::RenderPassDescriptor* GetCurrentRenderPass() const override {
-        return reinterpret_cast<MTL4::RenderPassDescriptor*>((__bridge void*)view.currentMTL4RenderPassDescriptor);
-    }
-
-    CA::MetalDrawable* GetCurrentDrawable() const override {
-        return reinterpret_cast<CA::MetalDrawable*>((__bridge void*)view.currentDrawable);
-    }
-
-   private:
-    MTKView* view = nil;
-};
-
 NSString* ToNSString(const std::string& text) {
     NSString* string = [NSString stringWithUTF8String:text.c_str()];
     return string != nil ? string : @"";
@@ -281,7 +255,7 @@ int main(int argc, char* argv[]) {
         [window setContentView:view];
         [window makeFirstResponder:view];
 
-        MTKMetalView metalView(view);
+        ME::MacMetalView metalView(view);
         if (!app.Init(&metalView)) {
             app.Shutdown();
             return 1;
