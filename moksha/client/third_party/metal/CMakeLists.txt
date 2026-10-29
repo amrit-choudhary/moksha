@@ -14,7 +14,7 @@ target_link_libraries(METAL_LIB INTERFACE
     "-framework MetalKit"
 )
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_link_libraries(METAL_LIB INTERFACE "-framework UIKit")
+    target_link_libraries(METAL_LIB INTERFACE "-framework UIKit" "-framework CoreGraphics")
 else()
     target_link_libraries(METAL_LIB INTERFACE "-framework AppKit")
 endif()

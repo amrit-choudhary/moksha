@@ -29,6 +29,8 @@
 #include "moksha/client/input/input_manager_win.h"
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
 #include "moksha/client/input/input_manager_mac.h"
+#elif defined(ME_IOS) && !defined(ME_HEADLESS)
+#include "moksha/client/input/input_manager_ios.h"
 #endif
 #if defined(ME_DX12)
 #include "moksha/client/rendering/directx/renderer_dx.h"
@@ -54,6 +56,10 @@ class ClientApp {
     // Builds the final config: engine defaults, then the game's CreateGame, then settings.ini, then the command
     // line. Call once, before the window exists; the window is created from the returned config.
     const AppConfig& Configure(const AppArgs& args);
+
+    // The window the OS gave, in points, and its pixels per point. Call before Init where the OS decides the size
+    // (iOS); otherwise Init takes the config's size.
+    void SetWindowMetrics(uint16_t width, uint16_t height, float dpiScale);
 
 #if defined(ME_DX12)
     // Initializes every system for hWnd (whose client area must match the config's size) and starts the game.
@@ -89,6 +95,10 @@ class ClientApp {
     void HandleKeyEvent(uint16_t keyCode, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
+#elif defined(ME_IOS) && !defined(ME_HEADLESS)
+    // Feeds the first finger on the screen to the input system: its position in view points (top-left origin) and
+    // whether it is still down.
+    void HandlePrimaryTouch(float x, float y, bool isDown);
 #endif
 
    private:
@@ -111,6 +121,8 @@ class ClientApp {
     Input::InputManagerWin* winInputManager = nullptr;
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
     Input::InputManagerMac* macInputManager = nullptr;
+#elif defined(ME_IOS) && !defined(ME_HEADLESS)
+    Input::InputManagerIos* iosInputManager = nullptr;
 #endif
 #if defined(ME_DX12)
     RendererDX renderer;
@@ -122,6 +134,8 @@ class ClientApp {
 
     bool initialized = false;
     bool paused = false;
+    // Set by SetWindowMetrics; Init then keeps the OS's size instead of the config's.
+    bool windowFromPlatform = false;
     // Shutdown can run from both the entry and the destructor; shut networking down only once.
     bool networkingStarted = false;
 };

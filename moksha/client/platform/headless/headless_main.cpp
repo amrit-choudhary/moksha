@@ -14,7 +14,7 @@
 
 int main(int argc, char** argv) {
     std::string exePath = ME::Platform::GetExecutablePath(argc > 0 ? argv[0] : nullptr);
-    ME::Utils::SetPaths(exePath.data(), nullptr);
+    ME::Utils::SetPaths(ME::Utils::MakeExecutableRelativePaths(exePath));
 
     ME::AppArgs args;
     args.Set(argc, argv);

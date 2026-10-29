@@ -14,14 +14,34 @@ namespace ME::Utils {
 uint32_t HashString2uint32(const char* str);
 
 /**
- * Sets important game directory paths.
+ * The folders the file roots map to (see Vfs), each with a trailing slash, and the executable's folder without one.
+ * Each platform driver fills it in; the OS decides where writable data may live.
  */
-void SetPaths(char* arg1, char* arg2);
+class AppPaths {
+   public:
+    std::string executableDir;
+    std::string resources;
+    std::string dlc;
+    std::string userData;
+};
 
+/**
+ * Desktop and server layout: resources/, dlc/ and user_data/ next to the executable at executablePath.
+ */
+AppPaths MakeExecutableRelativePaths(const std::string& executablePath);
+
+/**
+ * Sets the folders the getters below return. Call once at startup, before any file access.
+ */
+void SetPaths(const AppPaths& paths);
+
+/**
+ * Read-only folder of the shipped, cooked resources, with a trailing slash.
+ */
 std::string GetResourcesPath();
 
 /**
- * Folder for downloadable content fetched from a content server, next to resources/. Has a trailing slash.
+ * Folder for downloadable content fetched from a content server, with a trailing slash.
  */
 std::string GetDlcPath();
 

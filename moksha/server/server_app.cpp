@@ -27,7 +27,7 @@ bool ME::ServerApp::Init(int argc, char** argv, IGameServerListener& inListener)
     quitRequested = false;
 
     std::string exePath = Platform::GetExecutablePath(argc > 0 ? argv[0] : nullptr);
-    Utils::SetPaths(exePath.data(), nullptr);
+    Utils::SetPaths(Utils::MakeExecutableRelativePaths(exePath));
 
     Time::TimeConfig timeConfig;
     timeConfig.fixedStepFPS = Time::FPS_60;

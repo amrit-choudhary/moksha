@@ -1,8 +1,11 @@
 # CMakeLists.txt for miniaudio library
 
-set(MINIAUDIO_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/miniaudio.c"
-)
+# iOS compiles the same implementation as Objective-C, through a one-line .m wrapper.
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(MINIAUDIO_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/miniaudio_ios.m")
+else()
+    set(MINIAUDIO_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/miniaudio.c")
+endif()
 
 add_library(miniaudio STATIC ${MINIAUDIO_SRCS})
 
@@ -23,6 +26,11 @@ if (WIN32)
     )
     # Make system libs PUBLIC so linking is satisfied for consumers.
     target_link_libraries(miniaudio PUBLIC ole32 avrt)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    # iOS has no runtime linking of frameworks (and no CoreServices); link what the Core Audio backend uses.
+    target_compile_definitions(miniaudio PRIVATE MA_NO_RUNTIME_LINKING)
+    target_link_libraries(miniaudio PUBLIC "-framework AVFoundation" "-framework AudioToolbox" "-framework CoreAudio"
+                                           "-framework CoreFoundation" "-framework Foundation")
 elseif(APPLE)
     target_link_libraries(miniaudio PRIVATE "-framework CoreAudio" "-framework AudioUnit" "-framework AudioToolbox" "-framework CoreServices")
 else() # Linux/Unix

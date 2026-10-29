@@ -41,8 +41,10 @@ through `ICollisionListener`, which `Game` implements).
 ## Files (`file_io/`)
 - `vfs.h` (`Vfs`, `FileRoot { Resources, Dlc, UserData }`): the only place that maps a root to a folder and
   touches the disk. `ReadText`, `GetFileSize` + `ReadBytes` (caller-owned buffer), `WriteBytes` (creates
-  folders), `RemoveFile`, `RemoveEmptyFolders`. Desktop roots are `resources/`, `dlc/`, `user_data/` next to
-  the exe; other platforms will map them to the APK, bundle or browser storage.
+  folders), `RemoveFile`, `RemoveEmptyFolders`. Each driver sets the root folders once at startup with
+  `Utils::SetPaths(AppPaths)` (`misc/utils.h`). Desktop and servers use `MakeExecutableRelativePaths`
+  (`resources/`, `dlc/`, `user_data/` next to the exe); iOS maps them to the bundle and Application Support, and
+  other platforms will map them to the APK or browser storage.
 - Parsers work on text already in memory: INI (`[section] key=value`, `;`/`#` comments), CSV, DDS.
 - `std::filesystem` calls use the `std::error_code` overloads only.
 

@@ -60,7 +60,7 @@ bool AcceptNewClients(ME::Net::TcpSocket& listener, double now) {
 
 int main(int argc, char** argv) {
     std::string exePath = ME::Platform::GetExecutablePath(argc > 0 ? argv[0] : nullptr);
-    ME::Utils::SetPaths(exePath.data(), nullptr);
+    ME::Utils::SetPaths(ME::Utils::MakeExecutableRelativePaths(exePath));
 
     ME::INIMap iniMap = ME::INIParser::Load();
     const std::string portStr = iniMap["settings"]["port"];

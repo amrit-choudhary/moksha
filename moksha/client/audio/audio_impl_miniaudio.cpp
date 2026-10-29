@@ -51,6 +51,7 @@ void UnloadSound(LoadedSound* loaded) {
 
 // Define the hidden implementation
 struct AudioImplMiniaudio::Impl {
+    ma_context context;
     ma_engine engine;
 
     // Array of loaded sound effects.
@@ -74,7 +75,20 @@ void AudioImplMiniaudio::Init(AudioSystem* audioSystem) {
         pimpl = new Impl();
     }
 
-    if (ma_engine_init(NULL, &pimpl->engine) != MA_SUCCESS) {
+    // An explicit context sets the iOS audio session: Ambient respects the silent switch and mixes with other apps'
+    // audio (miniaudio's default records). Other platforms ignore the coreaudio session fields.
+    ma_context_config contextConfig = ma_context_config_init();
+    contextConfig.coreaudio.sessionCategory = ma_ios_session_category_ambient;
+    if (ma_context_init(NULL, 0, &contextConfig, &pimpl->context) != MA_SUCCESS) {
+        delete pimpl;
+        pimpl = nullptr;
+        return;
+    }
+
+    ma_engine_config engineConfig = ma_engine_config_init();
+    engineConfig.pContext = &pimpl->context;
+    if (ma_engine_init(&engineConfig, &pimpl->engine) != MA_SUCCESS) {
+        ma_context_uninit(&pimpl->context);
         delete pimpl;
         pimpl = nullptr;
         return;
@@ -97,6 +111,7 @@ void AudioImplMiniaudio::End() {
         UnloadAllAudioFiles();
 
         ma_engine_uninit(&pimpl->engine);
+        ma_context_uninit(&pimpl->context);
         pimpl->initialized = false;
     }
 

@@ -87,9 +87,11 @@ function(_moksha_add_cook target cookTarget engineList resList)
         list(APPEND toolArgs --metal-developer-dir "${MOKSHA_METAL_DEVELOPER_DIR_FOUND}")
     endif()
 
-    # An iOS bundle can't hold a top-level resources/ folder (the bundle then fails to install), so it cooks to data/.
+    # iOS cooks into a staging folder that a post-build step copies into the bundle as data/: Xcode's bundle path holds
+    # a ${EFFECTIVE_PLATFORM_NAME} that only its own build settings expand, and an iOS bundle can't hold a top-level
+    # resources/ folder (the bundle then fails to install).
     if(cookTarget STREQUAL "ios-metal")
-        set(outDir "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/data")
+        set(outDir "${CMAKE_CURRENT_BINARY_DIR}/${target}_data")
     else()
         set(outDir "$<TARGET_FILE_DIR:${target}>/resources")
     endif()
@@ -103,6 +105,12 @@ function(_moksha_add_cook target cookTarget engineList resList)
         add_dependencies(${target}_cook Moksha_Cook)
     endif()
     add_dependencies(${target} ${target}_cook)
+
+    # Not VERBATIM, so Xcode expands the bundle path. Runs before Xcode signs the bundle, which seals data/ in.
+    if(cookTarget STREQUAL "ios-metal")
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${outDir}" "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/data")
+    endif()
 endfunction()
 
 # Makes target an iOS app: an Info.plist from the engine's template, the bundle id and the display name. iPhone only

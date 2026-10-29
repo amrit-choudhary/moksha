@@ -3,20 +3,8 @@
 #include <string>
 
 namespace {
-// Full path of the executable.
-static std::string executablePath;
-
-// Directory containing the executable.
-static std::string executableDirPath;
-
-// Path of resource folder.
-static std::string resourceDirPath;
-
-// Path of dlc folder (downloadable content fetched from a content server).
-static std::string dlcDirPath;
-
-// Path of the writable user data folder (saves, user settings).
-static std::string userDataDirPath;
+// The folders set at startup.
+static ME::Utils::AppPaths appPaths;
 }  // namespace
 
 using namespace ME;
@@ -30,42 +18,40 @@ uint32_t ME::Utils::HashString2uint32(const char* str) {
     return hash;
 }
 
-void ME::Utils::SetPaths(char* arg1, char* arg2) {
-    executablePath = arg1;
-
-    executableDirPath = std::string{executablePath};
+ME::Utils::AppPaths ME::Utils::MakeExecutableRelativePaths(const std::string& executablePath) {
+    AppPaths paths;
 
     // Cut at the last separator to drop the executable name, whatever its length.
     // Windows paths use '\', Mac/Linux use '/'. No separator means the current directory.
-    const size_t lastSeparator = executableDirPath.find_last_of("/\\");
+    const size_t lastSeparator = executablePath.find_last_of("/\\");
     if (lastSeparator == std::string::npos) {
-        executableDirPath = ".";
+        paths.executableDir = ".";
     } else {
-        executableDirPath.resize(lastSeparator);
+        paths.executableDir = executablePath.substr(0, lastSeparator);
     }
 
-    resourceDirPath = std::string{executableDirPath};
-    resourceDirPath += "/resources/";
+    paths.resources = paths.executableDir + "/resources/";
+    paths.dlc = paths.executableDir + "/dlc/";
+    paths.userData = paths.executableDir + "/user_data/";
+    return paths;
+}
 
-    dlcDirPath = std::string{executableDirPath};
-    dlcDirPath += "/dlc/";
-
-    userDataDirPath = std::string{executableDirPath};
-    userDataDirPath += "/user_data/";
+void ME::Utils::SetPaths(const AppPaths& paths) {
+    appPaths = paths;
 }
 
 std::string ME::Utils::GetResourcesPath() {
-    return resourceDirPath;
+    return appPaths.resources;
 }
 
 std::string ME::Utils::GetDlcPath() {
-    return dlcDirPath;
+    return appPaths.dlc;
 }
 
 std::string ME::Utils::GetUserDataPath() {
-    return userDataDirPath;
+    return appPaths.userData;
 }
 
 std::string ME::Utils::GetExecutableDirPath() {
-    return executableDirPath;
+    return appPaths.executableDir;
 }

@@ -26,6 +26,13 @@ const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
     return config;
 }
 
+void ME::ClientApp::SetWindowMetrics(uint16_t width, uint16_t height, float dpiScale) {
+    window.width = width;
+    window.height = height;
+    window.dpiScale = dpiScale;
+    windowFromPlatform = true;
+}
+
 #if defined(ME_DX12)
 bool ME::ClientApp::Init(HWND hWnd) {
 #elif defined(ME_METAL)
@@ -38,8 +45,10 @@ bool ME::ClientApp::Init() {
         return false;
     }
 
-    window.width = config.windowWidth;
-    window.height = config.windowHeight;
+    if (!windowFromPlatform) {
+        window.width = config.windowWidth;
+        window.height = config.windowHeight;
+    }
 
     engine.time = &timeManager;
     engine.timers = &timerManager;
@@ -61,6 +70,8 @@ bool ME::ClientApp::Init() {
     winInputManager = static_cast<ME::Input::InputManagerWin*>(inputManager.GetPlatformInputManager());
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
     macInputManager = static_cast<ME::Input::InputManagerMac*>(inputManager.GetPlatformInputManager());
+#elif defined(ME_IOS) && !defined(ME_HEADLESS)
+    iosInputManager = static_cast<ME::Input::InputManagerIos*>(inputManager.GetPlatformInputManager());
 #endif
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
@@ -211,6 +222,12 @@ void ME::ClientApp::HandleMouseMove(float x, float y) {
 void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
     if (macInputManager != nullptr) {
         macInputManager->HandleMouseButton(button, isDown);
+    }
+}
+#elif defined(ME_IOS) && !defined(ME_HEADLESS)
+void ME::ClientApp::HandlePrimaryTouch(float x, float y, bool isDown) {
+    if (iosInputManager != nullptr) {
+        iosInputManager->HandlePrimaryTouch(x, y, isDown);
     }
 }
 #endif

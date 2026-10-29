@@ -180,6 +180,9 @@ class InputManager {
 #ifdef ME_WIN
     friend class InputManagerWin;
 #endif
+#ifdef ME_IOS
+    friend class InputManagerIos;
+#endif
 
     InputManager();
     ~InputManager();

@@ -59,12 +59,16 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     endif()
     add_library(Moksha_Entry OBJECT ${ENTRY_SOURCES})
     target_link_libraries(Moksha_Entry PUBLIC Moksha_Client)
+    # The iOS driver uses ARC (the macOS one predates it).
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        target_compile_options(Moksha_Entry PRIVATE -fobjc-arc)
+    endif()
 endif()
 
 # Headless client: the same sources without the GPU, OS input, audio device and windowed app files.
 set(HEADLESS_SOURCES ${SOURCES})
 list(FILTER HEADLESS_SOURCES EXCLUDE REGEX
-     "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.|/input/input_manager_(win|mac)\.|/audio/audio_impl_miniaudio\.")
+     "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.|/input/input_manager_(win|mac|ios)\.|/audio/audio_impl_miniaudio\.")
 
 add_library(Moksha_ClientHeadless STATIC ${HEADLESS_SOURCES})
 

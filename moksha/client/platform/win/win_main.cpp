@@ -114,7 +114,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
     // The CRT has already split the command line into __argc/__argv.
     std::string exePath = ME::Platform::GetExecutablePath(__argc > 0 ? __argv[0] : nullptr);
-    ME::Utils::SetPaths(exePath.data(), nullptr);
+    ME::Utils::SetPaths(ME::Utils::MakeExecutableRelativePaths(exePath));
 
     ME::AppArgs args;
     args.Set(__argc, __argv);

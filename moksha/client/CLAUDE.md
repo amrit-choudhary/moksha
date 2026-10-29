@@ -38,6 +38,14 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus; a
   fully covered window stalls about 1 s per frame in the drawable wait (watch the occlusion state and skip drawing;
   undecided whether the game keeps running or pauses then).
+- iOS (`platform/ios/`, fully separate from `platform/mac/`, ARC): `ios_main.mm` runs `UIApplicationMain` with one
+  window scene (`MEAppDelegate`, `MESceneDelegate`, named in `cmake/ios/Info.plist.in`). `MEViewController` owns the
+  `ClientApp` and starts it at the first layout: `Utils::SetPaths` (resources in the bundle's `data/`, `user_data/` and
+  `dlc/` in Application Support, DLC out of backups), `SetWindowMetrics` (points and `contentScaleFactor`), then
+  `Init(IosMetalView)`. Its `MEView` (an MTKView on its own 60 Hz timer) calls `Tick` from `drawRect:`; resign/become
+  active pause the view and call `Pause`/`Resume`; a `false` from `Tick` only logs. The first finger is the mouse
+  (`InputManagerIos`). iOS kills apps without notice, so never rely on `Shutdown`. Device only: the Simulator has no
+  Metal 4. miniaudio builds as Objective-C there (`miniaudio_ios.m`).
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
