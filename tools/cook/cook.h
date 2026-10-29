@@ -6,9 +6,10 @@
  * res_list.json, paths relative to the list's own folder, '/' separated:
  *   "copy":     files copied as they are (config, atlas and game data).
  *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (win-dx12 with texconv,
- *               mac-metal in the cook itself).
+ *               mac-metal and ios-metal in the cook itself).
  *   "shaders":  {"hlsl": [...], "metal": [...]}; each target compiles the language its graphics API uses: win-dx12
- *               hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal metal with `xcrun metal` (<name>.metallib).
+ *               hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal with `xcrun metal` for
+ *               their OS's SDK (<name>.metallib).
  * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its includes) changed.
  */
 #pragma once
@@ -28,7 +29,7 @@ enum class CookTarget : uint8_t {
     WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
     Headless,       // headless clients and servers: copies only, nothing is drawn
     MacMetal,       // macOS, Metal 4: metal -> .metallib via xcrun, png -> dds in the cook
-    IosMetal,       // not supported yet
+    IosMetal,       // iOS devices, Metal 4: metal -> .metallib for the iphoneos SDK, png -> dds in the cook
     AndroidVulkan,  // not supported yet
     WebWebGPU,      // not supported yet
 };

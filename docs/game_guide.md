@@ -25,6 +25,8 @@ For anyone (human or AI) writing a game in its own repo against the engine. Engi
 `moksha_add_game(<Target> SOURCES ... RES_LIST resources/res_list.json [HEADLESS])` builds the executable and
 cooks the engine's resources plus the game's next to it. `HEADLESS` adds `<Target>_Headless` (no window,
 renderer, input or audio; same game code). After adding or removing a `.cpp`, re-run `cmake -B build`.
+On iOS the game is an app bundle: optional `DISPLAY_NAME`, `BUNDLE_ID` (default `MOKSHA_BUNDLE_ID_PREFIX` plus the
+target) and `ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill its Info.plist; other platforms ignore them.
 
 ## Lifecycle
 1. `CreateGame` (via `MOKSHA_GAME`) constructs the game before any engine system exists. Do nothing there.

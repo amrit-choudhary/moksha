@@ -1,4 +1,4 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_HEADLESS)
 
 #include "client_app.h"
 
@@ -26,9 +26,9 @@ const ME::AppConfig& ME::ClientApp::Configure(const AppArgs& args) {
     return config;
 }
 
-#if defined(ME_WIN) && !defined(ME_HEADLESS)
+#if defined(ME_DX12)
 bool ME::ClientApp::Init(HWND hWnd) {
-#elif defined(ME_MAC) && !defined(ME_HEADLESS)
+#elif defined(ME_METAL)
 bool ME::ClientApp::Init(const MetalView* view) {
 #else
 bool ME::ClientApp::Init() {
@@ -215,4 +215,4 @@ void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
 }
 #endif
 
-#endif  // ME_WIN || ME_MAC || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_HEADLESS

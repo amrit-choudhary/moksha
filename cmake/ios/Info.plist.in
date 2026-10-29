@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist of every iOS game, filled in per game by moksha_add_game (configure_file, @ONLY). Xcode adds MinimumOSVersion,
+  UIDeviceFamily and the DT* build keys. The scene delegate class is the iOS driver's (platform/ios).
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>@MOKSHA_BUNDLE_EXECUTABLE@</string>
+    <key>CFBundleIdentifier</key>
+    <string>@MOKSHA_BUNDLE_ID@</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>@MOKSHA_BUNDLE_DISPLAY_NAME@</string>
+    <key>CFBundleDisplayName</key>
+    <string>@MOKSHA_BUNDLE_DISPLAY_NAME@</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@MOKSHA_BUNDLE_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@MOKSHA_BUNDLE_BUILD@</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
+    <!-- Metal 4 needs an Apple GPU family 7+ device; the engine builds arm64 only. -->
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+        <string>metal</string>
+    </array>
+
+    <!-- A launch screen is required for iOS 27 SDK uploads; an empty one shows the background colour. -->
+    <key>UILaunchScreen</key>
+    <dict/>
+
+    <!-- The UIScene lifecycle is required for apps built with the iOS 27 SDK. One window, no multiple scenes. -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+        <key>UISceneConfigurations</key>
+        <dict>
+            <key>UIWindowSceneSessionRoleApplication</key>
+            <array>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Default</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>MESceneDelegate</string>
+                </dict>
+            </array>
+        </dict>
+    </dict>
+
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+@MOKSHA_BUNDLE_ORIENTATIONS@
+    </array>
+
+    <key>UIStatusBarHidden</key>
+    <true/>
+    <!-- Lets ProMotion iPhones run above 60 Hz when the game asks for it. -->
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+</dict>
+</plist>

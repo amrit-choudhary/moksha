@@ -167,7 +167,8 @@ ME::Cook::CookTarget ME::Cook::ParseTarget(const char* name) {
 }
 
 bool ME::Cook::Cooker::Init(CookTarget inTarget, const fs::path& inOutDir, const CookTools& inTools) {
-    if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal) {
+    if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal &&
+        inTarget != CookTarget::IosMetal) {
         std::cerr << "Cook: error: this target is not supported yet\n";
         return false;
     }
@@ -310,10 +311,12 @@ bool ME::Cook::Cooker::CookMetalShaders(cJSON* shaders, const fs::path& srcRoot,
         if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
             return false;
         }
-        // Metal 4 needs macOS 26, so the library targets it rather than the build machine's macOS.
-        const std::string command = xcrun + " -sdk macosx metal -mmacosx-version-min=26.0 -I " +
-                                    Quote(src.parent_path().string()) + " -o " + Quote(dst.string()) + " " +
-                                    Quote(src.string());
+        // Metal 4 needs macOS or iOS 26, so the library targets it rather than the build machine's OS. A library
+        // only loads on the OS it was built for: iOS devices get their own (the Simulator has no Metal 4).
+        const std::string sdkArgs = target == CookTarget::IosMetal ? " -sdk iphoneos metal -target air64-apple-ios26.0"
+                                                                   : " -sdk macosx metal -mmacosx-version-min=26.0";
+        const std::string command = xcrun + sdkArgs + " -I " + Quote(src.parent_path().string()) + " -o " +
+                                    Quote(dst.string()) + " " + Quote(src.string());
         std::error_code ec;
         if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
             PrintError(listPath, entry,
@@ -362,7 +365,7 @@ bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const 
             return false;
         }
         // texconv only runs on Windows; Metal targets decode the PNG in the cook, into the same uncompressed DDS.
-        if (target == CookTarget::MacMetal) {
+        if (target == CookTarget::MacMetal || target == CookTarget::IosMetal) {
             std::string error;
             if (!ConvertPngToDds(src, dst, error)) {
                 PrintError(listPath, entry, error);
@@ -391,7 +394,7 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
         PrintError(listPath, "shaders", "must be an object of languages, e.g. {\"hlsl\": [...]}");
         return false;
     }
-    if (target == CookTarget::MacMetal) {
+    if (target == CookTarget::MacMetal || target == CookTarget::IosMetal) {
         return CookMetalShaders(shaders, srcRoot, listPath);
     }
     // Nothing is drawn headless; other languages belong to other graphics APIs.

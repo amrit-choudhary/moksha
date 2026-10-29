@@ -1,9 +1,9 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_HEADLESS)
 
 /**
  * The client app: owns every engine system and the game, and runs one frame per Tick. A per-platform driver
- * (platform/win, platform/mac, platform/headless) creates the window, if any, and repeats Tick; this class never
- * loops by itself.
+ * (platform/win, platform/mac, platform/ios, platform/headless) creates the window, if any, and repeats Tick; this
+ * class never loops by itself.
  */
 
 #pragma once
@@ -55,12 +55,12 @@ class ClientApp {
     // line. Call once, before the window exists; the window is created from the returned config.
     const AppConfig& Configure(const AppArgs& args);
 
-#if defined(ME_WIN) && !defined(ME_HEADLESS)
+#if defined(ME_DX12)
     // Initializes every system for hWnd (whose client area must match the config's size) and starts the game.
     bool Init(HWND hWnd);
-#elif defined(ME_MAC) && !defined(ME_HEADLESS)
-    // Initializes every system for view (the window's content view, sized to the config) and starts the game.
-    // Tick must run inside the view's draw callback, where the view hands out the frame's drawable.
+#elif defined(ME_METAL)
+    // Initializes every system for view (the window's content view) and starts the game. Tick must run inside the
+    // view's draw callback, where the view hands out the frame's drawable.
     bool Init(const MetalView* view);
 #else
     // Initializes every system without a window and starts the game. The config's size is kept for layout.
@@ -128,4 +128,4 @@ class ClientApp {
 
 }  // namespace ME
 
-#endif  // ME_WIN || ME_MAC || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_HEADLESS

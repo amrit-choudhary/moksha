@@ -49,6 +49,8 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
 - Games build with `moksha_add_game()` (`cmake/moksha_game.cmake`). It owns the per-platform executable
   shape and runs `Moksha_Cook` (`tools/cook`), which cooks `resources/res_list.json` (engine) and then the
   game's list next to the executable. Engine resources stay minimal: shaders, one font, one UI atlas.
+  On iOS it makes an app bundle (Xcode generator) from `cmake/ios/Info.plist.in` and cooks into `data/` inside it;
+  a top-level `resources/` folder breaks an iOS bundle's install.
 - `file(GLOB ...)` source lists are collected at configure time: after adding or removing a
   `.cpp`, re-run `cmake -B build`.
 

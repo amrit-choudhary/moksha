@@ -142,13 +142,13 @@ InputManager::~InputManager() {}
 
 void InputManager::Init(const ME::WindowState* inWindow) {
     window = inWindow;
-#if defined(ME_HEADLESS)
-    // No window, so no OS input: the base manager does nothing and every key stays up.
-    platformInputManager = new PlatformInputManager();
-#elif defined(ME_MAC)
+#if defined(ME_MAC) && !defined(ME_HEADLESS)
     platformInputManager = new InputManagerMac();
-#elif defined(ME_WIN)
+#elif defined(ME_WIN) && !defined(ME_HEADLESS)
     platformInputManager = new InputManagerWin();
+#else
+    // Headless, or an OS without an input backend yet: the base manager does nothing and every key stays up.
+    platformInputManager = new PlatformInputManager();
 #endif
 
     platformInputManager->Init();

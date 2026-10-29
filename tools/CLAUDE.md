@@ -8,14 +8,16 @@ Project rules: [root CLAUDE.md](../CLAUDE.md).
   into one output folder. `moksha_add_game` runs it before each game build: the engine's
   `resources/res_list.json` first, then the game's. Two lists producing the same output path is an error.
 - `res_list.json` (paths relative to the list's folder): `copy` (files as they are), `textures` (png → an
-  uncompressed RGBA8 `.dds`: texconv for `win-dx12`, the cook itself for `mac-metal` via `png_to_dds` and the
-  vendored `stb_image.h`), `shaders` (`{"hlsl": [...], "metal": [...]}`; each target cooks its
+  uncompressed RGBA8 `.dds`: texconv for `win-dx12`, the cook itself for `mac-metal`/`ios-metal` via `png_to_dds`
+  and the vendored `stb_image.h`), `shaders` (`{"hlsl": [...], "metal": [...]}`; each target cooks its
   graphics API's language; hlsl → `<name>_vs.cso` + `<name>_ps.cso` via dxc; metal → `<name>.metallib` via
-  `xcrun metal -mmacosx-version-min=26.0`, includes from the shader's folder). Unknown keys are errors.
+  `xcrun -sdk macosx metal -mmacosx-version-min=26.0`, or `-sdk iphoneos ... -target air64-apple-ios26.0` for
+  `ios-metal`; includes from the shader's folder). Unknown keys are errors. A metallib loads only on the OS it was
+  built for, and the iOS Simulator has no Metal 4, so `ios-metal` is for devices.
 - The Metal compiler needs Xcode with its Metal toolchain (Xcode > Settings > Components). `moksha_add_game` finds a
   developer folder whose `xcrun` has it (the selected one, else `/Applications/Xcode.app`, so xcode-select may stay on
   the Command Line Tools) and passes it as `--metal-developer-dir`; `MOKSHA_METAL_DEVELOPER_DIR` overrides.
-- Targets: `win-dx12`, `headless` (copies only; headless clients and servers), `mac-metal`. `ios-metal`,
+- Targets: `win-dx12`, `headless` (copies only; headless clients and servers), `mac-metal`, `ios-metal`.
   `android-vulkan`, `web-webgpu` are reserved and report "not supported yet".
 - Skips outputs newer than their sources; a shader is rebuilt when any file in its folder changes.
 - Cross-compiled builds pass a host-built cook with `MOKSHA_COOK_EXECUTABLE`.
