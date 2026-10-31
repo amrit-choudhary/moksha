@@ -29,6 +29,11 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
+    <!-- iOS asks the user before an app reaches devices on the LAN (game and content servers); this is the prompt's
+         text. Until the user allows it, sends to LAN addresses fail. -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Connects to game servers on your local network.</string>
+
     <!-- Metal 4 needs an Apple GPU family 7+ device; the engine builds arm64 only. -->
     <key>UIRequiredDeviceCapabilities</key>
     <array>

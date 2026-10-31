@@ -85,6 +85,10 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `net/game_client.*` (`GameClient`): UDP client for a game server (`[net] serverIP/serverPort`). Engine verbs
   (connect, ping, chat, data) are handled here; game verbs (`GameProtocol::FIRST_GAME_VERB` and up) go to the
   game's `IGameClientListener` (`SetListener`), and the game sends them with `SendGameMessage`.
+  `SendConnectRequest` sends one datagram and nothing is resent, so the game repeats it until `IsConnected()`
+  (the net test sample: every second). No reconnect after the app is backgrounded yet.
+- iOS: the first send to a LAN address shows the Local Network prompt (text from `NSLocalNetworkUsageDescription` in
+  `cmake/ios/Info.plist.in`); sends to the LAN fail until the user allows it, so the first CONNECT is usually lost.
 - `net/content_client.*` (`ContentClient`): syncs `dlc/` next to the exe with a content server in the
   background at startup, one state-machine step per frame; on failure the game continues with what it has.
 

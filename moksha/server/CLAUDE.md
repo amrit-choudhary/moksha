@@ -21,6 +21,8 @@ Project rules: [root CLAUDE.md](../../CLAUDE.md); wire format: [shared/CLAUDE.md
 ## Limits (known issues)
 - Clients are a fixed array of `Constants::MaxServerClients` (255). IDs are given in connection order and
   never reused: there is no disconnect or timeout yet, so restart the server after 255 connects.
+  A repeated CONNECT from the same address gets another new ID, so a client that retries before its CONNECTED
+  arrives leaves an unused client behind.
 - No authentication, no acknowledgement or resend layer; the version byte isn't checked.
 - No SIGTERM handler: stopping the process ends it without `OnEnd`.
 - Every datagram is logged at info level.
