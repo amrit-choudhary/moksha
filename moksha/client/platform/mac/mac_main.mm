@@ -2,7 +2,7 @@
 
 /**
  * macOS entry and frame driver: creates the window from the app's config, pumps events and repeats
- * ClientApp::Tick until the window closes or the game quits. While minimized it waits instead of spinning.
+ * ClientApp::Tick until the window closes or the game quits. While minimized or covered it pauses and waits.
  */
 
 #import <Cocoa/Cocoa.h>
@@ -17,7 +17,30 @@
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
 
-// Window and app events (close, Cmd+Q, minimize): the macOS side of win_main's WindowProcW.
+namespace {
+
+// Minimized or fully covered (other windows, another Space, a locked screen): nothing of it is on screen.
+bool IsWindowHidden(NSWindow* window) {
+    return window.isMiniaturized || (window.occlusionState & NSWindowOcclusionStateVisible) == 0;
+}
+
+// Wakes a loop waiting in NextEvent. Uncovering the window sends this app no event of its own.
+void WakeEventLoop() {
+    NSEvent* event = [NSEvent otherEventWithType:NSEventTypeApplicationDefined
+                                        location:NSZeroPoint
+                                   modifierFlags:0
+                                       timestamp:0
+                                    windowNumber:0
+                                         context:nil
+                                         subtype:0
+                                           data1:0
+                                           data2:0];
+    [NSApp postEvent:event atStart:YES];
+}
+
+}  // namespace
+
+// Window and app events (close, Cmd+Q, minimize, covered): the macOS side of win_main's WindowProcW.
 @interface MEWindowDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate>
 @property(nonatomic, assign) ME::ClientApp* app;
 @property(nonatomic, assign) bool quitRequested;
@@ -36,14 +59,31 @@
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification {
-    if (self.app != nullptr) {
-        self.app->Pause();
-    }
+    [self syncPause:notification.object];
 }
 
 - (void)windowDidDeminiaturize:(NSNotification*)notification {
-    if (self.app != nullptr) {
-        self.app->Resume();
+    [self syncPause:notification.object];
+}
+
+- (void)windowDidChangeOcclusionState:(NSNotification*)notification {
+    [self syncPause:notification.object];
+}
+
+// A hidden window pauses the game, as iOS does when the app leaves the foreground.
+- (void)syncPause:(NSWindow*)window {
+    if (self.quitRequested) {
+        return;  // closing hides the window too; the game ends rather than pausing
+    }
+    if (IsWindowHidden(window)) {
+        if (self.app != nullptr) {
+            self.app->Pause();
+        }
+    } else {
+        if (self.app != nullptr) {
+            self.app->Resume();
+        }
+        WakeEventLoop();
     }
 }
 
@@ -255,6 +295,11 @@ int main(int argc, char* argv[]) {
         [window setContentView:view];
         [window makeFirstResponder:view];
 
+        // The view's size in points and the screen's pixels per point, as iOS reports them.
+        const NSSize viewSize = view.bounds.size;
+        app.SetWindowMetrics(static_cast<uint16_t>(viewSize.width), static_cast<uint16_t>(viewSize.height),
+                             static_cast<float>(window.backingScaleFactor));
+
         ME::MacMetalView metalView(view);
         if (!app.Init(&metalView)) {
             app.Shutdown();
@@ -271,8 +316,9 @@ int main(int argc, char* argv[]) {
 
         while (!windowDelegate.quitRequested) {
             @autoreleasepool {
-                // Minimized: nothing to draw, so sleep until the next event instead of spinning.
-                if ([window isMiniaturized]) {
+                // Minimized or covered: nothing to draw, so sleep until the next event instead of spinning (or
+                // stalling in the drawable wait).
+                if (IsWindowHidden(window)) {
                     NSEvent* event = NextEvent(true);
                     if (event != nil) {
                         [NSApp sendEvent:event];

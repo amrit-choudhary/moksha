@@ -49,7 +49,8 @@ through `ICollisionListener`, which `Game` implements).
 - `std::filesystem` calls use the `std::error_code` overloads only.
 
 ## Platform (`platform/`)
-One file per OS for code every program needs: `GetExecutablePath(argv0)`.
+One file per OS for code every program needs: `GetExecutablePath(argv0)` (Windows `GetModuleFileNameA`, macOS
+`_NSGetExecutablePath` + `realpath`; `exe_path_posix.cpp` covers the rest with `argv0` for now).
 
 ## Vendored
 `third_party/json` (cJSON), `random/stb_perlin.*`: opaque, don't modify.

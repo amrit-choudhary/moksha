@@ -1,6 +1,6 @@
 /**
  * Per-OS queries needed by every program, including servers and tools. OS calls for shared code live only in
- * this folder, one file per OS (exe_path_win.cpp, exe_path_posix.cpp).
+ * this folder, one file per OS (exe_path_win.cpp, exe_path_mac.cpp, exe_path_posix.cpp for the rest).
  */
 #pragma once
 

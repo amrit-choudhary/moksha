@@ -57,8 +57,8 @@ class Game : public ICollisionListener {
     // End game.
     virtual void End();
 
-    // The app went to the background (window minimized, app suspended, browser tab hidden). Frames stop until
-    // OnResume; on mobile and web the app may be closed without another call.
+    // The app went to the background (window minimized or fully covered, app suspended, browser tab hidden). Frames
+    // stop until OnResume; on mobile and web the app may be closed without another call.
     virtual void OnPause();
 
     // The app is back in the foreground after OnPause.

@@ -37,7 +37,8 @@ target) and `ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill its Info.plist; other plat
 4. Every frame: N × `FixedUpdate(fixedDt)` (60 Hz by default; timers, physics and animation run in the same
    step) → `Update(dt)` → UI → render. Gameplay that must be deterministic goes in `FixedUpdate`.
 5. `End()`: clear your timers, delete what you created (`scene`, `uiScene`, physics scene), then call
-   `Game::End()`. `OnPause`/`OnResume` on minimize; on mobile and web the app can die without `End`.
+   `Game::End()`. `OnPause`/`OnResume` on minimize (macOS: also while the window is fully covered; mobile: leaving the
+   foreground); on mobile and web the app can die without `End`.
 
 ## What `ME::Engine` gives you (`moksha/client/app/engine.h`)
 `time` (frame clock), `timers` (delayed/repeating `Delegate` calls), `input` (keys, mouse), `physics` (AABB

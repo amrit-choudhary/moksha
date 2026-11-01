@@ -8,9 +8,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `app/client_app.*` (`ClientApp`, Windows, macOS and headless): `Configure(args)` → `Init` → `Tick()` per frame →
   `Shutdown()`. It never loops itself. Drivers per platform: `platform/win/win_main.cpp` (window, message pump,
   `Tick`; minimized → `Pause` and a blocking wait), `platform/mac/mac_main.mm` (the same shape: `NSWindow`, event
-  pump with `nextEventMatchingMask`, `Tick`; Cmd+Q and closing end the loop, so `Shutdown` always runs),
+  pump with `nextEventMatchingMask`, `Tick`; minimized or fully covered → `Pause` and a blocking wait, woken by a
+  posted empty event when uncovered; Cmd+Q and closing end the loop, so `Shutdown` always runs),
   `platform/headless/headless_main.cpp` (plain `main`, `Tick` + `Time::WaitForNextFixedStep`). Keep the Mac
-  driver parallel to the Windows one.
+  driver parallel to the Windows one, and at feature parity with the iOS one: a feature added to one Apple driver
+  goes into the other in the same change, unless the other OS has no counterpart.
 - macOS today: a plain executable with `resources/` beside it, input, miniaudio, and `RendererMetal` on Metal 4,
   mirroring `RendererDX` class for class: `SceneMetal` (`SceneDX`), `UploadBufferMetal`, `TextureMetal`,
   `QuadMetal`, `PSOMetal` (pipelines through `MTL4Compiler`, plus depth states), `ShaderMetal` (loads the cooked
@@ -26,7 +28,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   (`platform/mac/mac_metal_view.*`); vsync goes through it too, since `displaySyncEnabled` is macOS-only.
   `metal_cpp_impl.cpp` compiles metal-cpp's implementation once. Run with `MTL_DEBUG_LAYER=1` for API validation.
 - Constant buffer layouts shared by both APIs are in `rendering/shared/shader_constants.h`. Mac work left, in order:
-  Retina (`WindowState::dpiScale`) and resizing; an `.app` bundle when distribution needs one.
+  resizing (window metrics are set once, before `Init`, as on iOS); an `.app` bundle when distribution needs one, and with it the iOS
+  paths (resources from `NSBundle`, `user_data/` and `dlc/` in Application Support); the plain dev executable keeps
+  them next to itself, as on Windows.
 - Metal shaders (`resources/shaders/metal/`) mirror the hlsl ones file for file: each pass's `.metal` includes
   `structs.metal` and `helpers.metal` (the counterparts of `structs.hlsl`, `helpers.hlsl`). The `mac-metal` cook
   compiles each listed shader to a `.metallib` (Xcode's Metal compiler, macOS 26 minimum) and turns textures into the
@@ -35,9 +39,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   only set 1 gets no buffer for it (`SceneMetal` creates each set independently).
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
   with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
-  (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus; a
-  fully covered window stalls about 1 s per frame in the drawable wait (watch the occlusion state and skip drawing;
-  undecided whether the game keeps running or pauses then).
+  (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus.
 - iOS (`platform/ios/`, fully separate from `platform/mac/`, ARC): `ios_main.mm` runs `UIApplicationMain` with one
   window scene (`MEAppDelegate`, `MESceneDelegate`, named in `cmake/ios/Info.plist.in`). `MEViewController` owns the
   `ClientApp` and starts it at the first layout: `Utils::SetPaths` (resources in the bundle's `data/`, `user_data/` and
@@ -55,7 +57,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `Tick()` order: `BeginFrame` → input → N × (timers, `FixedUpdate`, physics, animation) at the fixed step →
   `Update`, UI, debug overlay → input post → render (skipped when paused) → game client, content client, audio.
 - `Game` lifecycle: `Init(Engine&)` (create `scene` and `uiScene`; both are required) → `Start` → `FixedUpdate` /
-  `Update` → `End`; `OnPause`/`OnResume` on minimize (mobile backgrounding later).
+  `Update` → `End`; `OnPause`/`OnResume` on minimize (macOS also while fully covered; iOS on leaving the
+  foreground).
 
 ## Scene and rendering (not ECS)
 - `scene/scene.h` (`Scene`) and `scene/scene_ui.h` (`SceneUI`) are plain struct-of-arrays data (transforms,
