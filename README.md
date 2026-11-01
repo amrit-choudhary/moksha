@@ -46,8 +46,7 @@ repository and builds against the engine.
 
 ## Building the engine
 C++20 and CMake 3.31 or newer. The cook also needs:
-- **Windows**: [dxc](https://github.com/microsoft/DirectXShaderCompiler) and
-  [texconv](https://github.com/microsoft/DirectXTex) on `PATH`.
+- **Windows**: [dxc](https://github.com/microsoft/DirectXShaderCompiler) on `PATH`.
 - **macOS and iOS**: Xcode with its Metal toolchain (Xcode > Settings > Components).
 
 ```

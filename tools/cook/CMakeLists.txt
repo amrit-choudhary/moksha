@@ -3,7 +3,7 @@
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
-# stb_image (stb_image.h/.cpp, vendored, opaque) decodes PNGs for targets without texconv. Its warnings are not ours.
+# stb_image (stb_image.h/.cpp, vendored, opaque) decodes PNGs for every target. Its warnings are not ours.
 set(STB_IMAGE_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/stb_image.cpp")
 if(MSVC)
     set_source_files_properties(${STB_IMAGE_SOURCE} PROPERTIES COMPILE_OPTIONS "/W0")

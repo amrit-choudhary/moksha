@@ -5,8 +5,8 @@
  *
  * res_list.json, paths relative to the list's own folder, '/' separated:
  *   "copy":     files copied as they are (config, atlas and game data).
- *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (win-dx12 with texconv,
- *               mac-metal and ios-metal in the cook itself).
+ *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (ConvertPngToDds, the same
+ *               on every target that draws).
  *   "shaders":  {"hlsl": [...], "metal": [...]}; each target compiles the language its graphics API uses: win-dx12
  *               hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal with `xcrun metal` for
  *               their OS's SDK (<name>.metallib).
@@ -26,7 +26,7 @@ namespace ME::Cook {
 
 enum class CookTarget : uint8_t {
     None,           // unknown name
-    WinDX12,        // Windows, DirectX 12: dxc shaders, texconv dds textures
+    WinDX12,        // Windows, DirectX 12: dxc shaders, png -> dds in the cook
     Headless,       // headless clients and servers: copies only, nothing is drawn
     MacMetal,       // macOS, Metal 4: metal -> .metallib via xcrun, png -> dds in the cook
     IosMetal,       // iOS devices, Metal 4: metal -> .metallib for the iphoneos SDK, png -> dds in the cook
@@ -41,7 +41,6 @@ CookTarget ParseTarget(const char* name);
 class CookTools {
    public:
     std::string dxc = "dxc";
-    std::string texconv = "texconv";
     // Developer folder for `xcrun metal` (DEVELOPER_DIR); empty uses the one xcode-select picked.
     std::string metalDeveloperDir;
 };

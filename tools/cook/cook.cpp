@@ -364,21 +364,10 @@ bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const 
         if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
             return false;
         }
-        // texconv only runs on Windows; Metal targets decode the PNG in the cook, into the same uncompressed DDS.
-        if (target == CookTarget::MacMetal || target == CookTarget::IosMetal) {
-            std::string error;
-            if (!ConvertPngToDds(src, dst, error)) {
-                PrintError(listPath, entry, error);
-                return false;
-            }
-        } else {
-            const std::string command = Quote(tools.texconv) + " -nologo -f R8G8B8A8_UNORM -m 1 -ft DDS -y -o " +
-                                        Quote(dst.parent_path().string()) + " " + Quote(src.string());
-            std::error_code ec;
-            if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
-                PrintError(listPath, entry, "texconv failed (is it on PATH, or passed with --texconv?)");
-                return false;
-            }
+        std::string error;
+        if (!ConvertPngToDds(src, dst, error)) {
+            PrintError(listPath, entry, error);
+            return false;
         }
         ++cookedCount;
     }

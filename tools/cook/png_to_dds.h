@@ -1,6 +1,6 @@
 /**
- * PNG to DDS without texconv: decodes a PNG to RGBA8 and writes it as an uncompressed DDS, the layout
- * `texconv -f R8G8B8A8_UNORM -m 1 -ft DDS` makes, so the runtime's DDSParser loads it the same on every platform.
+ * PNG to DDS: decodes a PNG to RGBA8 and writes it as an uncompressed DDS with one mip, so the runtime's DDSParser
+ * loads it the same on every platform.
  */
 #pragma once
 

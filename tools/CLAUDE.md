@@ -4,12 +4,12 @@ Host-side engine tools. They may use `moksha/shared` and `moksha/logging` only.
 Project rules: [root CLAUDE.md](../CLAUDE.md).
 
 ## cook/ (`Moksha_Cook`)
-- `Moksha_Cook --target <t> --out <dir> [--dxc <exe>] [--texconv <exe>] <res_list.json>...` cooks each list
+- `Moksha_Cook --target <t> --out <dir> [--dxc <exe>] <res_list.json>...` cooks each list
   into one output folder. `moksha_add_game` runs it before each game build: the engine's
   `resources/res_list.json` first, then the game's. Two lists producing the same output path is an error.
 - `res_list.json` (paths relative to the list's folder): `copy` (files as they are), `textures` (png → an
-  uncompressed RGBA8 `.dds`: texconv for `win-dx12`, the cook itself for `mac-metal`/`ios-metal` via `png_to_dds`
-  and the vendored `stb_image.h`), `shaders` (`{"hlsl": [...], "metal": [...]}`; each target cooks its
+  uncompressed RGBA8 `.dds`, in the cook itself on every target that draws, via `png_to_dds` and the vendored
+  `stb_image.h`), `shaders` (`{"hlsl": [...], "metal": [...]}`; each target cooks its
   graphics API's language; hlsl → `<name>_vs.cso` + `<name>_ps.cso` via dxc; metal → `<name>.metallib` via
   `xcrun -sdk macosx metal -mmacosx-version-min=26.0`, or `-sdk iphoneos ... -target air64-apple-ios26.0` for
   `ios-metal`; includes from the shader's folder). Unknown keys are errors. A metallib loads only on the OS it was

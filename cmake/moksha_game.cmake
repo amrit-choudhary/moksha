@@ -17,10 +17,9 @@
 # The engine's resource list, cooked before every game's.
 set(MOKSHA_ENGINE_RES_LIST "${CMAKE_CURRENT_LIST_DIR}/../resources/res_list.json" CACHE INTERNAL "")
 
-# Tools the win-dx12 cook runs. Not found means the cook tries the plain names on PATH and reports a failure.
+# The tool the win-dx12 cook runs. Not found means the cook tries the plain name on PATH and reports a failure.
 if(CMAKE_HOST_WIN32)
     find_program(MOKSHA_DXC dxc DOC "DirectX shader compiler used by Moksha_Cook")
-    find_program(MOKSHA_TEXCONV texconv DOC "DirectXTex texconv used by Moksha_Cook")
 endif()
 
 # The mac-metal and ios-metal cooks compile shaders with `xcrun metal`, which needs Xcode and its Metal toolchain.
@@ -79,9 +78,6 @@ function(_moksha_add_cook target cookTarget engineList resList)
     set(toolArgs "")
     if(MOKSHA_DXC)
         list(APPEND toolArgs --dxc "${MOKSHA_DXC}")
-    endif()
-    if(MOKSHA_TEXCONV)
-        list(APPEND toolArgs --texconv "${MOKSHA_TEXCONV}")
     endif()
     if(MOKSHA_METAL_DEVELOPER_DIR_FOUND)
         list(APPEND toolArgs --metal-developer-dir "${MOKSHA_METAL_DEVELOPER_DIR_FOUND}")
