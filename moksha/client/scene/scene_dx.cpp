@@ -3,6 +3,7 @@
 #include "scene_dx.h"
 
 #include "moksha/client/rendering/directx/pso_dx.h"
+#include "moksha/logging/logging.h"
 #include "moksha/shared/misc/engine_limits.h"
 
 ME::SceneDX::SceneDX(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, ME::DescHeapManagerDX* descHeapManager,
@@ -24,8 +25,8 @@ ME::SceneDX::SceneDX(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, M
     // textureSamplerStates = new MTL::SamplerState*[Constants::MaxSamplerCount];
     perPassCBs = new ME::UploadBufferDX*[Constants::MaxConstantBuffersCount];
     perPassCBHeapIndices = new uint32_t[Constants::MaxConstantBuffersCount];
-    perSpriteCBs = new ME::UploadBufferDX*[Constants::MaxConstantBuffersCount];
-    perSpriteCBHeapIndices = new uint32_t[Constants::MaxConstantBuffersCount];
+    perSpriteCBs = new ME::UploadBufferDX*[Constants::MaxSpriteRendererCount];
+    perSpriteCBHeapIndices = new uint32_t[Constants::MaxSpriteRendererCount];
     textureAtlasCBs = new ME::UploadBufferDX*[Constants::MaxConstantBuffersCount];
     textureAtlasCBHeapIndices = new uint32_t[Constants::MaxConstantBuffersCount];
     transforms = scene->transforms;
@@ -174,7 +175,11 @@ void ME::SceneDX::MakeConstantBuffers() {
     perPassCBHeapIndices[0] = descHeapManager->CreateCBV(perPassCBs[0]->GetResource(), perPassCBs[0]->GetElementSize());
 
     // Creating per-sprite constant buffers.
-    perSpriteCBCount = spriteRenderers.count;
+    perSpriteCBCount = static_cast<uint32_t>(spriteRenderers.count);
+    if (perSpriteCBCount > Constants::MaxSpriteRendererCount) {
+        ME::LogError("SceneDX: more sprite renderers than MaxSpriteRendererCount; the extra ones are not drawn");
+        perSpriteCBCount = static_cast<uint32_t>(Constants::MaxSpriteRendererCount);
+    }
     for (uint32_t i = 0; i < perSpriteCBCount; ++i) {
         perSpriteCBs[i] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::CBPerSprite));
         perSpriteCBHeapIndices[i] =

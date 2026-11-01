@@ -5,6 +5,7 @@
 #include <Metal/Metal.hpp>
 
 #include "moksha/client/rendering/shared/shader_constants.h"
+#include "moksha/logging/logging.h"
 #include "moksha/shared/misc/engine_limits.h"
 
 ME::SceneMetal::SceneMetal(MTL::Device* inDevice, MTL::ResidencySet* inResidencySet, ME::Scene* gameScene) {
@@ -18,7 +19,7 @@ ME::SceneMetal::SceneMetal(MTL::Device* inDevice, MTL::ResidencySet* inResidency
 
     spriteTextures = new ME::TextureMetal*[Constants::MaxSpriteTextureCount];
     perPassCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
-    perSpriteCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
+    perSpriteCBs = new ME::UploadBufferMetal*[Constants::MaxSpriteRendererCount];
     textureAtlasCBs = new ME::UploadBufferMetal*[Constants::MaxConstantBuffersCount];
 
     textureAtlasProperties = scene->textureAtlasProperties;
@@ -83,6 +84,10 @@ void ME::SceneMetal::MakeConstantBuffers() {
 
     // One per sprite renderer, as in SceneDX.
     perSpriteCBCount = static_cast<uint32_t>(spriteRenderers.count);
+    if (perSpriteCBCount > Constants::MaxSpriteRendererCount) {
+        ME::LogError("SceneMetal: more sprite renderers than MaxSpriteRendererCount; the extra ones are not drawn");
+        perSpriteCBCount = static_cast<uint32_t>(Constants::MaxSpriteRendererCount);
+    }
     for (uint32_t i = 0; i < perSpriteCBCount; ++i) {
         perSpriteCBs[i] = AddResident(new ME::UploadBufferMetal(device, true, 1, sizeof(ME::CBPerSprite)));
     }

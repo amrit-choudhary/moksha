@@ -255,7 +255,7 @@ void ME::RendererMetal::Draw() {
         sceneMetal->perPassCBs[0]->CopyData(&perPassData);
         argumentTable->setAddress(sceneMetal->perPassCBs[0]->GetGPUAddress(), MetalBindings::PerPassBuffer);
 
-        for (uint32_t i = 0; i < sceneMetal->spriteRenderers.count; ++i) {
+        for (uint32_t i = 0; i < sceneMetal->perSpriteCBCount; ++i) {
             const uint32_t textureIndex = sceneMetal->spriteRenderers[i].textureId;
             const uint32_t atlasPropsIndex = sceneMetal->spriteRenderers[i].textureAtlasPropsId;
 
@@ -383,7 +383,8 @@ void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::Sce
         argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                                   MetalBindings::Texture);
 
-        uiSceneMetal->uiSpriteInstanceBuffer->CopyData(uiSceneMetal->uiSpriteInstanceData.data);
+        uiSceneMetal->uiSpriteInstanceBuffer->CopyElements(
+            uiSceneMetal->uiSpriteInstanceData.data, static_cast<uint32_t>(uiSceneMetal->uiSpriteInstanceData.count));
         argumentTable->setAddress(uiSceneMetal->uiSpriteInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
 
         encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
@@ -414,7 +415,8 @@ void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::Sce
         argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                                   MetalBindings::Texture);
 
-        uiSceneMetal->textInstanceBuffer->CopyData(uiSceneMetal->textInstanceData.data);
+        uiSceneMetal->textInstanceBuffer->CopyElements(uiSceneMetal->textInstanceData.data,
+                                                       static_cast<uint32_t>(uiSceneMetal->textInstanceData.count));
         argumentTable->setAddress(uiSceneMetal->textInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
 
         encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,

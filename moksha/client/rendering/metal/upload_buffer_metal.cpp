@@ -54,4 +54,11 @@ void ME::UploadBufferMetal::CopyData(uint32_t elementIndex, const void* data) {
     }
 }
 
+void ME::UploadBufferMetal::CopyElements(const void* data, uint32_t count) {
+    if (mappedData != nullptr && data != nullptr) {
+        const uint32_t copyCount = count < elementCount ? count : elementCount;
+        std::memcpy(mappedData, data, static_cast<size_t>(elementSize) * copyCount);
+    }
+}
+
 #endif  // ME_METAL

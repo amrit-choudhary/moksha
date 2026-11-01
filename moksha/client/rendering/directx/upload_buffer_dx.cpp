@@ -55,4 +55,11 @@ void ME::UploadBufferDX::CopyData(uint32_t elementIndex, const void* data) {
     }
 }
 
+void ME::UploadBufferDX::CopyElements(const void* data, uint32_t count) {
+    if (mappedData && data) {
+        const uint32_t copyCount = count < elementCount ? count : elementCount;
+        memcpy(mappedData, data, static_cast<size_t>(elementSize) * copyCount);
+    }
+}
+
 #endif  // ME_DX12

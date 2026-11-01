@@ -4,6 +4,9 @@
 
 #endif  // ME_DX12
 
+#include "moksha/logging/logging.h"
+#include "moksha/shared/misc/engine_limits.h"
+
 ME::DescHeapManagerDX::DescHeapManagerDX(ID3D12Device* device, ID3D12DescriptorHeap* descriptorHeap) {
     this->device = device;
     this->descriptorHeap = descriptorHeap;
@@ -11,7 +14,19 @@ ME::DescHeapManagerDX::DescHeapManagerDX(ID3D12Device* device, ID3D12DescriptorH
     currentIndex = 0;
 }
 
+bool ME::DescHeapManagerDX::HasFreeDescriptor() const {
+    if (currentIndex < Constants::MaxDescriptorsOnDescriptorHeap) {
+        return true;
+    }
+    ME::LogError("DescHeapManagerDX: the descriptor heap is full (MaxDescriptorsOnDescriptorHeap)");
+    return false;
+}
+
 uint32_t ME::DescHeapManagerDX::CreateCBV(ID3D12Resource* resource, const uint32_t sizeInBytes) {
+    if (!HasFreeDescriptor()) {
+        return 0;
+    }
+
     D3D12_CONSTANT_BUFFER_VIEW_DESC descDesc{};
     descDesc.BufferLocation = resource->GetGPUVirtualAddress();
     descDesc.SizeInBytes = sizeInBytes;
@@ -25,6 +40,10 @@ uint32_t ME::DescHeapManagerDX::CreateCBV(ID3D12Resource* resource, const uint32
 }
 
 uint32_t ME::DescHeapManagerDX::CreateSRVTexture(ID3D12Resource* resource) {
+    if (!HasFreeDescriptor()) {
+        return 0;
+    }
+
     D3D12_SHADER_RESOURCE_VIEW_DESC descDesc{};
     descDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     descDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -42,6 +61,10 @@ uint32_t ME::DescHeapManagerDX::CreateSRVTexture(ID3D12Resource* resource) {
 
 uint32_t ME::DescHeapManagerDX::CreateSRVInstanceData(ID3D12Resource* resource, const uint32_t elementSize,
                                                       const uint32_t elementCount) {
+    if (!HasFreeDescriptor()) {
+        return 0;
+    }
+
     D3D12_SHADER_RESOURCE_VIEW_DESC descDesc{};
     descDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     descDesc.Format = DXGI_FORMAT_UNKNOWN;

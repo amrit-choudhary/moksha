@@ -35,6 +35,9 @@ class UploadBufferMetal {
     // Copies one element's data to elementIndex.
     void CopyData(uint32_t elementIndex, const void* data);
 
+    // Copies the first count elements from data, packed at the element size; count is clamped to the capacity.
+    void CopyElements(const void* data, uint32_t count);
+
    private:
     MTL::Buffer* buffer = nullptr;
     uint8_t* mappedData = nullptr;

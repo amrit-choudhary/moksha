@@ -38,6 +38,12 @@ class UploadBufferDX {
      */
     void CopyData(uint32_t elementIndex, const void* data);
 
+    /**
+     * Copies the first count elements from data, packed at the element size.
+     * Count is clamped to the capacity.
+     */
+    void CopyElements(const void* data, uint32_t count);
+
    private:
     bool isConstantBuffer = false;
     uint32_t elementCount = 0;

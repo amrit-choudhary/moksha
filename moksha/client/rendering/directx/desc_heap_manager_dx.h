@@ -23,6 +23,7 @@ class DescHeapManagerDX {
 
     /**
      * Creates a constant buffer view for the given resource and returns the index in the descriptor heap.
+     * When the heap is full (as for every Create here) it logs an error, creates nothing and returns 0.
      */
     uint32_t CreateCBV(ID3D12Resource* resource, const uint32_t sizeInBytes);
 
@@ -52,6 +53,9 @@ class DescHeapManagerDX {
     D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandleForIndex(const uint32_t index) const;
 
    private:
+    // False, with an error logged, once every descriptor of the heap is used.
+    bool HasFreeDescriptor() const;
+
     ID3D12Device* device = nullptr;
     ID3D12DescriptorHeap* descriptorHeap = nullptr;
     // Size of a single descriptor in the heap.

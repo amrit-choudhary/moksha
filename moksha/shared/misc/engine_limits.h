@@ -46,7 +46,7 @@ constexpr size_t MaxDebugSlotCount = 16;     // persistent, index-addressed debu
 constexpr size_t MaxDebugLogLineCount = 16;  // transient, time-limited debug text rows
 
 constexpr size_t MaxConstantBuffersCount = 256;
-constexpr size_t MaxDescriptorsOnDescriptorHeap = 256;
+constexpr size_t MaxDescriptorsOnDescriptorHeap = 2048;
 
 // Physics constants
 constexpr size_t MaxStaticColliderCount = 100'000;

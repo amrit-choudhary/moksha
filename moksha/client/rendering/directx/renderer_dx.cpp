@@ -351,7 +351,7 @@ void ME::RendererDX::Draw() {
         commandList->IASetIndexBuffer(&ibView);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        for (uint32_t i = 0; i < sceneDX->spriteRenderers.count; ++i) {
+        for (uint32_t i = 0; i < sceneDX->perSpriteCBCount; ++i) {
             const uint32_t textureIndex = sceneDX->spriteRenderers[i].textureId;
             const uint32_t atlasPropsIndex = sceneDX->spriteRenderers[i].textureAtlasPropsId;
             const uint32_t atlasPropsHeapIndex = sceneDX->textureAtlasCBHeapIndices[atlasPropsIndex];
@@ -539,7 +539,8 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->spriteTextures[textureIndex]->descHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(2, textureHandleUISprite);
 
-        uiSceneDX->uiSpriteInstanceBuffer->CopyData(uiSceneDX->uiSpriteInstanceData.data);
+        uiSceneDX->uiSpriteInstanceBuffer->CopyElements(uiSceneDX->uiSpriteInstanceData.data,
+                                                        static_cast<uint32_t>(uiSceneDX->uiSpriteInstanceData.count));
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceDataUISprite =
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->uiSpriteInstanceBufferHeapIndex);
@@ -584,7 +585,8 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->spriteTextures[textureIndex]->descHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(2, textureHandleText);
 
-        uiSceneDX->textInstanceBuffer->CopyData(uiSceneDX->textInstanceData.data);
+        uiSceneDX->textInstanceBuffer->CopyElements(uiSceneDX->textInstanceData.data,
+                                                    static_cast<uint32_t>(uiSceneDX->textInstanceData.count));
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceDataText =
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->textInstanceBufferHeapIndex);
