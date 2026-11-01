@@ -29,6 +29,7 @@ class SpriteRendererInstanceData {
     ME::Color color = ME::Color::White();
     uint32_t atlasIndex = 0;  // Index of the texture atlas
     uint32_t flags = 0;       // Additional flags for rendering options
+    uint32_t padding[2]{0};   // To 96 bytes, the stride of a 16-byte aligned float4x4 in Metal shaders.
 };
 
 /**
@@ -46,6 +47,7 @@ class UISpriteRendererInstanceData {
     ME::Color color = ME::Color::White();
     uint32_t atlasIndex = 0;  // Index of the texture atlas
     uint32_t flags = 0;       // Additional flags for rendering options
+    uint32_t padding[2]{0};   // To 96 bytes, the stride of a 16-byte aligned float4x4 in Metal shaders.
 };
 
 /**

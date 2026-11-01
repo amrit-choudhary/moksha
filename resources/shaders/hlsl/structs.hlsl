@@ -24,6 +24,7 @@ struct SpriteInstanceData {
     float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
 
 // Per Instance Data for UI Sprite Renderer
@@ -33,6 +34,7 @@ struct UISpriteInstanceData {
     float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
 
 // Per Instance Data for Text Renderer
@@ -42,6 +44,7 @@ struct TextInstanceData {
     float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
 
 // Texture Atlas Properties

@@ -1,12 +1,12 @@
 # Moksha Game Engine
 
-A C++20 game engine with native renderer backends, built from scratch with minimal
+A C++ game engine with native renderer backends, built from scratch with minimal
 external dependencies. This repository holds the engine only; every game, including the
 engine's [samples](https://github.com/amrit-choudhary/moksha_samples), lives in its own
 repository and builds against the engine.
 
 ## Features
-- **Rendering**: DirectX 12 (Windows) and Metal (Apple) backends, plus a headless backend for
+- **Rendering**: DirectX 12 (Windows) and Metal 4 (macOS, iOS) backends, plus a headless backend for
   windowless clients. A data-oriented scene (struct-of-arrays, not ECS) is consumed by the
   renderer each frame.
 - **App loop**: the engine owns the entry point and the frame; a game provides a factory and
@@ -31,8 +31,8 @@ repository and builds against the engine.
 | Target            | Graphics API         | Status |
 |-------------------|----------------------|--------|
 | Windows           | DirectX 12 (Vulkan)  | supported |
-| macOS             | Metal                | in progress: being moved onto the current app loop; UI and atlas rendering to follow |
-| iOS               | Metal                | planned |
+| macOS             | Metal 4              | supported (Apple silicon, macOS 26+); plain executable, no `.app` bundle yet |
+| iOS               | Metal 4              | supported on iPhone devices (iOS 26+); the Simulator has no Metal 4 |
 | Android           | Vulkan               | planned |
 | Web (Emscripten)  | WebGPU / WebGL       | planned |
 | Linux             | Vulkan               | planned client; servers and headless client supported (incl. Raspberry Pi, ARM64) |
@@ -45,19 +45,24 @@ repository and builds against the engine.
 - Games depend on the engine; the engine never depends on a game.
 
 ## Building the engine
-C++20 and CMake 3.31 or newer. On Windows the cook also needs
-[dxc](https://github.com/microsoft/DirectXShaderCompiler) and
-[texconv](https://github.com/microsoft/DirectXTex) on `PATH`.
+C++20 and CMake 3.31 or newer. The cook also needs:
+- **Windows**: [dxc](https://github.com/microsoft/DirectXShaderCompiler) and
+  [texconv](https://github.com/microsoft/DirectXTex) on `PATH`.
+- **macOS and iOS**: Xcode with its Metal toolchain (Xcode > Settings > Components).
 
 ```
 cmake --preset dev
 cmake --build --preset dev
-build/tests/Debug/Moksha_Tests        # engine unit tests
+build/tests/Debug/Moksha_Tests        # engine unit tests (build/tests/Moksha_Tests with Makefiles or Ninja)
 python tools/check_layers.py          # module dependency check
 ```
 
 Built on its own, the engine builds its libraries, tools (`Moksha_Cook`, `Moksha_ContentServer`) and
 tests. Games build it as a dependency; then only the libraries and the cook are built.
+
+iOS is cross-compiled with the Xcode generator (`-G Xcode -DCMAKE_SYSTEM_NAME=iOS`). It needs a cook built
+for the Mac (`MOKSHA_COOK_EXECUTABLE`), a signing team (`CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM`) and a
+bundle id (`MOKSHA_BUNDLE_ID_PREFIX`, or `BUNDLE_ID` on `moksha_add_game`).
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -65,6 +70,8 @@ tests. Games build it as a dependency; then only the libraries and the cook are 
 | `MOKSHA_BUILD_CLIENT` | `ON` | client libraries (servers don't need them) |
 | `MOKSHA_BUILD_TESTS` / `MOKSHA_BUILD_TOOLS` | `ON` when top-level | engine tests / content server |
 | `MOKSHA_COOK_EXECUTABLE` | empty | a host-built cook, for cross-compiled builds |
+| `MOKSHA_METAL_DEVELOPER_DIR` | empty (detected) | developer folder whose `xcrun` has the Metal compiler |
+| `MOKSHA_BUNDLE_ID_PREFIX` | empty | reverse-DNS prefix of iOS bundle ids, e.g. `com.yourname.games` |
 
 ## Starting a new game
 A game is its own repository. It fetches the engine at a pinned commit and, while you work on both,
@@ -125,9 +132,11 @@ moksha_add_game(MyGame_Client
     # HEADLESS   adds MyGame_Client_Headless, a windowless console build
 )
 ```
-`moksha_add_game` owns the platform details (Windows GUI exe, later app bundles and so on), so a game
-never branches on the platform. Link the game's own libraries through `LIBRARIES`, not
-`target_link_libraries`: on a platform without a windowed client the main target doesn't exist.
+`moksha_add_game` owns the platform details (Windows GUI exe, iOS app bundle and so on), so a game
+never branches on the platform. On iOS, the optional `DISPLAY_NAME`, `BUNDLE_ID` and
+`ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill the app's `Info.plist`; other platforms ignore them. Link the game's
+own libraries through `LIBRARIES`, not `target_link_libraries`: on a platform without a windowed client the main
+target doesn't exist.
 
 **`client/game_main.cpp`**
 ```cpp
@@ -226,11 +235,10 @@ Every key can be overridden on the command line: `MyGame_Client.exe --width=1920
   with `-DMOKSHA_BUILD_CLIENT=OFF`.
 
 ## Known issues
-- **macOS**: the Mac client still uses the previous app API and doesn't compile; Metal draws no UI, text or
-  atlas sprites yet.
-- **Untested at runtime**: mesh, audio and animation loading have no sample using them; the mesh and audio
-  loaders were moved onto `Vfs` without a run.
-- **Rendering**: the DX12 UI passes use fixed texture slots (sprite atlas at 0, font at 1).
+- **macOS**: keys pressed with Cmd stick; releasing one Shift/Ctrl/Option/Cmd while the other side is held reads
+  as still down; held keys stick when the window loses focus; resizing the window doesn't update the UI layout.
+- **Rendering**: the UI passes use fixed texture slots (sprite atlas at 0, font at 1). On DX12, a scene using only
+  the second instanced sprite set gets no buffer for it.
 - **Server**: clients are never forgotten (no disconnect or timeout), so a server accepts at most 255
   connects in its lifetime; no SIGTERM handling; every datagram is logged.
 - **Client loop**: network messages are received after rendering, which adds up to a frame of latency.
@@ -242,6 +250,7 @@ Vendored libraries, each under its own license:
 - [miniaudio](https://miniaud.io/): audio playback.
 - [metal-cpp](https://developer.apple.com/metal/cpp/): Metal C++ headers.
 - [stb_perlin](https://github.com/nothings/stb): Perlin noise.
+- [stb_image](https://github.com/nothings/stb): PNG decoding in the cook tool.
 
 ## License
 MIT. See [LICENSE](LICENSE).

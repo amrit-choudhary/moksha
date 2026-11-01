@@ -28,11 +28,11 @@ vertex VertexOut VS(VertexIn input [[stage_in]],
 
     SpriteInstanceData instanceData = instanceBuffer[instanceID];
 
-    output.position = passData.projectionMatrix * passData.viewMatrix * GetModelMatrix(instanceData) *
+    output.position = passData.projectionMatrix * passData.viewMatrix * instanceData.modelMatrix *
                       float4(input.position, 0.0f, 1.0f);
     float2 flippedUV = float2(input.uv.x, 1.0f - input.uv.y);
     output.uv = GetAtlasUV(flippedUV, instanceData.atlasIndex, atlasProps, instanceData.flags);
-    output.color = float4(instanceData.color);
+    output.color = instanceData.color;
 
     return output;
 }

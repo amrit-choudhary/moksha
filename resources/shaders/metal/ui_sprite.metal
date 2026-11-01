@@ -28,7 +28,7 @@ vertex VertexOut VS(VertexIn input [[stage_in]],
 
     UISpriteInstanceData instanceData = instanceBuffer[instanceID];
 
-    float4 outputPos = GetModelMatrix(instanceData) * float4(input.position, 0.0f, 1.0f);
+    float4 outputPos = instanceData.modelMatrix * float4(input.position, 0.0f, 1.0f);
     // Mapping to NDC space for UI rendering. [-1, 1] range.
     // Screen dimensions are packed in a single uint32_t.
     uint screenWidth = (passData.screenDimension >> 16) & 0xFFFF;
@@ -38,7 +38,7 @@ vertex VertexOut VS(VertexIn input [[stage_in]],
     output.position = outputPos;
     float2 flippedUV = float2(input.uv.x, 1.0f - input.uv.y);
     output.uv = GetAtlasUV(flippedUV, instanceData.atlasIndex, atlasProps, instanceData.flags);
-    output.color = float4(instanceData.color);
+    output.color = instanceData.color;
 
     return output;
 }

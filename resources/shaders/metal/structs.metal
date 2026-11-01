@@ -23,48 +23,32 @@ struct LightDataDirectional {
     float4 color;
 };
 
-// The C++ instance data is 88 bytes with 4-byte alignment; packed columns keep that stride (a float4x4 member would
-// pad it to 96). The matrix columns are column-major, from Mat4::GetDataForShader; GetModelMatrix rebuilds it.
-
 // Per Instance Data for Sprite Renderer
 struct SpriteInstanceData {
-    packed_float4 modelColumn0;
-    packed_float4 modelColumn1;
-    packed_float4 modelColumn2;
-    packed_float4 modelColumn3;
-    packed_float4 color;
+    float4x4 modelMatrix;
+    float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
 
 // Per Instance Data for UI Sprite Renderer
 struct UISpriteInstanceData {
-    packed_float4 modelColumn0;
-    packed_float4 modelColumn1;
-    packed_float4 modelColumn2;
-    packed_float4 modelColumn3;
-    packed_float4 color;
+    float4x4 modelMatrix;
+    float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
 
 // Per Instance Data for Text Renderer
 struct TextInstanceData {
-    packed_float4 modelColumn0;
-    packed_float4 modelColumn1;
-    packed_float4 modelColumn2;
-    packed_float4 modelColumn3;
-    packed_float4 color;
+    float4x4 modelMatrix;
+    float4 color;
     uint atlasIndex;
     uint flags;
+    uint2 padding;
 };
-
-// The model matrix of any of the instance data structs above.
-template <typename InstanceData>
-float4x4 GetModelMatrix(InstanceData instance) {
-    return float4x4(float4(instance.modelColumn0), float4(instance.modelColumn1), float4(instance.modelColumn2),
-                    float4(instance.modelColumn3));
-}
 
 // Texture Atlas Properties
 struct TextureAtlasProperties {

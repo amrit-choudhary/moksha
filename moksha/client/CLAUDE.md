@@ -21,7 +21,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   texture, added to the queue with the layer's set. Depth is a renderer-owned `Depth32Float` texture sized to the
   drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws every pass
   RendererDX draws: plain sprites, both instanced sets, the UI sprite and text passes and the debug overlay
-  (`SceneUIMetal`); instance data is read as packed columns, since the C++ structs are 88 bytes. The content view is
+  (`SceneUIMetal`); the C++ instance data structs carry explicit padding to 96 bytes, the stride of a `float4x4` struct
+  in Metal shaders. The content view is
   an `MTKView` subclass (`MEView`, no delegate) the loop draws with `[view draw]`; it hands out a drawable only
   inside draw, so `Tick` runs from `MEView`'s `drawRect:`. Waiting for the drawable paces the loop. The renderer
   reaches the view only through `rendering/metal/metal_view.h`, which each OS implements over its own view
