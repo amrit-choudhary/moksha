@@ -29,38 +29,6 @@
 #include "upload_buffer_dx.h"
 #include "utils_dx.h"
 
-void ME::RendererDX::Init() {
-    ME::Log("RendererDirectX::Init");
-}
-
-void ME::RendererDX::SetScene(ME::Scene* gameScene) {
-    // Frames still in flight may be using the old scene's buffers.
-    FlushCommandQueue();
-
-    // Delete the old scene if it exists.
-    if (sceneDX != nullptr) {
-        delete sceneDX;
-    }
-
-    // Keep ptr of the game scene to call update.
-    this->scene = gameScene;
-
-    // Do Initilization that need command list.
-    commandAllocators[frameIndex]->Reset();
-    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
-
-    // Create a new scene with the provided game scene.
-    sceneDX = new ME::SceneDX(device.Get(), commandList.Get(), descHeapManager, gameScene);
-    commandList->Close();
-    ID3D12CommandList* cmdsLists[] = {commandList.Get()};
-    commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-    FlushCommandQueue();
-
-    // TODO: Do Cleanup after upload is done.
-    // scene->PostInitCleanup();
-}
-
 void ME::RendererDX::SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) {
     // Frames still in flight may be using the old scenes' buffers.
     FlushCommandQueue();
@@ -116,6 +84,10 @@ void ME::RendererDX::SetDebugUIScene(ME::SceneUI* debugUiScene) {
     ID3D12CommandList* cmdsLists[] = {commandList.Get()};
     commandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
 
+    FlushCommandQueue();
+}
+
+void ME::RendererDX::OnPause() {
     FlushCommandQueue();
 }
 

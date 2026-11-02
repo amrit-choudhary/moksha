@@ -39,12 +39,6 @@ class WindowState;
  */
 class RendererDX : public PlatformRenderer {
    public:
-    // Init game
-    void Init() override;
-
-    // Sets scene for the renderer.
-    void SetScene(ME::Scene* gameScene) override;
-
     // Sets both game and UI scenes for the renderer.
     void SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) override;
 
@@ -60,12 +54,12 @@ class RendererDX : public PlatformRenderer {
     // Initialize DirectX 12 for hwnd. window is the app's window state; its size sizes the swap chain.
     bool InitDX(HWND hwnd, const WindowState* inWindow);
 
-    void Draw();
+    void Draw() override;
+
+    // Waits for the GPU, so nothing is left running if the OS suspends the app.
+    void OnPause() override;
 
     void SetVsyncEnabled(bool enabled) override;
-
-    // Blocks until the GPU has finished everything submitted so far. No-op if InitDX failed.
-    void FlushCommandQueue();
 
    private:
     bool vsyncEnabled = true;
@@ -134,6 +128,9 @@ class RendererDX : public PlatformRenderer {
     DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_D32_FLOAT;
     uint32_t clientWidth;
     uint32_t clientHeight;
+
+    // Blocks until the GPU has finished everything submitted so far. No-op if InitDX failed.
+    void FlushCommandQueue();
 
     // Blocks until the queue has signalled value.
     void WaitForFence(uint64_t value);

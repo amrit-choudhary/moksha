@@ -27,13 +27,13 @@ class UploadBufferDX {
     uint32_t GetElementSize() const;
 
     /**
-     * Copies an array of data to a frame's copy in the upload buffer.
-     * Data should be of the same size as elementSize * elementCount.
+     * Copies elementCount elements, each of the size given to the constructor, to a frame's copy.
+     * Elements are written packed, so a constant buffer must have a single element.
      */
     void CopyData(uint32_t frameIndex, const void* data);
 
     /**
-     * Copies the first count elements from data to a frame's copy, packed at the element size.
+     * Copies the first count elements from data to a frame's copy, packed; for instance buffers.
      * Count is clamped to the capacity.
      */
     void CopyElements(uint32_t frameIndex, const void* data, uint32_t count);
@@ -44,7 +44,8 @@ class UploadBufferDX {
 
     bool isConstantBuffer = false;
     uint32_t elementCount = 0;
-    uint32_t elementSize = 0;
+    uint32_t elementSize = 0;  // Stride: for a constant buffer, dataSize rounded up to 256 bytes.
+    uint32_t dataSize = 0;     // Size of one element in the data passed to CopyData and CopyElements.
     ID3D12Resource* uploadBuffer = nullptr;
     uint8_t* mappedData = nullptr;
 };

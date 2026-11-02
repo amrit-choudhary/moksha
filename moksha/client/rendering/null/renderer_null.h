@@ -12,12 +12,9 @@ class WindowState;
 
 class RendererNull : public PlatformRenderer {
    public:
-    void Init() override;
-
     // Keeps the app's window state; the size is only used for layout, nothing is created.
     bool InitNull(const WindowState* inWindow);
 
-    void SetScene(ME::Scene* gameScene) override;
     void SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) override;
     void SetDebugUIScene(ME::SceneUI* inDebugUiScene) override;
 
@@ -25,14 +22,14 @@ class RendererNull : public PlatformRenderer {
     void Update() override;
 
     // Does nothing; kept so the app drives every renderer the same way.
-    void Draw();
+    void Draw() override;
 
     void End() override;
 
-    void SetVsyncEnabled(bool enabled) override;
-
     // Does nothing: there is no GPU to wait for.
-    void FlushCommandQueue();
+    void OnPause() override;
+
+    void SetVsyncEnabled(bool enabled) override;
 
    private:
     ME::Scene* scene = nullptr;

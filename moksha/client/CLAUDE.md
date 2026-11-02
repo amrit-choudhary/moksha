@@ -67,6 +67,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `scene/scene.h` (`Scene`) and `scene/scene_ui.h` (`SceneUI`) are plain struct-of-arrays data (transforms,
   sprite/mesh/text renderers, colliders, lights, cameras) filled by game subclasses through `Build*` virtuals.
   No graphics-API calls in them.
+- `PlatformRenderer` (`rendering/shared/renderer.h`) is what each backend implements. `ClientApp` holds its backend by
+  concrete type and creates it with the backend's own `InitDX`/`InitMetal`/`InitNull`; the rest goes through the interface.
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
   Metal (`rendering/metal/`, `scene/scene_metal.*`), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_HEADLESS`, never on the OS define.

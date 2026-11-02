@@ -25,10 +25,6 @@ static const MTL::ClearColor kClearColor = MTL::ClearColor::Make(0.01, 0.01, 0.0
 // Longest wait for the GPU before giving up, per frame being waited for.
 static constexpr uint64_t kGpuWaitMilliseconds = 1000;
 
-void ME::RendererMetal::Init() {
-    ME::Log("RendererMetal::Init");
-}
-
 void ME::RendererMetal::SetScene(ME::Scene* gameScene) {
     FlushCommandQueue();
     delete sceneMetal;
@@ -65,6 +61,10 @@ void ME::RendererMetal::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
     }
     debugUiSceneMetal = new ME::SceneUIMetal(device, residencySet, inDebugUiScene);
     residencySet->commit();
+}
+
+void ME::RendererMetal::OnPause() {
+    FlushCommandQueue();
 }
 
 void ME::RendererMetal::SetVsyncEnabled(bool enabled) {

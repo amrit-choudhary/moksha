@@ -46,12 +46,6 @@ class WindowState;
  */
 class RendererMetal : public PlatformRenderer {
    public:
-    // Init game
-    void Init() override;
-
-    // Sets scene for the renderer.
-    void SetScene(ME::Scene* gameScene) override;
-
     // Sets both game and UI scenes for the renderer.
     void SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) override;
 
@@ -67,12 +61,12 @@ class RendererMetal : public PlatformRenderer {
     // Initialize Metal for view, using its device. view must outlive the renderer; window is the app's window state.
     bool InitMetal(const MetalView* inView, const WindowState* inWindow);
 
-    void Draw();
+    void Draw() override;
+
+    // Waits for the GPU, so nothing is left running if the OS suspends the app.
+    void OnPause() override;
 
     void SetVsyncEnabled(bool enabled) override;
-
-    // Blocks until the GPU has finished everything committed so far. No-op if InitMetal failed.
-    void FlushCommandQueue();
 
    private:
     bool vsyncEnabled = true;
@@ -128,6 +122,12 @@ class RendererMetal : public PlatformRenderer {
     MTL::Texture* depthTexture = nullptr;
 
     ME::QuadMetal* quad = nullptr;
+
+    // Sets the game scene, replacing the old one's Metal objects.
+    void SetScene(ME::Scene* gameScene);
+
+    // Blocks until the GPU has finished everything committed so far. No-op if InitMetal failed.
+    void FlushCommandQueue();
 
     // Blocks until the queue has signalled value. False, with an error logged, if the timeout passes first.
     bool WaitForFence(uint64_t value, uint64_t timeoutMilliseconds);

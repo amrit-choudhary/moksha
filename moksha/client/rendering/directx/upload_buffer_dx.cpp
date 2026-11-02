@@ -10,6 +10,7 @@ ME::UploadBufferDX::UploadBufferDX(ID3D12Device* device, bool isConstantBuffer, 
     this->isConstantBuffer = isConstantBuffer;
     this->elementCount = elementCount;
     this->elementSize = elementSize;
+    dataSize = elementSize;
 
     if (isConstantBuffer) {
         // Constant buffers must be a multiple of 256 bytes.
@@ -43,14 +44,14 @@ uint32_t ME::UploadBufferDX::GetElementSize() const {
 
 void ME::UploadBufferDX::CopyData(uint32_t frameIndex, const void* data) {
     if (mappedData && data && frameIndex < Constants::FramesInFlight) {
-        memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * elementCount);
+        memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(dataSize) * elementCount);
     }
 }
 
 void ME::UploadBufferDX::CopyElements(uint32_t frameIndex, const void* data, uint32_t count) {
     if (mappedData && data && frameIndex < Constants::FramesInFlight) {
         const uint32_t copyCount = count < elementCount ? count : elementCount;
-        memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * copyCount);
+        memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(dataSize) * copyCount);
     }
 }
 

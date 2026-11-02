@@ -30,10 +30,11 @@ class UploadBufferMetal {
     // GPU address of a frame's copy, for an argument table binding.
     uint64_t GetGPUAddress(uint32_t frameIndex) const;
 
-    // Copies elementSize * elementCount bytes from data into a frame's copy.
+    // Copies elementCount elements, each of the size given to the constructor, into a frame's copy.
+    // Elements are written packed, so a constant buffer must have a single element.
     void CopyData(uint32_t frameIndex, const void* data);
 
-    // Copies the first count elements from data into a frame's copy; count is clamped to the capacity.
+    // Copies the first count elements from data into a frame's copy, packed; count is clamped to the capacity.
     void CopyElements(uint32_t frameIndex, const void* data, uint32_t count);
 
    private:
@@ -43,7 +44,8 @@ class UploadBufferMetal {
     MTL::Buffer* buffer = nullptr;
     uint8_t* mappedData = nullptr;
     uint32_t elementCount = 0;
-    uint32_t elementSize = 0;
+    uint32_t elementSize = 0;  // Stride: for a constant buffer, dataSize rounded up to 256 bytes.
+    uint32_t dataSize = 0;     // Size of one element in the data passed to CopyData and CopyElements.
 };
 
 }  // namespace ME

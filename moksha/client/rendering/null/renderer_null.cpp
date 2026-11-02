@@ -2,16 +2,10 @@
 
 #include "moksha/logging/logging.h"
 
-void ME::RendererNull::Init() {}
-
 bool ME::RendererNull::InitNull(const WindowState* inWindow) {
     window = inWindow;
     ME::Log("RendererNull::Init (nothing is drawn)");
     return true;
-}
-
-void ME::RendererNull::SetScene(ME::Scene* gameScene) {
-    scene = gameScene;
 }
 
 void ME::RendererNull::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) {
@@ -41,6 +35,6 @@ void ME::RendererNull::End() {
     ME::Log("RendererNull::End");
 }
 
-void ME::RendererNull::SetVsyncEnabled(bool /*enabled*/) {}
+void ME::RendererNull::OnPause() {}
 
-void ME::RendererNull::FlushCommandQueue() {}
+void ME::RendererNull::SetVsyncEnabled(bool /*enabled*/) {}

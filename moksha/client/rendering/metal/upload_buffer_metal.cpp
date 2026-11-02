@@ -11,6 +11,7 @@ ME::UploadBufferMetal::UploadBufferMetal(MTL::Device* device, bool isConstantBuf
                                          uint32_t inElementSize) {
     elementCount = inElementCount;
     elementSize = inElementSize;
+    dataSize = inElementSize;
 
     // Constant elements keep UploadBufferDX's 256-byte stride, which also meets Metal's constant offset alignment.
     if (isConstantBuffer) {
@@ -49,14 +50,14 @@ uint64_t ME::UploadBufferMetal::GetGPUAddress(uint32_t frameIndex) const {
 
 void ME::UploadBufferMetal::CopyData(uint32_t frameIndex, const void* data) {
     if (mappedData != nullptr && data != nullptr && frameIndex < Constants::FramesInFlight) {
-        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * elementCount);
+        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(dataSize) * elementCount);
     }
 }
 
 void ME::UploadBufferMetal::CopyElements(uint32_t frameIndex, const void* data, uint32_t count) {
     if (mappedData != nullptr && data != nullptr && frameIndex < Constants::FramesInFlight) {
         const uint32_t copyCount = count < elementCount ? count : elementCount;
-        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * copyCount);
+        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(dataSize) * copyCount);
     }
 }
 

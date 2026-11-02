@@ -185,8 +185,7 @@ void ME::ClientApp::Pause() {
         return;
     }
     paused = true;
-    // The OS may suspend the app next, so no GPU work is left running.
-    renderer.FlushCommandQueue();
+    renderer.OnPause();
     game->OnPause();
 }
 
