@@ -42,3 +42,5 @@ void ME::RendererNull::End() {
 }
 
 void ME::RendererNull::SetVsyncEnabled(bool /*enabled*/) {}
+
+void ME::RendererNull::FlushCommandQueue() {}

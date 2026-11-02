@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "moksha/client/rendering/shared/renderer.h"
+#include "moksha/shared/misc/engine_limits.h"
 
 namespace MTL {
 class DepthStencilState;
@@ -70,6 +71,9 @@ class RendererMetal : public PlatformRenderer {
 
     void SetVsyncEnabled(bool enabled) override;
 
+    // Blocks until the GPU has finished everything committed so far. No-op if InitMetal failed.
+    void FlushCommandQueue();
+
    private:
     bool vsyncEnabled = true;
 
@@ -85,13 +89,18 @@ class RendererMetal : public PlatformRenderer {
     MTL::Device* device = nullptr;
     MTL4::CommandQueue* commandQueue = nullptr;
 
-    // One frame in flight: the allocator is reset at the start of each frame, after the GPU finished the last.
-    MTL4::CommandAllocator* commandAllocator = nullptr;
+    // One allocator per frame in flight, reset when its frame comes round again; the command buffer is reused.
+    MTL4::CommandAllocator* commandAllocators[Constants::FramesInFlight] = {};
     MTL4::CommandBuffer* commandBuffer = nullptr;
+
+    // Picks the allocator and upload buffer copies the frame being recorded uses.
+    uint32_t frameIndex = 0;
 
     // Signalled by the queue with currentFence when a frame's work completes.
     MTL::SharedEvent* fence = nullptr;
     uint64_t currentFence = 0;
+    // The fence value that frees each frame slot; 0 until the slot's first use.
+    uint64_t frameFences[Constants::FramesInFlight] = {};
 
     // Compiles the shaders and pipelines at startup.
     MTL4::Compiler* compiler = nullptr;
@@ -115,13 +124,13 @@ class RendererMetal : public PlatformRenderer {
     MTL::DepthStencilState* depthStateDefault = nullptr;
     MTL::DepthStencilState* depthStateDisabled = nullptr;
 
-    // Depth buffer, sized to the drawable; recreated when the drawable's size changes.
+    // Memoryless depth buffer, sized to the drawable; recreated when the drawable's size changes.
     MTL::Texture* depthTexture = nullptr;
 
     ME::QuadMetal* quad = nullptr;
 
-    // Blocks until the GPU has finished everything committed so far.
-    void FlushCommandQueue();
+    // Blocks until the queue has signalled value. False, with an error logged, if the timeout passes first.
+    bool WaitForFence(uint64_t value, uint64_t timeoutMilliseconds);
 
     // Issues one instanced sprite set: its texture and atlas slot, instance data and count. Shared by both sets.
     void DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
@@ -132,7 +141,7 @@ class RendererMetal : public PlatformRenderer {
     // system's UI scene: same pipelines, different data. No-op if uiSceneMetal is nullptr.
     void DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::SceneUIMetal* uiSceneMetal);
 
-    // Makes depthTexture width x height pixels, replacing it (and its residency) if the size changed.
+    // Makes depthTexture width x height pixels, waiting for the GPU and replacing it if the size changed.
     void EnsureDepthTexture(uint32_t width, uint32_t height);
 };
 

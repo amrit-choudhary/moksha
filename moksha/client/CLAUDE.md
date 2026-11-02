@@ -18,8 +18,10 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   `QuadMetal`, `PSOMetal` (pipelines through `MTL4Compiler`, plus depth states), `ShaderMetal` (loads the cooked
   `.metallib` through `Vfs`). No root signature or descriptor heap: one argument table at the fixed indices in
   `MetalBindings` (`pso_metal.h`, Metal snapshots it at each draw) and one residency set holding every buffer and
-  texture, added to the queue with the layer's set. Depth is a renderer-owned `Depth32Float` texture sized to the
-  drawable. One frame in flight, flushed with a shared event like DX12's `FlushCommandQueue`. Draws every pass
+  texture, added to the queue with the layer's set. Depth is a renderer-owned memoryless `Depth32Float` texture sized
+  to the drawable. `Constants::FramesInFlight` frames in flight: one command allocator per frame, one copy of each
+  `UploadBufferMetal`'s data per frame, and a shared event that frees each slot. Metal 4 doesn't keep resources alive
+  for the GPU, so call `FlushCommandQueue` before freeing anything a frame used. Draws every pass
   RendererDX draws: plain sprites, both instanced sets, the UI sprite and text passes and the debug overlay
   (`SceneUIMetal`); the C++ instance data structs carry explicit padding to 96 bytes, the stride of a `float4x4` struct
   in Metal shaders. The content view is
@@ -68,6 +70,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
   Metal (`rendering/metal/`, `scene/scene_metal.*`), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_HEADLESS`, never on the OS define.
+- DX12 and Metal run `Constants::FramesInFlight` frames in flight: `Draw` ends by waiting for the next frame's slot, and
+  each upload buffer holds one copy of its data per frame (on DX12, with one descriptor per frame, at heap index +
+  frame). Textures are shared. Call `FlushCommandQueue` before freeing anything a frame used.
 - The UI passes (DX12 and Metal) use fixed texture slots: a `SceneUI`'s sprite atlas at index 0 and font at index 1.
 - **Metal code uses the Metal 4 API only** (`MTL4CommandQueue`, command allocators, argument tables, residency sets,
   explicit barriers, `MTL4Compiler`), never the older per-encoder binding style (`setVertexBytes`, `setFragmentTexture`).

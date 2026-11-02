@@ -34,6 +34,9 @@ void ME::RendererDX::Init() {
 }
 
 void ME::RendererDX::SetScene(ME::Scene* gameScene) {
+    // Frames still in flight may be using the old scene's buffers.
+    FlushCommandQueue();
+
     // Delete the old scene if it exists.
     if (sceneDX != nullptr) {
         delete sceneDX;
@@ -43,8 +46,8 @@ void ME::RendererDX::SetScene(ME::Scene* gameScene) {
     this->scene = gameScene;
 
     // Do Initilization that need command list.
-    directCmdListAlloc->Reset();
-    commandList->Reset(directCmdListAlloc.Get(), pso2DAtl);
+    commandAllocators[frameIndex]->Reset();
+    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
 
     // Create a new scene with the provided game scene.
     sceneDX = new ME::SceneDX(device.Get(), commandList.Get(), descHeapManager, gameScene);
@@ -59,9 +62,12 @@ void ME::RendererDX::SetScene(ME::Scene* gameScene) {
 }
 
 void ME::RendererDX::SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) {
+    // Frames still in flight may be using the old scenes' buffers.
+    FlushCommandQueue();
+
     // Do Initilization that need command list.
-    directCmdListAlloc->Reset();
-    commandList->Reset(directCmdListAlloc.Get(), pso2DAtl);
+    commandAllocators[frameIndex]->Reset();
+    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
 
     if (sceneDX != nullptr) {
         delete sceneDX;
@@ -91,9 +97,12 @@ void ME::RendererDX::SetScenes(ME::Scene* gameScene, ME::SceneUI* uiScene) {
 }
 
 void ME::RendererDX::SetDebugUIScene(ME::SceneUI* debugUiScene) {
+    // Frames still in flight may be using the old scene's buffers.
+    FlushCommandQueue();
+
     // Do Initilization that need command list.
-    directCmdListAlloc->Reset();
-    commandList->Reset(directCmdListAlloc.Get(), pso2DAtl);
+    commandAllocators[frameIndex]->Reset();
+    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
 
     if (debugUiSceneDX != nullptr) {
         delete debugUiSceneDX;
@@ -135,6 +144,7 @@ void ME::RendererDX::Update() {
 }
 
 void ME::RendererDX::End() {
+    FlushCommandQueue();
     ME::Log("RendererDirectX::End");
 }
 
@@ -174,8 +184,10 @@ bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
 
     device->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&commandQueue));
 
-    device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&directCmdListAlloc));
-    device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, directCmdListAlloc.Get(), nullptr,
+    for (ComPtr<ID3D12CommandAllocator>& allocator : commandAllocators) {
+        device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator));
+    }
+    device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[frameIndex].Get(), nullptr,
                               IID_PPV_ARGS(&commandList));
     commandList->Close();
 
@@ -278,8 +290,8 @@ bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
     pso2DUISprite = PSODirectX::CreatePSO2DUISprite(device.Get(), "ui_sprite.hlsl", rootSig2DUISprite);
 
     // Do Initilization that need command list.
-    directCmdListAlloc->Reset();
-    commandList->Reset(directCmdListAlloc.Get(), pso2DAtl);
+    commandAllocators[frameIndex]->Reset();
+    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
     CD3DX12_RESOURCE_BARRIER depthBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
         depthStencilBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     commandList->ResourceBarrier(1, &depthBarrier);
@@ -300,8 +312,9 @@ bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
 }
 
 void ME::RendererDX::Draw() {
-    directCmdListAlloc->Reset();
-    commandList->Reset(directCmdListAlloc.Get(), pso2DAtl);
+    // The end of the last Draw waited for this slot's previous frame, so its allocator memory is free to reuse.
+    commandAllocators[frameIndex]->Reset();
+    commandList->Reset(commandAllocators[frameIndex].Get(), pso2DAtl);
 
     commandList->SetPipelineState(pso2DAtl);
     commandList->SetGraphicsRootSignature(rootSig2DAtl);
@@ -341,8 +354,9 @@ void ME::RendererDX::Draw() {
         perPassData.projectionMatrix = sceneDX->spriteCamera->GetProjectionMatrix().GetDataRowMajor();
         perPassData.ambientLightData = sceneDX->ambientLight->GetLightDataAmbient();
         perPassData.directionalLightData = sceneDX->directionalLight->GetLightDataDirectional();
-        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassIndex);
+        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass =
+            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->perPassCBHeapIndices[cbPerPassIndex] + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
 
         D3D12_VERTEX_BUFFER_VIEW vbView = quad->GetVertexBufferView();
@@ -357,9 +371,10 @@ void ME::RendererDX::Draw() {
             const uint32_t atlasPropsHeapIndex = sceneDX->textureAtlasCBHeapIndices[atlasPropsIndex];
 
             ME::TextureAtlasProperties atlasProps = sceneDX->textureAtlasProperties[atlasPropsIndex];
-            sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
+            sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
 
-            D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas = descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex);
+            D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas =
+                descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex + frameIndex);
             commandList->SetGraphicsRootDescriptorTable(1, cbvAtlas);
 
             D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
@@ -371,10 +386,10 @@ void ME::RendererDX::Draw() {
             perSpriteData.color = sceneDX->spriteRenderers[i].color;
             perSpriteData.atlasIndex = sceneDX->spriteRenderers[i].atlasIndex;
             perSpriteData.flags = sceneDX->spriteRenderers[i].flags;
-            sceneDX->perSpriteCBs[i]->CopyData(&perSpriteData);
+            sceneDX->perSpriteCBs[i]->CopyData(frameIndex, &perSpriteData);
 
             D3D12_GPU_DESCRIPTOR_HANDLE cbvPerSprite =
-                descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->perSpriteCBHeapIndices[i]);
+                descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->perSpriteCBHeapIndices[i] + frameIndex);
             commandList->SetGraphicsRootDescriptorTable(3, cbvPerSprite);
 
             commandList->DrawIndexedInstanced(quad->indexCount, 1, 0, 0, 0);
@@ -399,15 +414,17 @@ void ME::RendererDX::Draw() {
         perPassData.projectionMatrix = sceneDX->spriteCamera->GetProjectionMatrix().GetDataRowMajor();
         perPassData.ambientLightData = sceneDX->ambientLight->GetLightDataAmbient();
         perPassData.directionalLightData = sceneDX->directionalLight->GetLightDataDirectional();
-        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
+        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassIndex);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass =
+            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->perPassCBHeapIndices[cbPerPassIndex] + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
 
         ME::TextureAtlasProperties atlasProps = sceneDX->textureAtlasProperties[atlasPropsIndex];
-        sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
+        sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas = descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas =
+            descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(1, cbvAtlas);
 
         D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
@@ -415,10 +432,10 @@ void ME::RendererDX::Draw() {
 
         commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
 
-        sceneDX->spriteInstanceBuffer0->CopyData(sceneDX->spriteInstanceData0);
+        sceneDX->spriteInstanceBuffer0->CopyData(frameIndex, sceneDX->spriteInstanceData0);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceData =
-            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex0);
+            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex0 + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(3, srvInstanceData);
 
         D3D12_VERTEX_BUFFER_VIEW vbView = quad->GetVertexBufferView();
@@ -448,15 +465,17 @@ void ME::RendererDX::Draw() {
         perPassData.projectionMatrix = sceneDX->spriteCamera->GetProjectionMatrix().GetDataRowMajor();
         perPassData.ambientLightData = sceneDX->ambientLight->GetLightDataAmbient();
         perPassData.directionalLightData = sceneDX->directionalLight->GetLightDataDirectional();
-        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
+        sceneDX->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassIndex);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass =
+            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->perPassCBHeapIndices[cbPerPassIndex] + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
 
         ME::TextureAtlasProperties atlasProps = sceneDX->textureAtlasProperties[atlasPropsIndex];
-        sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
+        sceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas = descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlas =
+            descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(1, cbvAtlas);
 
         D3D12_GPU_DESCRIPTOR_HANDLE textureHandle =
@@ -464,10 +483,10 @@ void ME::RendererDX::Draw() {
 
         commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
 
-        sceneDX->spriteInstanceBuffer1->CopyData(sceneDX->spriteInstanceData1);
+        sceneDX->spriteInstanceBuffer1->CopyData(frameIndex, sceneDX->spriteInstanceData1);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceData =
-            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex1);
+            descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex1 + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(3, srvInstanceData);
 
         D3D12_VERTEX_BUFFER_VIEW vbView = quad->GetVertexBufferView();
@@ -501,7 +520,12 @@ void ME::RendererDX::Draw() {
     swapChain->Present(vsyncEnabled ? 1 : 0, 0);
     currentBackBuffer = (currentBackBuffer + 1) % swapChainBufferCount;
 
-    FlushCommandQueue();
+    // Mark when this slot is free, then wait here for the next slot, so the next frame's input isn't read early.
+    ++currentFence;
+    commandQueue->Signal(fence.Get(), currentFence);
+    frameFences[frameIndex] = currentFence;
+    frameIndex = (frameIndex + 1) % static_cast<uint32_t>(Constants::FramesInFlight);
+    WaitForFence(frameFences[frameIndex]);
 }
 
 void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
@@ -524,26 +548,27 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
 
         CBPerPassUISprite perPassData{};
         perPassData.screenDimension = ME::Utils::Pack16To32(window->width, window->height);
-        uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex);
+        uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass =
+            descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
 
         ME::TextureAtlasProperties atlasPropsUISprite = uiSceneDX->textureAtlasProperties[atlasPropsIndex];
-        uiSceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasPropsUISprite);
+        uiSceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasPropsUISprite);
 
         D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlasUISprite =
-            descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex);
+            descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(1, cbvAtlasUISprite);
 
         D3D12_GPU_DESCRIPTOR_HANDLE textureHandleUISprite =
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->spriteTextures[textureIndex]->descHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(2, textureHandleUISprite);
 
-        uiSceneDX->uiSpriteInstanceBuffer->CopyElements(uiSceneDX->uiSpriteInstanceData.data,
+        uiSceneDX->uiSpriteInstanceBuffer->CopyElements(frameIndex, uiSceneDX->uiSpriteInstanceData.data,
                                                         static_cast<uint32_t>(uiSceneDX->uiSpriteInstanceData.count));
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceDataUISprite =
-            descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->uiSpriteInstanceBufferHeapIndex);
+            descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->uiSpriteInstanceBufferHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(3, srvInstanceDataUISprite);
 
         D3D12_VERTEX_BUFFER_VIEW vbView = quad->GetVertexBufferView();
@@ -571,25 +596,27 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
 
         CBPerPassUIText perPassData{};
         perPassData.screenDimension = ME::Utils::Pack16To32(window->width, window->height);
-        uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass = descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex);
+        uiSceneDX->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvPerPass =
+            descHeapManager->GetGPUDescriptorHandleForIndex(cbPerPassHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(0, cbvPerPass);
 
         ME::TextureAtlasProperties atlasPropsText = uiSceneDX->textureAtlasProperties[atlasPropsIndex];
-        uiSceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasPropsText);
+        uiSceneDX->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasPropsText);
 
-        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlasText = descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex);
+        D3D12_GPU_DESCRIPTOR_HANDLE cbvAtlasText =
+            descHeapManager->GetGPUDescriptorHandleForIndex(atlasPropsHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(1, cbvAtlasText);
 
         D3D12_GPU_DESCRIPTOR_HANDLE textureHandleText =
             descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->spriteTextures[textureIndex]->descHeapIndex);
         commandList->SetGraphicsRootDescriptorTable(2, textureHandleText);
 
-        uiSceneDX->textInstanceBuffer->CopyElements(uiSceneDX->textInstanceData.data,
+        uiSceneDX->textInstanceBuffer->CopyElements(frameIndex, uiSceneDX->textInstanceData.data,
                                                     static_cast<uint32_t>(uiSceneDX->textInstanceData.count));
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceDataText =
-            descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->textInstanceBufferHeapIndex);
+            descHeapManager->GetGPUDescriptorHandleForIndex(uiSceneDX->textInstanceBufferHeapIndex + frameIndex);
         commandList->SetGraphicsRootDescriptorTable(3, srvInstanceDataText);
 
         D3D12_VERTEX_BUFFER_VIEW vbView = quad->GetVertexBufferView();
@@ -604,11 +631,18 @@ void ME::RendererDX::DrawUIScene(ME::SceneUIDX* uiSceneDX) {
 }
 
 void ME::RendererDX::FlushCommandQueue() {
+    if (commandQueue == nullptr || fence == nullptr) {
+        return;
+    }
     ++currentFence;
     commandQueue->Signal(fence.Get(), currentFence);
-    if (fence->GetCompletedValue() < currentFence) {
+    WaitForFence(currentFence);
+}
+
+void ME::RendererDX::WaitForFence(uint64_t value) {
+    if (fence->GetCompletedValue() < value) {
         HANDLE fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        fence->SetEventOnCompletion(currentFence, fenceEvent);
+        fence->SetEventOnCompletion(value, fenceEvent);
         WaitForSingleObject(fenceEvent, INFINITE);
         CloseHandle(fenceEvent);
     }

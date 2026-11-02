@@ -14,33 +14,36 @@ ME::DescHeapManagerDX::DescHeapManagerDX(ID3D12Device* device, ID3D12DescriptorH
     currentIndex = 0;
 }
 
-bool ME::DescHeapManagerDX::HasFreeDescriptor() const {
-    if (currentIndex < Constants::MaxDescriptorsOnDescriptorHeap) {
+bool ME::DescHeapManagerDX::HasFreeDescriptors(const uint32_t count) const {
+    if (currentIndex + count <= Constants::MaxDescriptorsOnDescriptorHeap) {
         return true;
     }
     ME::LogError("DescHeapManagerDX: the descriptor heap is full (MaxDescriptorsOnDescriptorHeap)");
     return false;
 }
 
-uint32_t ME::DescHeapManagerDX::CreateCBV(ID3D12Resource* resource, const uint32_t sizeInBytes) {
-    if (!HasFreeDescriptor()) {
+uint32_t ME::DescHeapManagerDX::CreateFrameCBVs(ID3D12Resource* resource, const uint32_t sizeInBytes) {
+    if (!HasFreeDescriptors(Constants::FramesInFlight)) {
         return 0;
     }
 
-    D3D12_CONSTANT_BUFFER_VIEW_DESC descDesc{};
-    descDesc.BufferLocation = resource->GetGPUVirtualAddress();
-    descDesc.SizeInBytes = sizeInBytes;
+    const uint32_t firstIndex = currentIndex;
+    for (uint32_t frame = 0; frame < Constants::FramesInFlight; ++frame) {
+        D3D12_CONSTANT_BUFFER_VIEW_DESC descDesc{};
+        descDesc.BufferLocation = resource->GetGPUVirtualAddress() + static_cast<uint64_t>(frame) * sizeInBytes;
+        descDesc.SizeInBytes = sizeInBytes;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    cpuHandle.ptr += currentIndex * descriptorSize;
-    device->CreateConstantBufferView(&descDesc, cpuHandle);
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        cpuHandle.ptr += currentIndex * descriptorSize;
+        device->CreateConstantBufferView(&descDesc, cpuHandle);
 
-    ++currentIndex;
-    return (currentIndex - 1);
+        ++currentIndex;
+    }
+    return firstIndex;
 }
 
 uint32_t ME::DescHeapManagerDX::CreateSRVTexture(ID3D12Resource* resource) {
-    if (!HasFreeDescriptor()) {
+    if (!HasFreeDescriptors(1)) {
         return 0;
     }
 
@@ -59,27 +62,30 @@ uint32_t ME::DescHeapManagerDX::CreateSRVTexture(ID3D12Resource* resource) {
     return (currentIndex - 1);
 }
 
-uint32_t ME::DescHeapManagerDX::CreateSRVInstanceData(ID3D12Resource* resource, const uint32_t elementSize,
-                                                      const uint32_t elementCount) {
-    if (!HasFreeDescriptor()) {
+uint32_t ME::DescHeapManagerDX::CreateFrameSRVsInstanceData(ID3D12Resource* resource, const uint32_t elementSize,
+                                                            const uint32_t elementCount) {
+    if (!HasFreeDescriptors(Constants::FramesInFlight)) {
         return 0;
     }
 
-    D3D12_SHADER_RESOURCE_VIEW_DESC descDesc{};
-    descDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    descDesc.Format = DXGI_FORMAT_UNKNOWN;
-    descDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    descDesc.Buffer.FirstElement = 0;
-    descDesc.Buffer.NumElements = elementCount;
-    descDesc.Buffer.StructureByteStride = elementSize;
-    descDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+    const uint32_t firstIndex = currentIndex;
+    for (uint32_t frame = 0; frame < Constants::FramesInFlight; ++frame) {
+        D3D12_SHADER_RESOURCE_VIEW_DESC descDesc{};
+        descDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        descDesc.Format = DXGI_FORMAT_UNKNOWN;
+        descDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+        descDesc.Buffer.FirstElement = static_cast<uint64_t>(frame) * elementCount;
+        descDesc.Buffer.NumElements = elementCount;
+        descDesc.Buffer.StructureByteStride = elementSize;
+        descDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
-    cpuHandle.ptr += currentIndex * descriptorSize;
-    device->CreateShaderResourceView(resource, &descDesc, cpuHandle);
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+        cpuHandle.ptr += currentIndex * descriptorSize;
+        device->CreateShaderResourceView(resource, &descDesc, cpuHandle);
 
-    ++currentIndex;
-    return (currentIndex - 1);
+        ++currentIndex;
+    }
+    return firstIndex;
 }
 
 uint32_t ME::DescHeapManagerDX::GetDescriptorSize() const {

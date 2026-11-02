@@ -172,7 +172,8 @@ void ME::SceneDX::MakeConstantBuffers() {
 
     // Sprite Rendering.
     perPassCBs[0] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::CBPerPass));
-    perPassCBHeapIndices[0] = descHeapManager->CreateCBV(perPassCBs[0]->GetResource(), perPassCBs[0]->GetElementSize());
+    perPassCBHeapIndices[0] =
+        descHeapManager->CreateFrameCBVs(perPassCBs[0]->GetResource(), perPassCBs[0]->GetElementSize());
 
     // Creating per-sprite constant buffers.
     perSpriteCBCount = static_cast<uint32_t>(spriteRenderers.count);
@@ -183,7 +184,7 @@ void ME::SceneDX::MakeConstantBuffers() {
     for (uint32_t i = 0; i < perSpriteCBCount; ++i) {
         perSpriteCBs[i] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::CBPerSprite));
         perSpriteCBHeapIndices[i] =
-            descHeapManager->CreateCBV(perSpriteCBs[i]->GetResource(), perSpriteCBs[i]->GetElementSize());
+            descHeapManager->CreateFrameCBVs(perSpriteCBs[i]->GetResource(), perSpriteCBs[i]->GetElementSize());
     }
 
     // Creating texture atlas constant buffers.
@@ -191,7 +192,7 @@ void ME::SceneDX::MakeConstantBuffers() {
     for (uint32_t i = 0; i < textureAtlasCBCount; ++i) {
         textureAtlasCBs[i] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::TextureAtlasProperties));
         textureAtlasCBHeapIndices[i] =
-            descHeapManager->CreateCBV(textureAtlasCBs[i]->GetResource(), textureAtlasCBs[i]->GetElementSize());
+            descHeapManager->CreateFrameCBVs(textureAtlasCBs[i]->GetResource(), textureAtlasCBs[i]->GetElementSize());
     }
 }
 
@@ -203,7 +204,7 @@ void ME::SceneDX::MakeSpriteInstanceBuffer() {
 
     spriteInstanceBuffer0 =
         new ME::UploadBufferDX(device, false, instancedSpriteRenderers0.count, sizeof(ME::SpriteRendererInstanceData));
-    spriteInstanceBufferHeapIndex0 = descHeapManager->CreateSRVInstanceData(
+    spriteInstanceBufferHeapIndex0 = descHeapManager->CreateFrameSRVsInstanceData(
         spriteInstanceBuffer0->GetResource(), sizeof(ME::SpriteRendererInstanceData), instancedSpriteRenderers0.count);
 
     // Second instance buffer.
@@ -213,7 +214,7 @@ void ME::SceneDX::MakeSpriteInstanceBuffer() {
 
     spriteInstanceBuffer1 =
         new ME::UploadBufferDX(device, false, instancedSpriteRenderers1.count, sizeof(ME::SpriteRendererInstanceData));
-    spriteInstanceBufferHeapIndex1 = descHeapManager->CreateSRVInstanceData(
+    spriteInstanceBufferHeapIndex1 = descHeapManager->CreateFrameSRVsInstanceData(
         spriteInstanceBuffer1->GetResource(), sizeof(ME::SpriteRendererInstanceData), instancedSpriteRenderers1.count);
 }
 

@@ -96,18 +96,20 @@ void ME::SceneUIDX::MakeConstantBuffers() {
 
     // UI Sprite Rendering.
     perPassCBs[0] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::CBPerPassUISprite));
-    perPassCBHeapIndices[0] = descHeapManager->CreateCBV(perPassCBs[0]->GetResource(), perPassCBs[0]->GetElementSize());
+    perPassCBHeapIndices[0] =
+        descHeapManager->CreateFrameCBVs(perPassCBs[0]->GetResource(), perPassCBs[0]->GetElementSize());
 
     // UI Text Rendering.
     perPassCBs[1] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::CBPerPassUIText));
-    perPassCBHeapIndices[1] = descHeapManager->CreateCBV(perPassCBs[1]->GetResource(), perPassCBs[1]->GetElementSize());
+    perPassCBHeapIndices[1] =
+        descHeapManager->CreateFrameCBVs(perPassCBs[1]->GetResource(), perPassCBs[1]->GetElementSize());
 
     // Creating texture atlas constant buffers.
     textureAtlasCBCount = scene->textureAtlasProperties.count;
     for (uint32_t i = 0; i < textureAtlasCBCount; ++i) {
         textureAtlasCBs[i] = new ME::UploadBufferDX(device, true, 1, sizeof(ME::TextureAtlasProperties));
         textureAtlasCBHeapIndices[i] =
-            descHeapManager->CreateCBV(textureAtlasCBs[i]->GetResource(), textureAtlasCBs[i]->GetElementSize());
+            descHeapManager->CreateFrameCBVs(textureAtlasCBs[i]->GetResource(), textureAtlasCBs[i]->GetElementSize());
     }
 }
 
@@ -115,16 +117,16 @@ void ME::SceneUIDX::MakeUISpriteInstanceBuffer() {
     // Initialize to a big number to support dynamic ui elements after construction.
     uiSpriteInstanceBuffer = new ME::UploadBufferDX(device, false, Constants::MaxUISpriteInstanceDataCount,
                                                     sizeof(ME::UISpriteRendererInstanceData));
-    uiSpriteInstanceBufferHeapIndex = descHeapManager->CreateSRVInstanceData(uiSpriteInstanceBuffer->GetResource(),
-                                                                             sizeof(ME::UISpriteRendererInstanceData),
-                                                                             Constants::MaxUISpriteInstanceDataCount);
+    uiSpriteInstanceBufferHeapIndex = descHeapManager->CreateFrameSRVsInstanceData(
+        uiSpriteInstanceBuffer->GetResource(), sizeof(ME::UISpriteRendererInstanceData),
+        Constants::MaxUISpriteInstanceDataCount);
 }
 
 void ME::SceneUIDX::MakeTextInstanceBuffer() {
     // Initialize to a big number to support dynamic ui elements after construction.
     textInstanceBuffer = new ME::UploadBufferDX(device, false, Constants::MaxTextInstanceDataCount,
                                                 sizeof(ME::TextRendererInstanceData));
-    textInstanceBufferHeapIndex = descHeapManager->CreateSRVInstanceData(
+    textInstanceBufferHeapIndex = descHeapManager->CreateFrameSRVsInstanceData(
         textInstanceBuffer->GetResource(), sizeof(ME::TextRendererInstanceData), Constants::MaxTextInstanceDataCount);
 }
 

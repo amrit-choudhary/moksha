@@ -10,6 +10,9 @@
 namespace ME {
 namespace Constants {
 
+// Renderer constants
+constexpr size_t FramesInFlight = 2;  // frames the CPU may record while the GPU still works on earlier ones
+
 // Scene constants
 constexpr size_t MaxMeshCount = 128;
 constexpr size_t MaxQuadCount = 8;
@@ -46,7 +49,7 @@ constexpr size_t MaxDebugSlotCount = 16;     // persistent, index-addressed debu
 constexpr size_t MaxDebugLogLineCount = 16;  // transient, time-limited debug text rows
 
 constexpr size_t MaxConstantBuffersCount = 256;
-constexpr size_t MaxDescriptorsOnDescriptorHeap = 2048;
+constexpr size_t MaxDescriptorsOnDescriptorHeap = 4096;
 
 // Physics constants
 constexpr size_t MaxStaticColliderCount = 100'000;

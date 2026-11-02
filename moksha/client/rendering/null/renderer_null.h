@@ -31,6 +31,9 @@ class RendererNull : public PlatformRenderer {
 
     void SetVsyncEnabled(bool enabled) override;
 
+    // Does nothing: there is no GPU to wait for.
+    void FlushCommandQueue();
+
    private:
     ME::Scene* scene = nullptr;
     ME::SceneUI* uiScene = nullptr;

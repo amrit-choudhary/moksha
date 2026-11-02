@@ -22,7 +22,7 @@
 // Same clear colour as the DX12 renderer.
 static const MTL::ClearColor kClearColor = MTL::ClearColor::Make(0.01, 0.01, 0.01, 1.0);
 
-// Longest wait for the GPU before giving up on a frame.
+// Longest wait for the GPU before giving up, per frame being waited for.
 static constexpr uint64_t kGpuWaitMilliseconds = 1000;
 
 void ME::RendererMetal::Init() {
@@ -30,6 +30,7 @@ void ME::RendererMetal::Init() {
 }
 
 void ME::RendererMetal::SetScene(ME::Scene* gameScene) {
+    FlushCommandQueue();
     delete sceneMetal;
     sceneMetal = nullptr;
     scene = gameScene;
@@ -55,6 +56,7 @@ void ME::RendererMetal::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) 
 }
 
 void ME::RendererMetal::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
+    FlushCommandQueue();
     delete debugUiSceneMetal;
     debugUiSceneMetal = nullptr;
     debugUiScene = inDebugUiScene;
@@ -97,9 +99,7 @@ void ME::RendererMetal::Update() {
 }
 
 void ME::RendererMetal::End() {
-    if (commandQueue != nullptr && fence != nullptr) {
-        FlushCommandQueue();
-    }
+    FlushCommandQueue();
 
     delete sceneMetal;
     sceneMetal = nullptr;
@@ -110,11 +110,16 @@ void ME::RendererMetal::End() {
     delete quad;
     quad = nullptr;
 
-    NS::Object* objects[] = {depthTexture,  depthStateDisabled, depthStateDefault,
-                             pso2DAtl,      pso2DInsAtl,        pso2DUIText,
-                             pso2DUISprite, residencySet,       argumentTable,
-                             compiler,      commandBuffer,      commandAllocator,
-                             fence,         commandQueue,       device};
+    for (MTL4::CommandAllocator*& allocator : commandAllocators) {
+        if (allocator != nullptr) {
+            allocator->release();
+            allocator = nullptr;
+        }
+    }
+
+    NS::Object* objects[] = {
+        depthTexture, depthStateDisabled, depthStateDefault, pso2DAtl,      pso2DInsAtl, pso2DUIText,  pso2DUISprite,
+        residencySet, argumentTable,      compiler,          commandBuffer, fence,       commandQueue, device};
     for (NS::Object* object : objects) {
         if (object != nullptr) {
             object->release();
@@ -131,7 +136,6 @@ void ME::RendererMetal::End() {
     argumentTable = nullptr;
     compiler = nullptr;
     commandBuffer = nullptr;
-    commandAllocator = nullptr;
     fence = nullptr;
     commandQueue = nullptr;
     device = nullptr;
@@ -149,10 +153,14 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
     device = view->GetDevice()->retain();
 
     commandQueue = device->newMTL4CommandQueue();
-    commandAllocator = device->newCommandAllocator();
     commandBuffer = device->newCommandBuffer();
     fence = device->newSharedEvent();
-    if (commandQueue == nullptr || commandAllocator == nullptr || commandBuffer == nullptr || fence == nullptr) {
+    bool allocatorsCreated = true;
+    for (MTL4::CommandAllocator*& allocator : commandAllocators) {
+        allocator = device->newCommandAllocator();
+        allocatorsCreated = allocatorsCreated && allocator != nullptr;
+    }
+    if (commandQueue == nullptr || !allocatorsCreated || commandBuffer == nullptr || fence == nullptr) {
         ME::LogError("RendererMetal: couldn't create the Metal 4 command objects");
         return false;
     }
@@ -209,6 +217,12 @@ void ME::RendererMetal::Draw() {
         return;
     }
 
+    // Usually instant: the last Draw already waited. If that wait timed out, the GPU may still be using this slot's
+    // allocator and buffers, so skip the frame instead of overwriting them.
+    if (!WaitForFence(frameFences[frameIndex], kGpuWaitMilliseconds)) {
+        return;
+    }
+
     // Both are nil while the view has no drawable to give (e.g. the window is hidden); skip the frame then.
     MTL4::RenderPassDescriptor* renderPass = view->GetCurrentRenderPass();
     CA::MetalDrawable* drawable = view->GetCurrentDrawable();
@@ -228,9 +242,9 @@ void ME::RendererMetal::Draw() {
     depthTarget->setClearDepth(1.0);
     depthTarget->setStoreAction(MTL::StoreActionDontCare);
 
-    // The previous frame was flushed, so its allocator memory is free to reuse.
-    commandAllocator->reset();
-    commandBuffer->beginCommandBuffer(commandAllocator);
+    // The end of the last Draw waited for this slot's previous frame, so its allocator memory is free to reuse.
+    commandAllocators[frameIndex]->reset();
+    commandBuffer->beginCommandBuffer(commandAllocators[frameIndex]);
 
     MTL4::RenderCommandEncoder* encoder = commandBuffer->renderCommandEncoder(renderPass);
     encoder->setViewport(MTL::Viewport{0.0, 0.0, static_cast<double>(width), static_cast<double>(height), 0.0, 1.0});
@@ -252,16 +266,16 @@ void ME::RendererMetal::Draw() {
         perPassData.projectionMatrix = sceneMetal->spriteCamera->GetProjectionMatrix().GetDataForShader();
         perPassData.ambientLightData = sceneMetal->ambientLight->GetLightDataAmbient();
         perPassData.directionalLightData = sceneMetal->directionalLight->GetLightDataDirectional();
-        sceneMetal->perPassCBs[0]->CopyData(&perPassData);
-        argumentTable->setAddress(sceneMetal->perPassCBs[0]->GetGPUAddress(), MetalBindings::PerPassBuffer);
+        sceneMetal->perPassCBs[0]->CopyData(frameIndex, &perPassData);
+        argumentTable->setAddress(sceneMetal->perPassCBs[0]->GetGPUAddress(frameIndex), MetalBindings::PerPassBuffer);
 
         for (uint32_t i = 0; i < sceneMetal->perSpriteCBCount; ++i) {
             const uint32_t textureIndex = sceneMetal->spriteRenderers[i].textureId;
             const uint32_t atlasPropsIndex = sceneMetal->spriteRenderers[i].textureAtlasPropsId;
 
             ME::TextureAtlasProperties atlasProps = sceneMetal->textureAtlasProperties[atlasPropsIndex];
-            sceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
-            argumentTable->setAddress(sceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+            sceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
+            argumentTable->setAddress(sceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(frameIndex),
                                       MetalBindings::AtlasBuffer);
 
             argumentTable->setTexture(sceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
@@ -272,8 +286,9 @@ void ME::RendererMetal::Draw() {
             perSpriteData.color = sceneMetal->spriteRenderers[i].color;
             perSpriteData.atlasIndex = sceneMetal->spriteRenderers[i].atlasIndex;
             perSpriteData.flags = sceneMetal->spriteRenderers[i].flags;
-            sceneMetal->perSpriteCBs[i]->CopyData(&perSpriteData);
-            argumentTable->setAddress(sceneMetal->perSpriteCBs[i]->GetGPUAddress(), MetalBindings::PerObjectBuffer);
+            sceneMetal->perSpriteCBs[i]->CopyData(frameIndex, &perSpriteData);
+            argumentTable->setAddress(sceneMetal->perSpriteCBs[i]->GetGPUAddress(frameIndex),
+                                      MetalBindings::PerObjectBuffer);
 
             encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
                                            quad->indexBuffer->gpuAddress(), quad->indicesSize);
@@ -316,7 +331,12 @@ void ME::RendererMetal::Draw() {
     commandQueue->signalDrawable(drawable);
     drawable->present();
 
-    FlushCommandQueue();
+    // Mark when this slot is free, then wait here for the next slot, so the next frame's input isn't read early.
+    ++currentFence;
+    commandQueue->signalEvent(fence, currentFence);
+    frameFences[frameIndex] = currentFence;
+    frameIndex = (frameIndex + 1) % static_cast<uint32_t>(Constants::FramesInFlight);
+    WaitForFence(frameFences[frameIndex], kGpuWaitMilliseconds);
 }
 
 void ME::RendererMetal::DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
@@ -333,19 +353,19 @@ void ME::RendererMetal::DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encod
     perPassData.projectionMatrix = sceneMetal->spriteCamera->GetProjectionMatrix().GetDataForShader();
     perPassData.ambientLightData = sceneMetal->ambientLight->GetLightDataAmbient();
     perPassData.directionalLightData = sceneMetal->directionalLight->GetLightDataDirectional();
-    sceneMetal->perPassCBs[0]->CopyData(&perPassData);
-    argumentTable->setAddress(sceneMetal->perPassCBs[0]->GetGPUAddress(), MetalBindings::PerPassBuffer);
+    sceneMetal->perPassCBs[0]->CopyData(frameIndex, &perPassData);
+    argumentTable->setAddress(sceneMetal->perPassCBs[0]->GetGPUAddress(frameIndex), MetalBindings::PerPassBuffer);
 
     ME::TextureAtlasProperties atlasProps = sceneMetal->textureAtlasProperties[atlasPropsIndex];
-    sceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
-    argumentTable->setAddress(sceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+    sceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
+    argumentTable->setAddress(sceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(frameIndex),
                               MetalBindings::AtlasBuffer);
 
     argumentTable->setTexture(sceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                               MetalBindings::Texture);
 
-    instanceBuffer->CopyData(instanceData);
-    argumentTable->setAddress(instanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
+    instanceBuffer->CopyData(frameIndex, instanceData);
+    argumentTable->setAddress(instanceBuffer->GetGPUAddress(frameIndex), MetalBindings::InstanceBuffer);
 
     encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
                                    quad->indexBuffer->gpuAddress(), quad->indicesSize, instanceCount);
@@ -371,21 +391,23 @@ void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::Sce
 
         CBPerPassUISprite perPassData{};
         perPassData.screenDimension = screenDimension;
-        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
-        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(),
+        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
+        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(frameIndex),
                                   MetalBindings::PerPassBuffer);
 
         ME::TextureAtlasProperties atlasProps = uiSceneMetal->textureAtlasProperties[atlasPropsIndex];
-        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
-        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
+        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(frameIndex),
                                   MetalBindings::AtlasBuffer);
 
         argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                                   MetalBindings::Texture);
 
         uiSceneMetal->uiSpriteInstanceBuffer->CopyElements(
-            uiSceneMetal->uiSpriteInstanceData.data, static_cast<uint32_t>(uiSceneMetal->uiSpriteInstanceData.count));
-        argumentTable->setAddress(uiSceneMetal->uiSpriteInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
+            frameIndex, uiSceneMetal->uiSpriteInstanceData.data,
+            static_cast<uint32_t>(uiSceneMetal->uiSpriteInstanceData.count));
+        argumentTable->setAddress(uiSceneMetal->uiSpriteInstanceBuffer->GetGPUAddress(frameIndex),
+                                  MetalBindings::InstanceBuffer);
 
         encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
                                        quad->indexBuffer->gpuAddress(), quad->indicesSize,
@@ -403,21 +425,22 @@ void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::Sce
 
         CBPerPassUIText perPassData{};
         perPassData.screenDimension = screenDimension;
-        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(&perPassData);
-        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(),
+        uiSceneMetal->perPassCBs[cbPerPassIndex]->CopyData(frameIndex, &perPassData);
+        argumentTable->setAddress(uiSceneMetal->perPassCBs[cbPerPassIndex]->GetGPUAddress(frameIndex),
                                   MetalBindings::PerPassBuffer);
 
         ME::TextureAtlasProperties atlasProps = uiSceneMetal->textureAtlasProperties[atlasPropsIndex];
-        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(&atlasProps);
-        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(),
+        uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->CopyData(frameIndex, &atlasProps);
+        argumentTable->setAddress(uiSceneMetal->textureAtlasCBs[atlasPropsIndex]->GetGPUAddress(frameIndex),
                                   MetalBindings::AtlasBuffer);
 
         argumentTable->setTexture(uiSceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                                   MetalBindings::Texture);
 
-        uiSceneMetal->textInstanceBuffer->CopyElements(uiSceneMetal->textInstanceData.data,
+        uiSceneMetal->textInstanceBuffer->CopyElements(frameIndex, uiSceneMetal->textInstanceData.data,
                                                        static_cast<uint32_t>(uiSceneMetal->textInstanceData.count));
-        argumentTable->setAddress(uiSceneMetal->textInstanceBuffer->GetGPUAddress(), MetalBindings::InstanceBuffer);
+        argumentTable->setAddress(uiSceneMetal->textInstanceBuffer->GetGPUAddress(frameIndex),
+                                  MetalBindings::InstanceBuffer);
 
         encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,
                                        quad->indexBuffer->gpuAddress(), quad->indicesSize,
@@ -426,11 +449,20 @@ void ME::RendererMetal::DrawUIScene(MTL4::RenderCommandEncoder* encoder, ME::Sce
 }
 
 void ME::RendererMetal::FlushCommandQueue() {
+    if (commandQueue == nullptr || fence == nullptr) {
+        return;
+    }
     ++currentFence;
     commandQueue->signalEvent(fence, currentFence);
-    if (!fence->waitUntilSignaledValue(currentFence, kGpuWaitMilliseconds)) {
+    WaitForFence(currentFence, kGpuWaitMilliseconds * Constants::FramesInFlight);
+}
+
+bool ME::RendererMetal::WaitForFence(uint64_t value, uint64_t timeoutMilliseconds) {
+    if (!fence->waitUntilSignaledValue(value, timeoutMilliseconds)) {
         ME::LogError("RendererMetal: the GPU didn't finish a frame in time");
+        return false;
     }
+    return true;
 }
 
 void ME::RendererMetal::EnsureDepthTexture(uint32_t width, uint32_t height) {
@@ -440,21 +472,18 @@ void ME::RendererMetal::EnsureDepthTexture(uint32_t width, uint32_t height) {
     if (depthTexture != nullptr && depthTexture->width() == width && depthTexture->height() == height) {
         return;
     }
-    // The GPU is idle here (every frame is flushed), so the old texture can go at once.
+    // Frames still in flight may be using the old texture, and Metal 4 doesn't keep it alive for them.
     if (depthTexture != nullptr) {
-        residencySet->removeAllocation(depthTexture);
+        FlushCommandQueue();
         depthTexture->release();
     }
 
+    // Memoryless: depth lives in tile memory for one pass and is never stored, so overlapping frames don't conflict.
     MTL::TextureDescriptor* descriptor =
         MTL::TextureDescriptor::texture2DDescriptor(MTL::PixelFormatDepth32Float, width, height, false);
     descriptor->setUsage(MTL::TextureUsageRenderTarget);
-    descriptor->setStorageMode(MTL::StorageModePrivate);
+    descriptor->setStorageMode(MTL::StorageModeMemoryless);
     depthTexture = device->newTexture(descriptor);
-    if (depthTexture != nullptr) {
-        residencySet->addAllocation(depthTexture);
-    }
-    residencySet->commit();
 }
 
 #endif  // ME_METAL

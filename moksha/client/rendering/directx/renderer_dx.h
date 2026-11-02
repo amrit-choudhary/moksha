@@ -20,6 +20,7 @@
 
 #include "desc_heap_manager_dx.h"
 #include "moksha/client/rendering/shared/renderer.h"
+#include "moksha/shared/misc/engine_limits.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -63,6 +64,9 @@ class RendererDX : public PlatformRenderer {
 
     void SetVsyncEnabled(bool enabled) override;
 
+    // Blocks until the GPU has finished everything submitted so far. No-op if InitDX failed.
+    void FlushCommandQueue();
+
    private:
     bool vsyncEnabled = true;
 
@@ -81,9 +85,15 @@ class RendererDX : public PlatformRenderer {
     ComPtr<IDXGISwapChain1> swapChain;
     ComPtr<ID3D12Fence> fence;
     uint64_t currentFence = 0;
+    // The fence value that frees each frame slot; 0 until the slot's first use.
+    uint64_t frameFences[Constants::FramesInFlight] = {};
 
-    ComPtr<ID3D12CommandAllocator> directCmdListAlloc;
+    // One allocator per frame in flight, reset when its frame comes round again; the command list is reused.
+    ComPtr<ID3D12CommandAllocator> commandAllocators[Constants::FramesInFlight];
     ComPtr<ID3D12GraphicsCommandList> commandList;
+
+    // Picks the allocator, upload buffer copies and descriptors the frame being recorded uses.
+    uint32_t frameIndex = 0;
 
     static const uint8_t swapChainBufferCount = 2;
     uint8_t currentBackBuffer = 0;
@@ -125,7 +135,8 @@ class RendererDX : public PlatformRenderer {
     uint32_t clientWidth;
     uint32_t clientHeight;
 
-    void FlushCommandQueue();
+    // Blocks until the queue has signalled value.
+    void WaitForFence(uint64_t value);
 
     // Issues the UI Sprite + UI Text draw passes for one SceneUIDX. Shared by the main UI scene
     // and the debug system's UI scene — same PSOs, same draw commands, different data. No-op if

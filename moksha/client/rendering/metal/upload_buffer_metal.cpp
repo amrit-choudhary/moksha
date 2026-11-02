@@ -5,6 +5,8 @@
 #include <Metal/Metal.hpp>
 #include <cstring>
 
+#include "moksha/shared/misc/engine_limits.h"
+
 ME::UploadBufferMetal::UploadBufferMetal(MTL::Device* device, bool isConstantBuffer, uint32_t inElementCount,
                                          uint32_t inElementSize) {
     elementCount = inElementCount;
@@ -16,7 +18,8 @@ ME::UploadBufferMetal::UploadBufferMetal(MTL::Device* device, bool isConstantBuf
     }
 
     // Shared storage: CPU and GPU see the same memory on Apple silicon, so there is no upload copy.
-    buffer = device->newBuffer(static_cast<NS::UInteger>(elementSize) * elementCount, MTL::ResourceStorageModeShared);
+    buffer = device->newBuffer(static_cast<NS::UInteger>(elementSize) * elementCount * Constants::FramesInFlight,
+                               MTL::ResourceStorageModeShared);
     if (buffer != nullptr) {
         mappedData = static_cast<uint8_t*>(buffer->contents());
     }
@@ -38,27 +41,27 @@ uint32_t ME::UploadBufferMetal::GetElementSize() const {
     return elementSize;
 }
 
-uint64_t ME::UploadBufferMetal::GetGPUAddress(uint32_t elementIndex) const {
-    return buffer != nullptr ? buffer->gpuAddress() + static_cast<uint64_t>(elementIndex) * elementSize : 0;
+uint64_t ME::UploadBufferMetal::GetGPUAddress(uint32_t frameIndex) const {
+    return buffer != nullptr && frameIndex < Constants::FramesInFlight
+               ? buffer->gpuAddress() + GetFrameOffset(frameIndex)
+               : 0;
 }
 
-void ME::UploadBufferMetal::CopyData(const void* data) {
-    if (mappedData != nullptr && data != nullptr) {
-        std::memcpy(mappedData, data, static_cast<size_t>(elementSize) * elementCount);
+void ME::UploadBufferMetal::CopyData(uint32_t frameIndex, const void* data) {
+    if (mappedData != nullptr && data != nullptr && frameIndex < Constants::FramesInFlight) {
+        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * elementCount);
     }
 }
 
-void ME::UploadBufferMetal::CopyData(uint32_t elementIndex, const void* data) {
-    if (mappedData != nullptr && data != nullptr && elementIndex < elementCount) {
-        std::memcpy(mappedData + static_cast<size_t>(elementIndex) * elementSize, data, elementSize);
-    }
-}
-
-void ME::UploadBufferMetal::CopyElements(const void* data, uint32_t count) {
-    if (mappedData != nullptr && data != nullptr) {
+void ME::UploadBufferMetal::CopyElements(uint32_t frameIndex, const void* data, uint32_t count) {
+    if (mappedData != nullptr && data != nullptr && frameIndex < Constants::FramesInFlight) {
         const uint32_t copyCount = count < elementCount ? count : elementCount;
-        std::memcpy(mappedData, data, static_cast<size_t>(elementSize) * copyCount);
+        std::memcpy(mappedData + GetFrameOffset(frameIndex), data, static_cast<size_t>(elementSize) * copyCount);
     }
+}
+
+uint64_t ME::UploadBufferMetal::GetFrameOffset(uint32_t frameIndex) const {
+    return static_cast<uint64_t>(frameIndex) * elementSize * elementCount;
 }
 
 #endif  // ME_METAL

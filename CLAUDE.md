@@ -86,7 +86,7 @@ isn't rewritten unprompted; new code, and lines edited anyway, follow them.
 - **No singletons / static instance pointers** to give callbacks or systems access to object
   state. Pass explicit bound context (the `Delegate` pattern: `void* object` + function pointer,
   or a listener interface). If a global looks like the only option, raise it as a design problem.
-- **Comments: max 2 lines**, stating the engine-level contract. Never justify code by what one
+- **Comments: keep to 2-3 lines** (a guideline, not a hard limit), stating the engine-level contract. Never justify code by what one
   game or demo currently does.
 - Headers include what they use directly (e.g. `<cstdint>`): MSVC/Apple clang hide missing
   includes, g++ (Linux builds) does not.
@@ -99,7 +99,7 @@ House style (follow the surrounding code):
   standard includes, then project includes.
 - Nested namespaces per module (`ME::Net`, `ME::Time`).
 - Explicit `Init()` / `End()` lifecycles. Copy/move are deleted when a class owns resources.
-- A `//` comment of at most 2 lines above each public method. Members get in-class defaults
+- A `//` comment of 2-3 lines at most above each public method. Members get in-class defaults
   (`= 0`, `= nullptr`).
 - `out`-prefixed out-params, `enum class X : uint8_t` results with a trailing comment per
   value, handles where 0 means none, `Delegate` for callbacks.

@@ -22,10 +22,11 @@ class DescHeapManagerDX {
     ~DescHeapManagerDX() = default;
 
     /**
-     * Creates a constant buffer view for the given resource and returns the index in the descriptor heap.
-     * When the heap is full (as for every Create here) it logs an error, creates nothing and returns 0.
+     * Creates one view per frame in flight of a single-element constant buffer; returns the first heap index, a
+     * frame's view is at that index + frame. When the heap is full (as for every Create here) it logs an error,
+     * creates nothing and returns 0.
      */
-    uint32_t CreateCBV(ID3D12Resource* resource, const uint32_t sizeInBytes);
+    uint32_t CreateFrameCBVs(ID3D12Resource* resource, const uint32_t sizeInBytes);
 
     /**
      * Creates a shader resource view for the given texture resource and returns the index in the descriptor heap.
@@ -34,10 +35,11 @@ class DescHeapManagerDX {
     uint32_t CreateSRVTexture(ID3D12Resource* resource);
 
     /**
-     * Creates a shader resource view for the given instance data buffer and returns the index in the descriptor heap.
-     * Used for instance data buffers.
+     * Creates one view per frame in flight of an instance data buffer; returns the first heap index, a frame's view
+     * is at that index + frame. elementCount is the count per frame.
      */
-    uint32_t CreateSRVInstanceData(ID3D12Resource* resource, const uint32_t elementSize, const uint32_t elementCount);
+    uint32_t CreateFrameSRVsInstanceData(ID3D12Resource* resource, const uint32_t elementSize,
+                                         const uint32_t elementCount);
 
     uint32_t GetDescriptorSize() const;
 
@@ -53,8 +55,8 @@ class DescHeapManagerDX {
     D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandleForIndex(const uint32_t index) const;
 
    private:
-    // False, with an error logged, once every descriptor of the heap is used.
-    bool HasFreeDescriptor() const;
+    // False, with an error logged, if the heap doesn't have count more free descriptors.
+    bool HasFreeDescriptors(const uint32_t count) const;
 
     ID3D12Device* device = nullptr;
     ID3D12DescriptorHeap* descriptorHeap = nullptr;
