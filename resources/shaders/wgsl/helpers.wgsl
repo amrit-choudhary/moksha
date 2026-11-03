@@ -37,7 +37,7 @@ fn GetAtlasUV(uv: vec2f, atlasIndex: u32, atlasProps: TextureAtlasProperties, fl
     return atlasPx / vec2f(f32(atlasProps.width), f32(atlasProps.height));
 }
 
-// Maps a UI position in pixels from the screen's centre to clip space. Screen dimensions are packed in a single u32.
+// Maps a UI position in pixels to clip space. Screen dimensions are packed in a single u32.
 fn GetUIPosition(position: vec4f, screenDimension: u32) -> vec4f {
     let screenWidth = f32((screenDimension >> 16u) & 0xFFFFu);
     let screenHeight = f32(screenDimension & 0xFFFFu);

@@ -6,6 +6,7 @@
 
 #include "moksha/client/rendering/shared/vertex.h"
 #include "shader_webgpu.h"
+#include "upload_buffer_webgpu.h"
 
 namespace {
 
@@ -23,6 +24,23 @@ WGPUBindGroupLayout CreateLayout(WGPUDevice device, const WGPUBindGroupLayoutEnt
     descriptor.entryCount = entryCount;
     descriptor.entries = entries;
     return wgpuDeviceCreateBindGroupLayout(device, &descriptor);
+}
+
+WGPUBindGroup CreateBindGroup(WGPUDevice device, WGPUBindGroupLayout layout, const WGPUBindGroupEntry* entries,
+                              size_t entryCount) {
+    WGPUBindGroupDescriptor descriptor = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+    descriptor.layout = layout;
+    descriptor.entryCount = entryCount;
+    descriptor.entries = entries;
+    return wgpuDeviceCreateBindGroup(device, &descriptor);
+}
+
+WGPUBindGroupEntry MakeBufferBinding(uint32_t binding, WGPUBuffer buffer, uint64_t size) {
+    WGPUBindGroupEntry entry = WGPU_BIND_GROUP_ENTRY_INIT;
+    entry.binding = binding;
+    entry.buffer = buffer;
+    entry.size = size;
+    return entry;
 }
 
 }  // namespace
@@ -126,6 +144,36 @@ WGPURenderPipeline ME::PSOWebGPU::CreatePSO2D(WGPUDevice device, WGPUPipelineLay
     descriptor.depthStencil = &depth;
     descriptor.fragment = &fragment;
     return wgpuDeviceCreateRenderPipeline(device, &descriptor);
+}
+
+WGPUBindGroup ME::PSOWebGPU::CreatePassBindGroup(const WebGPUContext& context, const UploadBufferWebGPU* perPassBuffer,
+                                                 const UploadBufferWebGPU* atlasBuffer) {
+    const WGPUBindGroupEntry entries[] = {
+        MakeBufferBinding(0, perPassBuffer->GetBuffer(), perPassBuffer->GetElementSize()),
+        MakeBufferBinding(1, atlasBuffer->GetBuffer(), atlasBuffer->GetElementSize())};
+    return CreateBindGroup(context.device, context.passLayout, entries, 2);
+}
+
+WGPUBindGroup ME::PSOWebGPU::CreateTextureBindGroup(const WebGPUContext& context, WGPUTextureView view) {
+    if (view == nullptr) {
+        return nullptr;
+    }
+    WGPUBindGroupEntry entries[2] = {WGPU_BIND_GROUP_ENTRY_INIT, WGPU_BIND_GROUP_ENTRY_INIT};
+    entries[0].binding = 0;
+    entries[0].textureView = view;
+    entries[1].binding = 1;
+    entries[1].sampler = context.sampler;
+    return CreateBindGroup(context.device, context.textureLayout, entries, 2);
+}
+
+WGPUBindGroup ME::PSOWebGPU::CreatePerSpriteBindGroup(const WebGPUContext& context, const UploadBufferWebGPU* buffer) {
+    const WGPUBindGroupEntry entry = MakeBufferBinding(0, buffer->GetBuffer(), buffer->GetElementSize());
+    return CreateBindGroup(context.device, context.perSpriteLayout, &entry, 1);
+}
+
+WGPUBindGroup ME::PSOWebGPU::CreateInstanceBindGroup(const WebGPUContext& context, const UploadBufferWebGPU* buffer) {
+    const WGPUBindGroupEntry entry = MakeBufferBinding(0, buffer->GetBuffer(), WGPU_WHOLE_SIZE);
+    return CreateBindGroup(context.device, context.instanceLayout, &entry, 1);
 }
 
 #endif  // ME_WEBGPU
