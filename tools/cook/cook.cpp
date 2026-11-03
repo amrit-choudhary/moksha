@@ -78,6 +78,31 @@ bool GetNewestInFolder(const fs::path& folder, fs::file_time_type& outTime) {
     return true;
 }
 
+// WGSL has no includes: replaces each `#include "file"` line of code by that file from folder, one level deep. False if
+// a file can't be read.
+bool ExpandWgslIncludes(const fs::path& folder, std::string& code) {
+    static const std::string directive = "#include \"";
+    std::string result;
+    std::istringstream lines(code);
+    std::string line;
+    while (std::getline(lines, line)) {
+        if (line.rfind(directive, 0) == 0) {
+            const size_t end = line.find('"', directive.size());
+            std::string included;
+            if (end == std::string::npos ||
+                !ReadFileText(folder / line.substr(directive.size(), end - directive.size()), included)) {
+                return false;
+            }
+            result += included;
+        } else {
+            result += line;
+        }
+        result += '\n';
+    }
+    code = result;
+    return true;
+}
+
 std::string Quote(const std::string& text) {
     return "\"" + text + "\"";
 }
@@ -328,6 +353,58 @@ bool ME::Cook::Cooker::CookMetalShaders(cJSON* shaders, const fs::path& srcRoot,
     return true;
 }
 
+bool ME::Cook::Cooker::CookWgslShaders(cJSON* shaders, const fs::path& srcRoot, const fs::path& listPath) {
+    cJSON* entries = nullptr;
+    if (!GetArray(shaders, "wgsl", listPath, entries)) {
+        return false;
+    }
+    const cJSON* item = nullptr;
+    cJSON_ArrayForEach(item, entries) {
+        const char* entry = GetEntry(item, listPath);
+        if (entry == nullptr) {
+            return false;
+        }
+        const fs::path relOut(entry);
+        if (!ClaimOutput(relOut.generic_string(), listPath)) {
+            return false;
+        }
+
+        const fs::path src = srcRoot / entry;
+        fs::file_time_type srcTime;
+        if (!GetSourceTime(src, listPath, entry, srcTime)) {
+            return false;
+        }
+        // Any change in the shader's folder (its includes live there) rebuilds it.
+        fs::file_time_type folderTime;
+        if (GetNewestInFolder(src.parent_path(), folderTime) && folderTime > srcTime) {
+            srcTime = folderTime;
+        }
+        const fs::path dst = outDir / relOut;
+        if (IsUpToDate(srcTime, dst)) {
+            ++upToDateCount;
+            continue;
+        }
+
+        std::string code;
+        if (!ReadFileText(src, code) || !ExpandWgslIncludes(src.parent_path(), code)) {
+            PrintError(listPath, entry, "can't read the shader or one of its includes");
+            return false;
+        }
+        if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
+            return false;
+        }
+        std::ofstream file(dst, std::ios::binary | std::ios::trunc);
+        file << code;
+        file.close();
+        if (!file.good()) {
+            PrintError(listPath, entry, "can't write " + dst.generic_string());
+            return false;
+        }
+        ++cookedCount;
+    }
+    return true;
+}
+
 bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const fs::path& listPath) {
     cJSON* entries = nullptr;
     if (!GetArray(root, "textures", listPath, entries)) {
@@ -385,6 +462,9 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
     }
     if (target == CookTarget::MacMetal || target == CookTarget::IosMetal) {
         return CookMetalShaders(shaders, srcRoot, listPath);
+    }
+    if (target == CookTarget::WebWebGPU) {
+        return CookWgslShaders(shaders, srcRoot, listPath);
     }
     // Nothing is drawn headless; other languages belong to other graphics APIs.
     if (target != CookTarget::WinDX12) {

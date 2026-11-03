@@ -3,6 +3,7 @@
 #include "renderer_webgpu.h"
 
 #include "moksha/logging/logging.h"
+#include "pso_webgpu.h"
 #include "webgpu_view.h"
 
 // Same clear colour as the other renderers.
@@ -52,6 +53,23 @@ bool ME::RendererWebGPU::InitWebGPU(const WebGPUView* inView, const WindowState*
     configuration.alphaMode = WGPUCompositeAlphaMode_Opaque;
     configuration.presentMode = WGPUPresentMode_Fifo;
     wgpuSurfaceConfigure(view->GetSurface(), &configuration);
+
+    passLayout = PSOWebGPU::CreatePassLayout(device);
+    textureLayout = PSOWebGPU::CreateTextureLayout(device);
+    perSpriteLayout = PSOWebGPU::CreatePerSpriteLayout(device);
+    instanceLayout = PSOWebGPU::CreateInstanceLayout(device);
+    perSpritePipelineLayout = PSOWebGPU::CreatePipelineLayout(device, passLayout, textureLayout, perSpriteLayout);
+    instancePipelineLayout = PSOWebGPU::CreatePipelineLayout(device, passLayout, textureLayout, instanceLayout);
+
+    pso2DAtl = PSOWebGPU::CreatePSO2D(device, perSpritePipelineLayout, "sprite_atlas.wgsl", renderFormat, true);
+    pso2DInsAtl =
+        PSOWebGPU::CreatePSO2D(device, instancePipelineLayout, "sprite_instanced_atlas.wgsl", renderFormat, true);
+    pso2DUIText = PSOWebGPU::CreatePSO2D(device, instancePipelineLayout, "ui_text.wgsl", renderFormat, false);
+    pso2DUISprite = PSOWebGPU::CreatePSO2D(device, instancePipelineLayout, "ui_sprite.wgsl", renderFormat, false);
+    if (pso2DAtl == nullptr || pso2DInsAtl == nullptr || pso2DUIText == nullptr || pso2DUISprite == nullptr) {
+        ME::LogError("RendererWebGPU: couldn't create the pipelines");
+        return false;
+    }
 
     ME::Log("RendererWebGPU::InitWebGPU");
     return true;
@@ -119,6 +137,24 @@ void ME::RendererWebGPU::Draw() {
 }
 
 void ME::RendererWebGPU::End() {
+    for (WGPURenderPipeline* pipeline : {&pso2DAtl, &pso2DInsAtl, &pso2DUIText, &pso2DUISprite}) {
+        if (*pipeline != nullptr) {
+            wgpuRenderPipelineRelease(*pipeline);
+            *pipeline = nullptr;
+        }
+    }
+    for (WGPUPipelineLayout* layout : {&perSpritePipelineLayout, &instancePipelineLayout}) {
+        if (*layout != nullptr) {
+            wgpuPipelineLayoutRelease(*layout);
+            *layout = nullptr;
+        }
+    }
+    for (WGPUBindGroupLayout* layout : {&passLayout, &textureLayout, &perSpriteLayout, &instanceLayout}) {
+        if (*layout != nullptr) {
+            wgpuBindGroupLayoutRelease(*layout);
+            *layout = nullptr;
+        }
+    }
     if (queue != nullptr) {
         wgpuQueueRelease(queue);
         queue = nullptr;

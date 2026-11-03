@@ -7,9 +7,10 @@
  *   "copy":     files copied as they are (config, atlas and game data).
  *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (ConvertPngToDds, the same
  *               on every target that draws).
- *   "shaders":  {"hlsl": [...], "metal": [...]}; each target compiles the language its graphics API uses: win-dx12
- *               hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal with `xcrun metal` for
- *               their OS's SDK (<name>.metallib).
+ *   "shaders":  {"hlsl": [...], "metal": [...], "wgsl": [...]}; each target compiles the language its graphics API
+ *               uses: win-dx12 hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal with
+ *               `xcrun metal` for their OS's SDK (<name>.metallib). web-webgpu wgsl stays source, which the browser
+ *               compiles; its `#include "file"` lines are replaced by the file, from the shader's folder.
  * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its includes) changed.
  */
 #pragma once
@@ -31,7 +32,7 @@ enum class CookTarget : uint8_t {
     MacMetal,       // macOS, Metal 4: metal -> .metallib via xcrun, png -> dds in the cook
     IosMetal,       // iOS devices, Metal 4: metal -> .metallib for the iphoneos SDK, png -> dds in the cook
     AndroidVulkan,  // not supported yet
-    WebWebGPU,      // not supported yet
+    WebWebGPU,      // web, WebGPU: wgsl with includes resolved, png -> dds in the cook
 };
 
 // Parses a --target name such as "win-dx12". None if unknown.
@@ -78,6 +79,7 @@ class Cooker {
     bool CookTextures(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookShaders(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookMetalShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
+    bool CookWgslShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
 
     // Records relPath as produced by listPath. False if another entry already produces it or the table is full.
     bool ClaimOutput(const std::string& relPath, const std::filesystem::path& listPath);

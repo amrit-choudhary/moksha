@@ -19,6 +19,12 @@
             "shaders/metal/sprite_instanced_atlas.metal",
             "shaders/metal/ui_text.metal",
             "shaders/metal/ui_sprite.metal"
+        ],
+        "wgsl": [
+            "shaders/wgsl/sprite_atlas.wgsl",
+            "shaders/wgsl/sprite_instanced_atlas.wgsl",
+            "shaders/wgsl/ui_text.wgsl",
+            "shaders/wgsl/ui_sprite.wgsl"
         ]
     }
 }

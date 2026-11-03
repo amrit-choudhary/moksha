@@ -1,0 +1,36 @@
+// Simple sprite shader for instanced rendering. WGSL port of sprite_instanced_atlas.hlsl: keep them in sync.
+
+#include "structs.wgsl"
+#include "helpers.wgsl"
+
+// Bind groups match PSOWebGPU (pso_webgpu.h).
+@group(0) @binding(0) var<uniform> passData: CBPerPass;
+@group(0) @binding(1) var<uniform> atlasProps: TextureAtlasProperties;
+@group(1) @binding(0) var tex: texture_2d<f32>;
+@group(1) @binding(1) var texSampler: sampler;
+@group(2) @binding(0) var<storage, read> instanceBuffer: array<InstanceData>;
+
+@vertex
+fn VS(input: VertexIn, @builtin(instance_index) instanceID: u32) -> VertexOut {
+    var output: VertexOut;
+
+    let instanceData = instanceBuffer[instanceID];
+
+    output.position =
+        passData.projectionMatrix * passData.viewMatrix * instanceData.modelMatrix * vec4f(input.position, 0.0, 1.0);
+    let flippedUV = vec2f(input.uv.x, 1.0 - input.uv.y);
+    output.uv = GetAtlasUV(flippedUV, instanceData.atlasIndex, atlasProps, instanceData.flags);
+    output.color = instanceData.color;
+
+    return output;
+}
+
+@fragment
+fn PS(input: VertexOut) -> @location(0) vec4f {
+    let texColor = textureSample(tex, texSampler, input.uv);
+    if (texColor.a < 0.1) {
+        discard;
+    }
+
+    return texColor * input.color;
+}

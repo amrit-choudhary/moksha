@@ -48,6 +48,23 @@ class RendererWebGPU : public PlatformRenderer {
 
     // sRGB view of the surface's format, which the renderer draws through.
     WGPUTextureFormat renderFormat = WGPUTextureFormat_Undefined;
+
+    // Bind group layouts every scene's bind groups are made from (see PSOWebGPU).
+    WGPUBindGroupLayout passLayout = nullptr;
+    WGPUBindGroupLayout textureLayout = nullptr;
+    WGPUBindGroupLayout perSpriteLayout = nullptr;
+    WGPUBindGroupLayout instanceLayout = nullptr;
+    WGPUPipelineLayout perSpritePipelineLayout = nullptr;
+    WGPUPipelineLayout instancePipelineLayout = nullptr;
+
+    // Pipeline for 2D rendering with texture atlases. No instancing.
+    WGPURenderPipeline pso2DAtl = nullptr;
+    // Pipeline for 2D rendering with instancing and texture atlases.
+    WGPURenderPipeline pso2DInsAtl = nullptr;
+    // Pipeline for UI Text rendering.
+    WGPURenderPipeline pso2DUIText = nullptr;
+    // Pipeline for UI Sprite rendering.
+    WGPURenderPipeline pso2DUISprite = nullptr;
 };
 
 }  // namespace ME
