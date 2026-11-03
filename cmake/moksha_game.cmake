@@ -177,7 +177,7 @@ function(_moksha_web_page target displayName)
 
     set_target_properties(${target} PROPERTIES SUFFIX ".html" LINK_DEPENDS "${shell};${stamp}")
     target_link_options(${target} PRIVATE
-        -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576
+        -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 -lidbfs.js
         "--shell-file=${shell}"
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/resources@/resources")
 endfunction()

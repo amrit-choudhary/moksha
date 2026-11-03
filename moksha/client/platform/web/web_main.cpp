@@ -1,9 +1,10 @@
 #ifdef ME_WEB
 
 /**
- * Web entry and frame driver. A device arrives asynchronously, so main only asks for it and returns; the app starts in
- * the callback, once the device exists. The browser then calls Tick once per display refresh. The page can close at any
- * moment, so nothing depends on Shutdown running.
+ * Web entry and frame driver. Saved data and a device arrive asynchronously, so main only asks for them and returns;
+ * the app starts in the last callback, once both exist. Saves live in the browser's IndexedDB, written after every
+ * change. The browser then calls Tick once per display refresh. The page can close at any moment, so nothing depends on
+ * Shutdown running.
  */
 
 #include <emscripten/emscripten.h>
@@ -222,7 +223,21 @@ void OnAdapter(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringV
     wgpuAdapterRequestDevice(adapter, &deviceDescriptor, callback);
 }
 
+// Saved data is in memory now: ask for the device next.
+void RequestAdapter(WebApp* web) {
+    WGPURequestAdapterCallbackInfo callback = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
+    callback.mode = WGPUCallbackMode_AllowSpontaneous;
+    callback.callback = OnAdapter;
+    callback.userdata1 = web;
+    wgpuInstanceRequestAdapter(web->instance, nullptr, callback);
+}
+
 }  // namespace
+
+// Called from the page's script when the saved data has loaded, or failed to; the game then starts without it.
+extern "C" EMSCRIPTEN_KEEPALIVE void MokshaOnSavesLoaded(void* userData) {
+    RequestAdapter(static_cast<WebApp*>(userData));
+}
 
 int main() {
     if (EM_ASM_INT({ return navigator.gpu ? 1 : 0; }) == 0) {
@@ -250,11 +265,21 @@ int main() {
     surfaceDescriptor.nextInChain = &canvasSource.chain;
     web->view.surface = wgpuInstanceCreateSurface(web->instance, &surfaceDescriptor);
 
-    WGPURequestAdapterCallbackInfo callback = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
-    callback.mode = WGPUCallbackMode_AllowSpontaneous;
-    callback.callback = OnAdapter;
-    callback.userdata1 = web;
-    wgpuInstanceRequestAdapter(web->instance, nullptr, callback);
+    // autoPersist copies every later change to IndexedDB by itself, so Vfs works unchanged. A tab killed right after
+    // a write can still lose that write.
+    EM_ASM(
+        {
+            FS.mkdir('/user_data');
+            FS.mount(IDBFS, {autoPersist : true}, '/user_data');
+            FS.syncfs(
+                true, function(error) {
+                    if (error) {
+                        console.error('Web: saved data could not be loaded', error);
+                    }
+                    _MokshaOnSavesLoaded($0);
+                });
+        },
+        web);
     return 0;
 }
 

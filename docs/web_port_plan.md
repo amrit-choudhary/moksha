@@ -1,7 +1,7 @@
 # Web port: plan
 
 Status (2026-11-04): phases 0 and 1 done on Emscripten 6.0.13 (the systems check matches the reference under Node, engine
-tests 102/102). Phase 2 is built and waiting for the user's test in Safari. Research and sources: [web_port_notes.md](web_port_notes.md).
+tests 102/102). Phases 2-4 pass in Safari. Phase 5 is built and waiting for the user's test. Research and sources: [web_port_notes.md](web_port_notes.md).
 
 ## Goal
 Samples playable in a browser from a local server, as a learning hobby project (a website can come later). Keep everything
@@ -56,13 +56,14 @@ Async steps run before `ClientApp::Init`, as iOS waits for first layout. State i
 arguments, never globals.
 
 1. `main`: `Utils::SetPaths` to `/resources/`, `/dlc/` and `/user_data/`. The `--preload-file` data is already there.
-2. Mount IDBFS on `/user_data/` and load it with `syncfs(true)`.
+2. Mount IDBFS on `/user_data/` with `autoPersist` and load it with `syncfs(true)`.
 3. Request adapter and device, using callbacks. If WebGPU is missing, tell the page to show its fallback.
 4. `Configure`, set canvas size, `SetWindowMetrics`, `Init(webGpuView)`.
 5. `emscripten_set_main_loop_arg` at the display rate runs `Tick`. `false` from `Tick` only logs.
-6. Visibility change: `Pause`/`Resume`, plus `syncfs(false)` when hidden.
+6. Visibility change: `Pause`/`Resume`.
 
-Saves get a timed `syncfs(false)` as well, so `Vfs` stays unchanged. A save written just before a tab is killed can be lost.
+IDBFS's `autoPersist` copies each write to IndexedDB, so `Vfs` stays unchanged. A save written just before a tab is killed can
+be lost. All games on one origin share one database, which is safe because each keeps its saves in its own folder.
 
 ## Renderer design
 Same passes and order as `RendererMetal`: plain sprites, instanced set 0, instanced set 1, UI, debug UI.
