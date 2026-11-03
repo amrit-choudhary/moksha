@@ -27,6 +27,9 @@ cooks the engine's resources plus the game's next to it. `HEADLESS` adds `<Targe
 renderer, input or audio; same game code). After adding or removing a `.cpp`, re-run `cmake -B build`.
 On iOS the game is an app bundle: optional `DISPLAY_NAME`, `BUNDLE_ID` (default `MOKSHA_BUNDLE_ID_PREFIX` plus the
 target) and `ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill its Info.plist; other platforms ignore them.
+On web the game is a page, with `DISPLAY_NAME` as its title. It has no sockets, so `gameClient` never connects and
+`contentClient` fails and carries on. `Quit()` only logs, since a page can't close itself. `UserData` persists in the
+browser after each write, per site address; a tab killed right after a write can lose that write.
 
 ## Lifecycle
 1. `CreateGame` (via `MOKSHA_GAME`) constructs the game before any engine system exists. Do nothing there.

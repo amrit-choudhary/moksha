@@ -6,7 +6,7 @@ engine's [samples](https://github.com/amrit-choudhary/moksha_samples), lives in 
 repository and builds against the engine.
 
 ## Features
-- **Rendering**: DirectX 12 (Windows) and Metal 4 (macOS, iOS) backends, plus a headless backend for
+- **Rendering**: DirectX 12 (Windows), Metal 4 (macOS, iOS) and WebGPU (web) backends, plus a headless backend for
   windowless clients. A data-oriented scene (struct-of-arrays, not ECS) is consumed by the
   renderer each frame.
 - **App loop**: the engine owns the entry point and the frame; a game provides a factory and
@@ -34,7 +34,7 @@ repository and builds against the engine.
 | macOS             | Metal 4              | supported (Apple silicon, macOS 26+); plain executable, no `.app` bundle yet |
 | iOS               | Metal 4              | supported on iPhone devices (iOS 26+); the Simulator has no Metal 4 |
 | Android           | Vulkan               | planned |
-| Web (Emscripten)  | WebGPU / WebGL       | planned |
+| Web (Emscripten)  | WebGPU               | supported on browsers with WebGPU, tested in Safari; no sockets, so no networking yet |
 | Linux             | Vulkan               | planned client; servers and headless client supported (incl. Raspberry Pi, ARM64) |
 
 ## Design principles
@@ -63,9 +63,13 @@ iOS is cross-compiled with the Xcode generator (`-G Xcode -DCMAKE_SYSTEM_NAME=iO
 for the Mac (`MOKSHA_COOK_EXECUTABLE`), a signing team (`CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM`) and a
 bundle id (`MOKSHA_BUNDLE_ID_PREFIX`, or `BUNDLE_ID` on `moksha_add_game`).
 
+Web is cross-compiled with [Emscripten](https://emscripten.org) (4.0.10+; built with 6.0.13): pass its
+`cmake/Modules/Platform/Emscripten.cmake` as the toolchain file, plus a cook built for the host
+(`MOKSHA_COOK_EXECUTABLE`). WebGPU needs a secure page, so serve the output from `localhost` or HTTPS.
+
 | Option | Default | Meaning |
 |---|---|---|
-| `MOKSHA_RENDERER` | `DX12` on Windows, `METAL` on Apple, `NONE` elsewhere | graphics API of the windowed client; `NONE` builds the headless client only |
+| `MOKSHA_RENDERER` | `DX12` on Windows, `METAL` on Apple, `WEBGPU` on Emscripten, `NONE` elsewhere | graphics API of the windowed client; `NONE` builds the headless client only |
 | `MOKSHA_BUILD_CLIENT` | `ON` | client libraries (servers don't need them) |
 | `MOKSHA_BUILD_TESTS` / `MOKSHA_BUILD_TOOLS` | `ON` when top-level | engine tests / content server |
 | `MOKSHA_COOK_EXECUTABLE` | empty | a host-built cook, for cross-compiled builds |
@@ -131,9 +135,10 @@ moksha_add_game(MyGame_Client
     # HEADLESS   adds MyGame_Client_Headless, a windowless console build
 )
 ```
-`moksha_add_game` owns the platform details (Windows GUI exe, iOS app bundle and so on), so a game
+`moksha_add_game` owns the platform details (Windows GUI exe, iOS app bundle, web page and so on), so a game
 never branches on the platform. On iOS, the optional `DISPLAY_NAME`, `BUNDLE_ID` and
-`ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill the app's `Info.plist`; other platforms ignore them. Link the game's
+`ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill the app's `Info.plist`; on web, `DISPLAY_NAME` is the page's title; other
+platforms ignore them. Link the game's
 own libraries through `LIBRARIES`, not `target_link_libraries`: on a platform without a windowed client the main
 target doesn't exist.
 

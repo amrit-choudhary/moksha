@@ -6,8 +6,9 @@ Project rules: [root CLAUDE.md](../../CLAUDE.md).
 ## Networking (`net/`, namespace `ME::Net`)
 - `networking.h`: `InitNetworking` / `ShutdownNetworking`, once per program (WSAStartup on Windows, no-op on
   POSIX). The app classes call it; socket users never do.
-- `socket_platform_win.cpp` / `_posix.cpp`: the only per-OS socket code (non-blocking TCP and UDP, SIGPIPE,
-  address reuse, UDP connection-reset off on Windows). Each is wrapped in its OS `#ifdef`; both always compile.
+- `socket_platform_win.cpp` / `_posix.cpp` / `_web.cpp`: the only per-OS socket code (non-blocking TCP and UDP, SIGPIPE,
+  address reuse, UDP connection-reset off on Windows; on web every socket fails to open, since browsers have no raw
+  sockets). Each is wrapped in its OS `#ifdef`; all always compile.
 - UDP: `net_address.h` (IPv4 + port), `udp_socket.h` (`UdpSocket`, `UdpResult`).
 - TCP: `tcp_socket.h` (`TcpSocket`, `TcpResult`; `WouldBlock` = try again), `message_framing.h` (u32 length
   prefix, caller-owned buffers), `content_protocol.h` + `content_manifest.h` (content server: manifest and
@@ -43,8 +44,8 @@ through `ICollisionListener`, which `Game` implements).
   touches the disk. `ReadText`, `GetFileSize` + `ReadBytes` (caller-owned buffer), `WriteBytes` (creates
   folders), `RemoveFile`, `RemoveEmptyFolders`. Each driver sets the root folders once at startup with
   `Utils::SetPaths(AppPaths)` (`misc/utils.h`). Desktop and servers use `MakeExecutableRelativePaths`
-  (`resources/`, `dlc/`, `user_data/` next to the exe); iOS maps them to the bundle and Application Support, and
-  other platforms will map them to the APK or browser storage.
+  (`resources/`, `dlc/`, `user_data/` next to the exe); iOS maps them to the bundle and Application Support, web to an
+  in-memory file system with `user_data/` kept in IndexedDB, and Android will map them to the APK.
 - Parsers work on text already in memory: INI (`[section] key=value`, `;`/`#` comments), CSV, DDS.
 - `std::filesystem` calls use the `std::error_code` overloads only.
 

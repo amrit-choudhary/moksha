@@ -1,7 +1,8 @@
 # Web port: plan
 
-Status (2026-11-04): phases 0 and 1 done on Emscripten 6.0.13 (the systems check matches the reference under Node, engine
-tests 102/102). Phases 2-4 pass in Safari. Phase 5 is built and waiting for the user's test. Research and sources: [web_port_notes.md](web_port_notes.md).
+Status (2026-11-04): done on Emscripten 6.0.13, except the user's Windows build. Tested in Safari on the Mac: all five
+samples run, input, audio and saves work. The systems check matches the reference under Node; engine tests 102/102 on both
+wasm and macOS. Research and sources: [web_port_notes.md](web_port_notes.md).
 
 ## Goal
 Samples playable in a browser from a local server, as a learning hobby project (a website can come later). Keep everything
@@ -32,7 +33,7 @@ Anything beyond this list is a design problem to raise with the user first.
 | `moksha/client/third_party/miniaudio-0.11.23/CMakeLists.txt` | Emscripten branch, since the catch-all links `pthread dl asound m` |
 | `cmake/moksha_game.cmake` | `web-webgpu` cook target, `.html` output, Node-run headless twin, no servers |
 | `tests/CMakeLists.txt` | Link the engine tests as a Node program on web |
-| `tools/cook/cook.cpp` | Accept `web-webgpu`; cook `wgsl` shaders |
+| `tools/cook/cook.{h,cpp}` | Accept `web-webgpu`; cook `wgsl` shaders |
 | `resources/res_list.json` | List the WGSL shaders |
 | Docs | `moksha/client/CLAUDE.md`, `tools/CLAUDE.md`, `docs/game_guide.md`, samples `CLAUDE.md` |
 
@@ -121,7 +122,8 @@ their native Metal builds in layout, colour and depth order.
 **5. Saves.** IDBFS mount and sync.
 *Gate:* Tower Climb's best height survives a reload.
 
-**6. Publish.** Build the chosen samples and copy each one's files to `dist/<sample>/`, with a small index page.
+**6. Publish.** `tools/build_web.py` in the samples builds the chosen samples and copies each one's files to
+`dist/<sample>/`, with a small index page.
 *Gate:* every sample plays from a local static server. There is no website yet, so nothing is uploaded.
 
 **7. Close out.** Update the `CLAUDE.md` files and docs.

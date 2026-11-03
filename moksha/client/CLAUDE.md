@@ -5,7 +5,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 ## App, entry and loop
 - The engine owns `main` and the loop; a game provides `CreateGame(const AppArgs&, AppConfig&)` /
   `DestroyGame(Game*)` (`game/game_factory.h`, or the `MOKSHA_GAME(GameClass, "Title")` macro).
-- `app/client_app.*` (`ClientApp`, Windows, macOS and headless): `Configure(args)` → `Init` → `Tick()` per frame →
+- `app/client_app.*` (`ClientApp`, Windows, macOS, iOS, web and headless): `Configure(args)` → `Init` → `Tick()` per frame →
   `Shutdown()`. It never loops itself. Drivers per platform: `platform/win/win_main.cpp` (window, message pump,
   `Tick`; minimized → `Pause` and a blocking wait), `platform/mac/mac_main.mm` (the same shape: `NSWindow`, event
   pump with `nextEventMatchingMask`, `Tick`; minimized or fully covered → `Pause` and a blocking wait, woken by a
@@ -51,6 +51,15 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   active pause the view and call `Pause`/`Resume`; a `false` from `Tick` only logs. The first finger is the mouse
   (`InputManagerIos`). iOS kills apps without notice, so never rely on `Shutdown`. Device only: the Simulator has no
   Metal 4. miniaudio builds as Objective-C there (`miniaudio_ios.m`).
+- Web (`platform/web/`, cross-compiled with Emscripten; single-threaded, no Asyncify): `web_main.cpp` loads saved data
+  (IDBFS on `/user_data/` with `autoPersist`, so `Vfs` is unchanged), then asks for an adapter and device, all by callback,
+  and starts the `ClientApp` in the last callback: `Configure`, canvas size, `SetWindowMetrics`, `Init(WebGPUView)`, then
+  `emscripten_set_main_loop_arg` runs `Tick` at the display's rate. The game keeps its configured window size, and the page
+  shrinks the canvas to fit once at startup (no resizing), so input is scaled back to window units. Tab visibility calls
+  `Pause`/`Resume`; a `false` from `Tick` only logs. Input: `InputManagerWeb`, keys by DOM `KeyboardEvent.code`, the first
+  finger as the mouse; losing focus releases everything. Resources are packed into the page's `.data` and preloaded to
+  `/resources/`. Audio is miniaudio's default ScriptProcessorNode path, which unlocks on the first input. WebGPU needs a
+  secure page (`localhost` or HTTPS); the page shows a message without it.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
@@ -70,8 +79,17 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `PlatformRenderer` (`rendering/shared/renderer.h`) is what each backend implements. `ClientApp` holds its backend by
   concrete type and creates it with the backend's own `InitDX`/`InitMetal`/`InitNull`; the rest goes through the interface.
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
-  Metal (`rendering/metal/`, `scene/scene_metal.*`), null (`rendering/null/`, headless: updates scenes, draws
-  nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_HEADLESS`, never on the OS define.
+  Metal (`rendering/metal/`, `scene/scene_metal.*`), WebGPU (`rendering/webgpu/`, `scene/scene_webgpu.*`,
+  `scene/scene_ui_webgpu.*`), null (`rendering/null/`, headless: updates scenes, draws nothing). They switch on
+  `ME_DX12` / `ME_METAL` / `ME_WEBGPU` / `ME_HEADLESS`, never on the OS define.
+- WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
+  the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources
+  alive, and `queue.writeBuffer` copies, so there are no frames in flight, fences or `FlushCommandQueue`; never call
+  `wgpuSurfacePresent` (it aborts). Bind groups are made once, with scenes, from the layouts in `PSOWebGPU` (`pso_webgpu.h`).
+  Per-sprite and atlas constants each share one buffer, read at 256-byte dynamic offsets. The canvas is configured with its
+  preferred format and drawn through an sRGB view. Depth state is baked into pipelines. WGSL (`resources/shaders/wgsl/`)
+  mirrors the other languages file for file; it declares only the fields it reads, as uniform arrays have a 16-byte stride.
+  Errors arrive asynchronously through the device's callback and are logged with a `WebGPU:` prefix.
 - DX12 and Metal run `Constants::FramesInFlight` frames in flight: `Draw` ends by waiting for the next frame's slot, and
   each upload buffer holds one copy of its data per frame (on DX12, with one descriptor per frame, at heap index +
   frame). Textures are shared. Call `FlushCommandQueue` before freeing anything a frame used.

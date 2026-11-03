@@ -50,13 +50,14 @@ engine's samples (`moksha_samples` repo), live in their own repos and build agai
   shape and runs `Moksha_Cook` (`tools/cook`), which cooks `resources/res_list.json` (engine) and then the
   game's list next to the executable. Engine resources stay minimal: shaders, one font, one UI atlas.
   On iOS it makes an app bundle (Xcode generator) from `cmake/ios/Info.plist.in` and cooks into `data/` inside it;
-  a top-level `resources/` folder breaks an iOS bundle's install.
+  a top-level `resources/` folder breaks an iOS bundle's install. On web it makes a page (`.html`, `.js`, `.wasm`, `.data`)
+  from `cmake/web/shell.html.in`, with the cooked resources packed into the `.data`.
 - `file(GLOB ...)` source lists are collected at configure time: after adding or removing a
   `.cpp`, re-run `cmake -B build`.
 
 ## Platforms
 Targets: Windows (DirectX 12, later Vulkan), macOS and iOS (Metal 4 only: Apple silicon, OS 26+), Android (Vulkan), Linux
-(Vulkan client later; servers and headless client), Web (Emscripten, WebGPU/WebGL). Every
+(Vulkan client later; servers and headless client), Web (Emscripten, WebGPU). Every
 change is checked against all of them, even those not built yet:
 - **OS and graphics API are separate defines.**
   - OS: `ME_WIN`, `ME_MAC`, `ME_IOS`, `ME_ANDROID`, `ME_LINUX`, `ME_WEB`.
