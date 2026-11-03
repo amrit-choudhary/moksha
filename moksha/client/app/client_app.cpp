@@ -1,4 +1,4 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_HEADLESS)
 
 #include "client_app.h"
 
@@ -37,6 +37,8 @@ void ME::ClientApp::SetWindowMetrics(uint16_t width, uint16_t height, float dpiS
 bool ME::ClientApp::Init(HWND hWnd) {
 #elif defined(ME_METAL)
 bool ME::ClientApp::Init(const MetalView* view) {
+#elif defined(ME_WEBGPU)
+bool ME::ClientApp::Init(const WebGPUView* view) {
 #else
 bool ME::ClientApp::Init() {
 #endif
@@ -72,6 +74,8 @@ bool ME::ClientApp::Init() {
     macInputManager = static_cast<ME::Input::InputManagerMac*>(inputManager.GetPlatformInputManager());
 #elif defined(ME_IOS) && !defined(ME_HEADLESS)
     iosInputManager = static_cast<ME::Input::InputManagerIos*>(inputManager.GetPlatformInputManager());
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+    webInputManager = static_cast<ME::Input::InputManagerWeb*>(inputManager.GetPlatformInputManager());
 #endif
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
@@ -92,6 +96,10 @@ bool ME::ClientApp::Init() {
     renderer.InitDX(hWnd, &window);
 #elif defined(ME_METAL)
     renderer.InitMetal(view, &window);
+#elif defined(ME_WEBGPU)
+    if (!renderer.InitWebGPU(view, &window)) {
+        return false;
+    }
 #else
     renderer.InitNull(&window);
 #endif
@@ -231,6 +239,30 @@ void ME::ClientApp::HandlePrimaryTouch(float x, float y, bool isDown) {
         iosInputManager->HandlePrimaryTouch(x, y, isDown);
     }
 }
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+void ME::ClientApp::HandleKeyEvent(const char* code, bool isDown) {
+    if (webInputManager != nullptr) {
+        webInputManager->HandleKeyEvent(code, isDown);
+    }
+}
+
+void ME::ClientApp::HandleMouseMove(float x, float y) {
+    if (webInputManager != nullptr) {
+        webInputManager->HandleMouseMove(x, y);
+    }
+}
+
+void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
+    if (webInputManager != nullptr) {
+        webInputManager->HandleMouseButton(button, isDown);
+    }
+}
+
+void ME::ClientApp::ReleaseAllInput() {
+    if (webInputManager != nullptr) {
+        webInputManager->ReleaseAll();
+    }
+}
 #endif
 
-#endif  // ME_WIN || ME_MAC || ME_IOS || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_HEADLESS

@@ -33,6 +33,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
                                            "-framework CoreFoundation" "-framework Foundation")
 elseif(APPLE)
     target_link_libraries(miniaudio PRIVATE "-framework CoreAudio" "-framework AudioUnit" "-framework AudioToolbox" "-framework CoreServices")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # Web Audio through the page's JavaScript: no system libraries.
 else() # Linux/Unix
     target_link_libraries(miniaudio PRIVATE pthread dl asound m)
 endif()

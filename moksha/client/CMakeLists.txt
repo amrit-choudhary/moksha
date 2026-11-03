@@ -17,9 +17,11 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     # Only this graphics API's renderer files.
     set(CLIENT_SOURCES ${SOURCES})
     if(MOKSHA_RENDERER STREQUAL "DX12")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/metal/|/scene/scene_(ui_)?metal\.")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(metal|webgpu)/|/scene/scene_(ui_)?(metal|webgpu)\.")
     elseif(MOKSHA_RENDERER STREQUAL "METAL")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/directx/|/scene/scene_(ui_)?dx\.")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|webgpu)/|/scene/scene_(ui_)?(dx|webgpu)\.")
+    elseif(MOKSHA_RENDERER STREQUAL "WEBGPU")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.")
     endif()
 
     add_library(Moksha_Client STATIC ${CLIENT_SOURCES})
@@ -35,6 +37,10 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         target_link_libraries(Moksha_Client PUBLIC d3d12 dxgi d3dcompiler)
     elseif(MOKSHA_RENDERER STREQUAL "METAL")
         target_link_libraries(Moksha_Client PUBLIC METAL_LIB)
+    elseif(MOKSHA_RENDERER STREQUAL "WEBGPU")
+        # Both compiling and linking need the port.
+        target_compile_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
+        target_link_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
     endif()
 
     # OS libraries.
@@ -50,6 +56,8 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/ios/*.mm")
     elseif(APPLE)
         file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/mac/*.mm")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/web/*.cpp")
     else()
         message(FATAL_ERROR "Moksha: no windowed client entry for '${CMAKE_SYSTEM_NAME}' yet")
     endif()
@@ -68,7 +76,7 @@ endif()
 # Headless client: the same sources without the GPU, OS input, audio device and windowed app files.
 set(HEADLESS_SOURCES ${SOURCES})
 list(FILTER HEADLESS_SOURCES EXCLUDE REGEX
-     "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.|/input/input_manager_(win|mac|ios)\.|/audio/audio_impl_miniaudio\.")
+     "/rendering/(directx|metal|webgpu)/|/scene/scene_(ui_)?(dx|metal|webgpu)\.|/input/input_manager_(win|mac|ios|web)\.|/audio/audio_impl_miniaudio\.")
 
 add_library(Moksha_ClientHeadless STATIC ${HEADLESS_SOURCES})
 

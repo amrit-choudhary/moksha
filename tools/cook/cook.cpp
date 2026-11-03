@@ -168,7 +168,7 @@ ME::Cook::CookTarget ME::Cook::ParseTarget(const char* name) {
 
 bool ME::Cook::Cooker::Init(CookTarget inTarget, const fs::path& inOutDir, const CookTools& inTools) {
     if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal &&
-        inTarget != CookTarget::IosMetal) {
+        inTarget != CookTarget::IosMetal && inTarget != CookTarget::WebWebGPU) {
         std::cerr << "Cook: error: this target is not supported yet\n";
         return false;
     }

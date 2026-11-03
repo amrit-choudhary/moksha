@@ -1,4 +1,4 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_HEADLESS)
 
 /**
  * The client app: owns every engine system and the game, and runs one frame per Tick. A per-platform driver
@@ -31,12 +31,17 @@
 #include "moksha/client/input/input_manager_mac.h"
 #elif defined(ME_IOS) && !defined(ME_HEADLESS)
 #include "moksha/client/input/input_manager_ios.h"
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+#include "moksha/client/input/input_manager_web.h"
 #endif
 #if defined(ME_DX12)
 #include "moksha/client/rendering/directx/renderer_dx.h"
 #elif defined(ME_METAL)
 #include "moksha/client/rendering/metal/metal_view.h"
 #include "moksha/client/rendering/metal/renderer_metal.h"
+#elif defined(ME_WEBGPU)
+#include "moksha/client/rendering/webgpu/renderer_webgpu.h"
+#include "moksha/client/rendering/webgpu/webgpu_view.h"
 #else
 #include "moksha/client/rendering/null/renderer_null.h"
 #endif
@@ -68,6 +73,9 @@ class ClientApp {
     // Initializes every system for view (the window's content view) and starts the game. Tick must run inside the
     // view's draw callback, where the view hands out the frame's drawable.
     bool Init(const MetalView* view);
+#elif defined(ME_WEBGPU)
+    // Initializes every system for view (the page's canvas, with its device ready) and starts the game.
+    bool Init(const WebGPUView* view);
 #else
     // Initializes every system without a window and starts the game. The config's size is kept for layout.
     bool Init();
@@ -99,6 +107,13 @@ class ClientApp {
     // Feeds the first finger on the screen to the input system: its position in view points (top-left origin) and
     // whether it is still down.
     void HandlePrimaryTouch(float x, float y, bool isDown);
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+    // Feed browser input events to the input system: a DOM KeyboardEvent.code, a position in window units (top-left
+    // origin), and a button number (0 left, 1 right, 2 middle, 3-4 extra). ReleaseAllInput is for a page losing focus.
+    void HandleKeyEvent(const char* code, bool isDown);
+    void HandleMouseMove(float x, float y);
+    void HandleMouseButton(int button, bool isDown);
+    void ReleaseAllInput();
 #endif
 
    private:
@@ -123,11 +138,15 @@ class ClientApp {
     Input::InputManagerMac* macInputManager = nullptr;
 #elif defined(ME_IOS) && !defined(ME_HEADLESS)
     Input::InputManagerIos* iosInputManager = nullptr;
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+    Input::InputManagerWeb* webInputManager = nullptr;
 #endif
 #if defined(ME_DX12)
     RendererDX renderer;
 #elif defined(ME_METAL)
     RendererMetal renderer;
+#elif defined(ME_WEBGPU)
+    RendererWebGPU renderer;
 #else
     RendererNull renderer;
 #endif
@@ -142,4 +161,4 @@ class ClientApp {
 
 }  // namespace ME
 
-#endif  // ME_WIN || ME_MAC || ME_IOS || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_HEADLESS

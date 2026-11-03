@@ -8,6 +8,9 @@
 #if defined(ME_IOS) && !defined(ME_HEADLESS)
 #include "input_manager_ios.h"
 #endif
+#if defined(ME_WEB) && !defined(ME_HEADLESS)
+#include "input_manager_web.h"
+#endif
 
 using namespace ME::Input;
 
@@ -151,6 +154,8 @@ void InputManager::Init(const ME::WindowState* inWindow) {
     platformInputManager = new InputManagerWin();
 #elif defined(ME_IOS) && !defined(ME_HEADLESS)
     platformInputManager = new InputManagerIos();
+#elif defined(ME_WEB) && !defined(ME_HEADLESS)
+    platformInputManager = new InputManagerWeb();
 #else
     // Headless, or an OS without an input backend yet: the base manager does nothing and every key stays up.
     platformInputManager = new PlatformInputManager();

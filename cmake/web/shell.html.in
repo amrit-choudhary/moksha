@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@MOKSHA_WEB_TITLE@</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #050505; color: #ccc; font: 16px system-ui, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  canvas { display: block; touch-action: none; }
+  #message:empty { display: none; }
+  #message { padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="message">Loading…</div>
+<canvas id="canvas"></canvas>
+<script>
+  function mokshaMessage(text) { document.getElementById("message").textContent = text; }
+  var Module = {};
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

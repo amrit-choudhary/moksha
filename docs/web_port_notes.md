@@ -1,7 +1,7 @@
 # Web port: research notes
 
-Status (2026-11-03): research only, parked for later. Nothing is built or tested for the web, and `emcc` is not
-installed on the Mac. The items below are findings and proposals, not decisions the engine has adopted.
+Status (2026-11-03): research behind [web_port_plan.md](web_port_plan.md), which holds the decisions and the work order.
+Where the two differ, the plan wins. Nothing is built or tested for the web yet.
 
 ## Goal
 Playable samples on a personal website: compile to WebAssembly with Emscripten, draw on a `<canvas>`, host static files
@@ -12,7 +12,6 @@ Playable samples on a personal website: compile to WebAssembly with Emscripten, 
   read a storage buffer, which WebGPU has and WebGL2 lacks.
 - Cost: browsers without WebGPU can't play, so the page needs a video or screenshot fallback. Support: Chrome/Edge,
   Safari 26, recent Firefox (Windows, Apple silicon Mac); Firefox on Android and Linux appears to lag (unconfirmed).
-- **Open decision:** WebGPU vs. wider reach with WebGL2, which would mean reworking how the shaders get instance data.
 - No threads means no COOP/COEP headers. Godot's web export also defaults to single-threaded.
 
 ## How WebGPU compares to Metal
@@ -68,7 +67,8 @@ Findings from reading the code on 2026-11-03.
 **Needs care**
 - Saves: `Vfs::WriteBytes` writes to memory on the web, lost on reload. Mount `user_data/` on IDBFS and sync after writes.
 - Audio: browsers start audio only after a user gesture.
-- `GameClient::Init` returns false without a socket and `ClientApp` ignores the result. Confirm its per-frame update is safe.
+- `GameClient::Init` returns false without a socket and `ClientApp` ignores the result. That's safe: `Update` returns early
+  when the socket isn't open.
 - Display: canvas CSS size vs. device pixel ratio, high-refresh monitors, `preventDefault` on game keys, iframe focus.
 - wasm32: `size_t` and pointers are 4 bytes, and Emscripten's default stack is small (64 KB by default in recent versions;
   confirm). A quick search found no huge stack arrays, but it wasn't exhaustive.
@@ -77,17 +77,6 @@ Findings from reading the code on 2026-11-03.
 **Out of scope for now**
 Rally and Net Test: browsers have no raw UDP or TCP. They would need WebSocket or WebTransport, with TLS on the server,
 since an HTTPS page can't reach an unencrypted one.
-
-## Proposed order (each step buildable alone)
-1. Toolchain and null renderer: `Sample_SystemsCheck` in the browser console. Must match checksum `299C1597` and
-   fixed-point raw `1270944`.
-2. Web driver and input.
-3. Audio.
-4. WebGPU: clear and present.
-5. WebGPU: sprites, instanced sets, UI, text, debug overlay; WGSL shaders and the `web-webgpu` cook target.
-6. Saves on IDBFS.
-7. Publish script, HTML shell with loading bar and fallback, deploy. Tower Climb first, then Survivors, Evolution,
-   UI Demo and Graphics Stress.
 
 ## Sources
 - sokol WebGPU backend: https://floooh.github.io/2023/10/16/sokol-webgpu.html

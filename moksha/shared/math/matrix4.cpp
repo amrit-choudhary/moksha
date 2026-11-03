@@ -77,7 +77,7 @@ Vec16 ME::Mat4::GetDataColumnMajor() const {
 }
 
 Vec16 ME::Mat4::GetDataForShader() const {
-    #ifdef ME_METAL
+    #if defined(ME_METAL) || defined(ME_WEBGPU)
     return GetDataColumnMajor();
     #endif
 
@@ -123,7 +123,7 @@ Mat4 ME::Mat4::Scale(const Vec4 & scale)
 }
 
 Mat4 ME::Mat4::Perspective(float fov, float aspect, float near, float far) {
-    #ifdef ME_METAL
+    #if defined(ME_METAL) || defined(ME_WEBGPU)
     return PerspectiveMTL(fov, aspect, near, far);
     #endif
 
@@ -135,7 +135,7 @@ Mat4 ME::Mat4::Perspective(float fov, float aspect, float near, float far) {
 }
 
 Mat4 ME::Mat4::Orthographic(float left, float right, float bottom, float top, float near, float far) {
-    #ifdef ME_METAL
+    #if defined(ME_METAL) || defined(ME_WEBGPU)
     return OrthographicMTL(left, right, bottom, top, near, far);
     #endif
 

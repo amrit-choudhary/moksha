@@ -183,6 +183,9 @@ class InputManager {
 #ifdef ME_IOS
     friend class InputManagerIos;
 #endif
+#ifdef ME_WEB
+    friend class InputManagerWeb;
+#endif
 
     InputManager();
     ~InputManager();

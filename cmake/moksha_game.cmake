@@ -8,8 +8,9 @@
 # game's (RES_LIST; its paths are relative to its folder) into resources/ next to the executable. On iOS <target> is
 # an app bundle instead: resources cook into data/ inside it, and DISPLAY_NAME (default: the target), BUNDLE_ID
 # (default: MOKSHA_BUNDLE_ID_PREFIX + the target) and ORIENTATION (default ANY) fill its Info.plist. HEADLESS also
-# creates <target>_Headless on the headless client (not on iOS). moksha_add_server creates a console program on the server
-# module; its RES_LIST (data only: config, game data) is copied next to it. Includes resolve from the project root.
+# creates <target>_Headless on the headless client (not on iOS). On web <target> is a page: an .html, .js, .wasm and
+# .data, with the resources packed into the .data, and DISPLAY_NAME as its title. moksha_add_server creates a console
+# program on the server module; its RES_LIST (data only: config, game data) is copied next to it. Includes resolve from the project root.
 # LIBRARIES are the game's own libraries, linked into every executable created; pass them here rather than calling
 # target_link_libraries, since a platform may create no windowed target. The engine owns the per-platform target
 # shape, so games never branch on the platform.
@@ -51,6 +52,8 @@ endif()
 set(MOKSHA_IOS_PLIST_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/ios/Info.plist.in" CACHE INTERNAL "")
 set(MOKSHA_BUNDLE_ID_PREFIX "" CACHE STRING "Reverse-DNS prefix of iOS bundle ids, e.g. com.yourname.games")
 
+set(MOKSHA_WEB_SHELL_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/web/shell.html.in" CACHE INTERNAL "")
+
 # Cook target name for the windowed client of this platform; empty when there is none yet.
 function(_moksha_windowed_cook_target outVar)
     set(name "")
@@ -60,6 +63,8 @@ function(_moksha_windowed_cook_target outVar)
         set(name mac-metal)
     elseif(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "iOS" AND MOKSHA_RENDERER STREQUAL "METAL")
         set(name ios-metal)
+    elseif(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND MOKSHA_RENDERER STREQUAL "WEBGPU")
+        set(name web-webgpu)
     endif()
     set(${outVar} "${name}" PARENT_SCOPE)
 endfunction()
@@ -156,6 +161,27 @@ function(_moksha_ios_bundle target bundleId displayName orientation)
         XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic")
 endfunction()
 
+# Makes target a web page: an .html from the engine's template, with the cooked resources packed in. The cook runs on
+# every build, so its stamp relinks the page and a changed resource always reaches the pack.
+function(_moksha_web_page target displayName)
+    if(NOT displayName)
+        set(displayName "${target}")
+    endif()
+    set(MOKSHA_WEB_TITLE "${displayName}")
+    set(shell "${CMAKE_CURRENT_BINARY_DIR}/${target}_shell.html")
+    configure_file("${MOKSHA_WEB_SHELL_TEMPLATE}" "${shell}" @ONLY)
+
+    set(stamp "${CMAKE_CURRENT_BINARY_DIR}/${target}_cook.stamp")
+    file(TOUCH "${stamp}")
+    add_custom_command(TARGET ${target}_cook POST_BUILD COMMAND ${CMAKE_COMMAND} -E touch "${stamp}")
+
+    set_target_properties(${target} PROPERTIES SUFFIX ".html" LINK_DEPENDS "${shell};${stamp}")
+    target_link_options(${target} PRIVATE
+        -sENVIRONMENT=web -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576
+        "--shell-file=${shell}"
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/resources@/resources")
+endfunction()
+
 function(moksha_add_game target)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "HEADLESS" "RES_LIST;DISPLAY_NAME;BUNDLE_ID;ORIENTATION" "SOURCES;LIBRARIES")
     if(ARG_UNPARSED_ARGUMENTS)
@@ -184,18 +210,24 @@ function(moksha_add_game target)
         target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
         target_link_libraries(${target} PRIVATE Moksha_Entry Moksha_Client ${ARG_LIBRARIES})
         _moksha_add_cook(${target} ${cookTarget} "${MOKSHA_ENGINE_RES_LIST}" "${resList}")
+        if(cookTarget STREQUAL "web-webgpu")
+            _moksha_web_page(${target} "${ARG_DISPLAY_NAME}")
+        endif()
     elseif(TARGET Moksha_Client)
         message(WARNING "moksha_add_game(${target}): no windowed game on '${CMAKE_SYSTEM_NAME}' "
                         "(${MOKSHA_RENDERER}) yet; only the headless one is created")
     endif()
 
-    # Headless twin: same sources, no window, GPU or audio device; a console program on every desktop OS. iOS runs
-    # only app bundles.
+    # Headless twin: same sources, no window, GPU or audio device; a console program on every desktop OS, and a Node
+    # program on web, reading the real disk. iOS runs only app bundles.
     if(ARG_HEADLESS AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         set(headless ${target}_Headless)
         add_executable(${headless} ${ARG_SOURCES})
         target_include_directories(${headless} PRIVATE "${PROJECT_SOURCE_DIR}")
         target_link_libraries(${headless} PRIVATE Moksha_EntryHeadless Moksha_ClientHeadless ${ARG_LIBRARIES})
+        if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+            target_link_options(${headless} PRIVATE -sENVIRONMENT=node -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1)
+        endif()
         _moksha_add_cook(${headless} headless "${MOKSHA_ENGINE_RES_LIST}" "${resList}")
         # Both may cook into the same folder; one after the other, never at the same time.
         if(TARGET ${target}_cook)
@@ -212,8 +244,8 @@ function(moksha_add_server target)
     if(NOT ARG_SOURCES)
         message(FATAL_ERROR "moksha_add_server(${target}): SOURCES is required")
     endif()
-    # Servers are console programs; iOS runs only app bundles.
-    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    # Servers are console programs; iOS runs only app bundles, and a browser can't host a server.
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         return()
     endif()
 
