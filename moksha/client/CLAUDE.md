@@ -62,7 +62,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   secure page (`localhost` or HTTPS); the page shows a message without it.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
-  contentServerIP contentServerPort`) → command line `--key=value` with the same keys. Window size is a request.
+  contentServerIP contentServerPort`, `[debug] debugOverlay`) → command line `--key=value` with the same keys. Window size is a request.
 - `app/engine.h` (`Engine`): what the game gets in `Game::Init(Engine&)` — `time`, `timers`, `input`,
   `physics`, `animation`, `audio`, `ui`, `gameClient`, `contentClient`, `config`, `window`, plus `Quit()` and
   `IsHeadless()`. Passed in, never global.
@@ -106,7 +106,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   is static (existing code; mouse position queries need the instance).
 - `ui/`: small retained-mode layout (`UILayoutEngine`, `UIElement` tree: panel, label, image, button) feeding
   `SceneUI` arrays. `debug/`: on-screen overlay (`DebugSystem::ScreenPrintSlot` / `ScreenPrint`) drawn in its
-  own pass; it is reached through a static instance (known issue).
+  own pass; it is reached through a static instance (known issue). `AppConfig::debugOverlay` (default: on, off when
+  `NDEBUG` is defined) turns it off: it isn't created and its print calls do nothing.
 - `anim/`: data-driven sprite animation clips (JSON). `utils/json_utils.*`: texture atlas and animation JSON.
 - `world/`: tile data; `TileMap` is an empty stub.
 

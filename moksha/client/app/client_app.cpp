@@ -64,8 +64,10 @@ bool ME::ClientApp::Init() {
     engine.config = &config;
     engine.window = &window;
 
-    debugSystem.Init(&window);
-    ME::DebugSystem::SetInstance(&debugSystem);
+    if (config.debugOverlay) {
+        debugSystem.Init(&window);
+        ME::DebugSystem::SetInstance(&debugSystem);
+    }
 
     inputManager.Init(&window);
 #if defined(ME_WIN) && !defined(ME_HEADLESS)
@@ -105,7 +107,9 @@ bool ME::ClientApp::Init() {
 #endif
     renderer.SetVsyncEnabled(config.vsync);
     renderer.SetScenes(game->GetScene(), game->GetUIScene());
-    renderer.SetDebugUIScene(debugSystem.GetUIScene());
+    if (config.debugOverlay) {
+        renderer.SetDebugUIScene(debugSystem.GetUIScene());
+    }
 
     audioSystem.SetScene(game->GetScene());
 
@@ -126,9 +130,11 @@ bool ME::ClientApp::Tick() {
     timeManager.BeginFrame();
     double deltaTime = timeManager.GetFrameDeltaTime();
 
-    char fpsBuf[64];
-    snprintf(fpsBuf, sizeof(fpsBuf), "FPS: %.0f", timeManager.GetCurrentFPS());
-    ME::DebugSystem::ScreenPrintSlot(0, fpsBuf);
+    if (config.debugOverlay) {
+        char fpsBuf[64];
+        snprintf(fpsBuf, sizeof(fpsBuf), "FPS: %.0f", timeManager.GetCurrentFPS());
+        ME::DebugSystem::ScreenPrintSlot(0, fpsBuf);
+    }
 
     inputManager.PreUpdate();
     inputManager.Update(deltaTime);
@@ -145,7 +151,9 @@ bool ME::ClientApp::Tick() {
 
     game->Update(deltaTime);
     uiSystem.Update(deltaTime);
-    debugSystem.Update(deltaTime);
+    if (config.debugOverlay) {
+        debugSystem.Update(deltaTime);
+    }
 
     inputManager.PostUpdate();
 
@@ -184,8 +192,10 @@ void ME::ClientApp::Shutdown() {
     uiSystem.End();
     renderer.End();
 
-    ME::DebugSystem::SetInstance(nullptr);
-    debugSystem.End();
+    if (config.debugOverlay) {
+        ME::DebugSystem::SetInstance(nullptr);
+        debugSystem.End();
+    }
 }
 
 void ME::ClientApp::Pause() {

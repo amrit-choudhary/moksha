@@ -75,7 +75,8 @@ base class stores in `engine`; never put engine systems in globals.
 - **Coordinates:** world space is Y-up. `spriteCamera` is orthographic: `orthographicSize` is half the view
   height in world units, and its `aspectRatio` defaults to 1.33, so set it from `engine->window`. UI space is
   Y-down from the top-left, in pixels.
-- **Debug overlay slots 0-2 are the engine's** (FPS, game name, scene name). Use slots 3-15.
+- **Debug overlay slots 0-2 are the engine's** (FPS, game name, scene name). Use slots 3-15. The overlay is off in
+  Release unless `[debug] debugOverlay=1` is set, so player-facing text belongs in the game's own UI.
 - **Textures are cooked**: list `textures/x.png` in `res_list.json`, load `textures/x.dds` in code. Other
   files go under `copy`. A file missing from the list doesn't exist at runtime.
 - `GetKeyDown` = held; `GetKeyPressed` = went down this frame.

@@ -71,7 +71,7 @@ const char* ME::AppArgs::GetValue(const char* name) const {
 }
 
 void ME::AppConfig::ApplySettings(const INIMap& settings) {
-    constexpr const char* sections[] = {"window", "time", "net"};
+    constexpr const char* sections[] = {"window", "time", "net", "debug"};
     for (const char* sectionName : sections) {
         const auto section = settings.find(sectionName);
         if (section == settings.end()) {
@@ -118,5 +118,6 @@ bool ME::AppConfig::ApplyValue(const std::string& key, const std::string& value)
         return true;
     }
     if (key == "contentServerPort") return ParseU16(value, contentServerPort);
+    if (key == "debugOverlay") return ParseBool(value, debugOverlay);
     return false;
 }

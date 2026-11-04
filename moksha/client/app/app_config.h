@@ -56,8 +56,15 @@ class AppConfig {
     std::string contentServerIP = "127.0.0.1";
     uint16_t contentServerPort = 9311;
 
-    // Applies [window] (title, width, height, vsync, fullscreen), [time] (fixedStepFPS) and
-    // [net] (serverIP, serverPort, contentServerIP, contentServerPort). Missing keys keep their current value.
+    // The on-screen debug overlay (DebugSystem). When off it isn't created and its print calls do nothing.
+#ifdef NDEBUG
+    bool debugOverlay = false;
+#else
+    bool debugOverlay = true;
+#endif
+
+    // Applies [window] (title, width, height, vsync, fullscreen), [time] (fixedStepFPS), [net] (serverIP, serverPort,
+    // contentServerIP, contentServerPort) and [debug] (debugOverlay). Missing keys keep their current value.
     void ApplySettings(const INIMap& settings);
 
     // Applies "--key=value" arguments, using the same key names as ApplySettings.
