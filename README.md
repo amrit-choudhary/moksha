@@ -5,6 +5,8 @@ external dependencies. This repository holds the engine only; every game, includ
 engine's [samples](https://github.com/amrit-choudhary/moksha_samples), lives in its own
 repository and builds against the engine.
 
+Website: [mokshaengine.com](https://mokshaengine.com)
+
 ## Features
 - **Rendering**: DirectX 12 (Windows), Metal 4 (macOS, iOS) and WebGPU (web) backends, plus a headless backend for
   windowless clients. A data-oriented scene (struct-of-arrays, not ECS) is consumed by the
