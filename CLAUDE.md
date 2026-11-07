@@ -75,6 +75,7 @@ change is checked against all of them, even those not built yet:
 - **The engine must not require threads** (the web needs special builds for them).
 - **Window size is a request:** mobile and web decide it; headless keeps it for layout.
 - Test host for Linux servers and headless clients: a Raspberry Pi 4B (Linux ARM64).
+- Android/Vulkan port in progress: see [docs/android_port_plan.md](docs/android_port_plan.md) (status, rules, lessons).
 
 ## Code conventions
 Apply to all engine code (not vendored third-party code). Existing code that breaks a rule

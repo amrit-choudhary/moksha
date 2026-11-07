@@ -1,0 +1,185 @@
+# Android port (Vulkan): plan
+
+Status (2026-11-07): planned on the Mac, no code yet. Work continues on Windows. To resume, start a fresh session with
+"Read docs/android_port_plan.md and continue from the status table". Claude updates the table at the end of each step.
+
+| Step | Who | Where | State |
+|---|---|---|---|
+| Plan | Claude | Mac | done 2026-11-07 |
+| Part W: Vulkan on Windows (dev-only) | Claude | Windows | next |
+| Lessons 0-8 | user | Windows | — |
+| Part A: Android platform | Claude | Windows (later also Mac) | — |
+| Lesson 9 | user | phone | — |
+
+## Goal
+The samples run on an Android phone, drawn by Vulkan. The work is split in two:
+- **Platform (Claude writes it):** build, packaging, driver, input, files, logging, audio, cook. Same shape as the iOS
+  and web ports.
+- **Vulkan renderer (the user writes it, lesson by lesson):** Claude teaches each step with small examples, then
+  reviews the user's code. Claude writes no `rendering/vulkan/` code beyond the Part W skeleton.
+
+Decisions: Android builds from both Mac and Windows; CMake-only packaging (NativeActivity: no Gradle, no Java); GLSL
+shaders compiled by `glslc`; learn on Windows first (Vulkan SDK validation, RenderDoc, fast iteration), then move to
+the phone. **As simple as possible, and as much as possible in C++.**
+
+## Order
+1. **Part W (Claude):** Vulkan client on Windows, renderer skeleton only.
+2. **Lessons 0-8 (user) on Windows.**
+3. **Part A (Claude):** Android platform; the same renderer builds unchanged for the phone.
+4. **Lesson 9 (user) on the phone:** mobile lifecycle; also re-check that lessons 1-8 run there with no validation errors.
+
+## Rule: Vulkan is for Android; Windows is only a learning bench
+- Windows Vulkan is a **development-only** build, not a supported platform: DX12 stays the Windows renderer. CMake marks
+  it as such, docs mention it in one line, and the samples get no Windows Vulkan preset.
+- Windows-only code is limited to `platform/win/win_vulkan_view.*` (surface creation) and one `ME_VULKAN` branch in
+  `win_main.cpp`. Everything in `rendering/vulkan/` must compile and behave the same on Android.
+- Lessons teach only what Android phones support: no desktop-only extensions or features (geometry shaders, wide lines,
+  BC textures, `IMMEDIATE` present mode), `FIFO` present, depth format queried rather than assumed, one graphics queue,
+  and memory written for unified (mobile) memory first. Where a desktop habit differs from mobile (tiled GPUs:
+  load/store ops, clears), the lesson teaches the mobile way.
+- The instance and device are created with only the phone's Vulkan version and features (from its caps), so Windows
+  can't hide something the phone lacks.
+
+## Rule: teach the concepts the port uses, in full; skip advanced ones
+The renderer draws what `RendererWebGPU`/`RendererMetal` draw today: plain sprites, instanced sets 0 and 1, the UI
+sprite and text passes, the debug overlay, a depth buffer, sampled RGBA8 `.dds` textures, `FramesInFlight` frames.
+- **Concepts the port uses are taught properly, not narrowed to the one setting the engine picks.** E.g. samplers: the
+  filter, address and border options and when each fits, then the engine's choice; blending: the blend equation and
+  common modes, then what the sprite passes need; memory: the memory types and when to use each, then the engine's.
+- **Concepts the port never uses are left out**, especially advanced ones for advanced games and techniques: compute,
+  render-to-texture and post effects, MSAA, mipmapping strategy, multiple queues, bindless and descriptor indexing,
+  custom memory allocators, pipeline caches, 3D meshes and lighting, ray tracing.
+
+A topic outside this comes up only if a lesson can't work without it.
+
+## What exists today (found while planning)
+- `ME_ANDROID` is already set in the root `CMakeLists.txt`; `moksha/shared/net/socket_platform_posix.cpp` already covers
+  Android; `exe_path_posix.cpp` builds there (unused: the driver sets paths).
+- `tools/cook/cook.cpp` already parses `android-vulkan` (`CookTarget::AndroidVulkan`) but rejects it as "not supported
+  yet".
+- Graphics API switches to extend with `ME_VULKAN`: `moksha/shared/math/matrix4.cpp` (3 places, beside `ME_METAL`),
+  `moksha/client/app/client_app.{h,cpp}` (includes, `Init`, renderer member), `moksha/client/CMakeLists.txt` (per-API
+  source filters, headless filter, entry sources).
+- OS switches to extend with `ME_ANDROID`: `client_app.{h,cpp}` (file guard, input forwarding),
+  `moksha/client/input/input_manager.{h,cpp}` (friend line and `new InputManager...`), miniaudio's `CMakeLists.txt` (its
+  Linux branch links `pthread dl asound m`), `cmake/moksha_game.cmake` (`_moksha_windowed_cook_target`, executable
+  shape).
+- Every file read goes through `Vfs` (`moksha/shared/file_io/vfs.cpp`, `std::ifstream` on `GetRootPath`); audio loads
+  through `Vfs::ReadBytes` + `ma_decoder_init_memory`. So reading APK assets needs only a `Vfs` change.
+- `moksha/logging/logging.cpp` writes to `std::cout`, which Android drops.
+- Renderer to mirror: `moksha/client/rendering/webgpu/` with `scene/scene_webgpu.*` and `scene/scene_ui_webgpu.*` (the
+  simplest; no frames in flight). `rendering/metal/` shows the `FramesInFlight` pattern. Shaders to port to GLSL:
+  `resources/shaders/wgsl/` (`sprite_atlas`, `sprite_instanced_atlas`, `ui_sprite`, `ui_text`, plus `structs`,
+  `helpers`). Constant layouts shared by all APIs: `rendering/shared/shader_constants.h`.
+- Driver templates: `platform/ios/ios_main.mm` (starts at first layout, pause/resume, first finger as the mouse) and
+  `platform/win/win_main.cpp` (`CreateWindowExW`, then `app.Init(hWnd)`).
+- Earlier port docs with the same pattern: [web_port_plan.md](web_port_plan.md), [web_port_notes.md](web_port_notes.md).
+
+## Design: Android is a layer, like iOS and web
+| Layer | New for Android | Counterpart |
+|---|---|---|
+| Entry and frame driver | `moksha/client/platform/android/android_main.cpp` (NativeActivity + the NDK's `android_native_app_glue`, pure C++) | `platform/ios/` |
+| Window access | `VulkanView` (`rendering/vulkan/vulkan_view.h`), implemented per OS in `platform/<os>/` | `MetalView`, `WebGPUView` |
+| Input | `input/input_manager_android.*`: first finger as the mouse | `input_manager_ios.*` |
+| Renderer | `rendering/vulkan/`, `scene/scene_vulkan.*`, `scene/scene_ui_vulkan.*` (**user**) | `rendering/metal/`, `rendering/webgpu/` |
+| Shaders | `resources/shaders/glsl/` → `.spv` (**user**, written during the lessons) | `shaders/metal/`, `shaders/wgsl/` |
+| Packaging template | `cmake/android/AndroidManifest.xml.in` | `cmake/ios/Info.plist.in` |
+
+No changes to `Game`, `Scene`, `SceneUI`, UI, physics, animation, `TimeManager`, the network clients or sample game code.
+
+## Part W: Vulkan on Windows, dev-only (Claude)
+- `CMakeLists.txt`: renderer `VULKAN` → `ME_VULKAN`, allowed on Android, and on Windows for development only (the Windows
+  default stays DX12; `-DMOKSHA_RENDERER=VULKAN` logs a "development only" message). `find_package(Vulkan REQUIRED)` on
+  Windows (Vulkan SDK); the NDK's `libvulkan` on Android.
+- `moksha/client/CMakeLists.txt`: Vulkan source filter; the other APIs' filters exclude `vulkan`.
+- `VulkanView` (`rendering/vulkan/vulkan_view.h`): what the renderer needs from the OS, mainly
+  `CreateSurface(VkInstance, VkSurfaceKHR*)` and the instance extensions it requires. Windows implements it in
+  `platform/win/win_vulkan_view.*` (`vkCreateWin32SurfaceKHR`), Android later in `platform/android/`.
+- `win_main.cpp` / `ClientApp`: an `ME_VULKAN` branch, `Init(const VulkanView*)` instead of `Init(HWND)`.
+- `matrix4.cpp`: `ME_VULKAN` beside `ME_METAL` (0..1 depth, column-major). Vulkan's downward Y is handled in the
+  renderer with a negative viewport height (lesson 5).
+- Cook target `win-vulkan`: `.dds` textures as `win-dx12`, `glsl` → `.spv` via `glslc` (from the Vulkan SDK on Windows,
+  the NDK on Android; passed as `--glslc`, like `--dxc`). `moksha_add_game` maps Windows + VULKAN → `win-vulkan`.
+  `res_list.json` gets a `glsl` list once the first shader exists.
+- `RendererVulkan` skeleton (`InitVulkan(const VulkanView*, const WindowState*)`, empty bodies) so a sample runs with a
+  blank window. From here the renderer is the user's.
+- A `win-vulkan-dev` preset in the engine's `CMakePresets.json` only.
+
+## Part A: Android platform (Claude). Small steps, each stops for the user to build
+**A0. Toolchain (instructions only; Claude installs nothing).** On Mac and Windows: the Android command-line tools, then
+`sdkmanager "platform-tools" "build-tools;35.0.0" "platforms;android-35" "ndk;<current LTS>"`, a JDK 17+ (for
+`apksigner`/`keytool`), Ninja, and a host `Moksha_Cook` from the normal dev build. A `CMakePresets.json` preset
+`android-arm64` (NDK toolchain file, `ANDROID_ABI=arm64-v8a`, `ANDROID_PLATFORM=android-29`, Ninja,
+`MOKSHA_COOK_EXECUTABLE`) that reads per-machine paths from env vars (`ANDROID_HOME`, `ANDROID_NDK_HOME`), so one preset
+works on both hosts.
+
+**A1. Build config** (on top of Part W).
+- `CMakeLists.txt`: `VULKAN` is the default renderer on Android.
+- `moksha/client/CMakeLists.txt`: link `vulkan android log`; the Android entry is `platform/android/*.cpp` plus the NDK's
+  `android_native_app_glue.c`, with `-u ANativeActivity_onCreate`. The headless filter excludes `input_manager_android`.
+- miniaudio's `CMakeLists.txt`: an Android branch (AAudio/OpenSL load at runtime; link only `dl m`).
+
+**A2. Packaging in `cmake/moksha_game.cmake`.** On Android `<target>` is `lib<target>.so` (SHARED). A post-build step,
+all CMake custom commands calling SDK tools: `aapt2 link` (manifest from the template, `android.jar`, cooked
+`assets/`) → add `lib/arm64-v8a/lib<target>.so` → `zipalign` → `apksigner` with a debug keystore (`keytool` creates it
+once in the build folder). Plus `<target>_install` (`adb install -r`, then launch). `DISPLAY_NAME`, `BUNDLE_ID` and
+`ORIENTATION` reuse the iOS arguments. Manifest: `android.app.NativeActivity`, `hasCode="false"`, fullscreen theme,
+`INTERNET` permission, Vulkan feature. No headless twin and no servers on Android.
+
+**A3. Cook `android-vulkan`:** the same as `win-vulkan`, with `glslc` from the NDK's `shader-tools`.
+
+**A4. Files and logs.**
+- `Vfs`: on Android, `Resources` reads go through `AAssetManager` (the APK's `assets/`); `Dlc`/`UserData` stay plain files
+  under the app's internal storage. Asset reading lives in `moksha/shared/platform/assets_android.cpp` (OS calls stay in
+  `shared/platform/`); `AppPaths` gains the asset manager pointer the driver sets, next to the existing paths.
+- `logging.cpp`: under `ME_ANDROID`, write to logcat with `__android_log_write`. This is an OS call outside
+  `shared/platform/` (the logging module may depend on nothing), so it is the one exception; note it in the root
+  `CLAUDE.md`.
+
+**A5. Driver and input.** `android_main(android_app*)`: poll events without waiting while active, `Tick` once per loop.
+On the first `APP_CMD_INIT_WINDOW`: `SetPaths`, `Configure`, `SetWindowMetrics` (window size ÷ density), `Init(view)`.
+Focus lost / `APP_CMD_PAUSE` → `Pause`; resume → `Resume`. `APP_CMD_TERM_WINDOW` → tell the renderer the surface is
+gone (`ClientApp::SurfaceLost()` / `SurfaceReady(view)`, Android only; the renderer side is lesson 9, and until then the
+app stays paused). `false` from `Tick` → `ANativeActivity_finish`. The first touch pointer → `HandlePrimaryTouch`.
+`ClientApp` and `input_manager.{h,cpp}` get the `ME_ANDROID` branches the iOS port added.
+
+**A6. Android `VulkanView`** (`platform/android/android_vulkan_view.*`, `vkCreateAndroidSurfaceKHR`). The renderer from
+lessons 0-8 then builds for the phone unchanged.
+
+**A7. Samples and docs.** `moksha_samples`: an Android preset, bump the engine pin. Update `moksha/client/CLAUDE.md`,
+`tools/CLAUDE.md`, `docs/game_guide.md` and this doc.
+
+## Part B: Vulkan lessons (the user writes the code)
+Each lesson: the concept explained in chat with a short example → the exact task (which class, which methods, what
+success looks like) → the user writes it → Claude reads and reviews it (correctness, validation, house style) → the user
+builds and checks the checkpoint (on Windows for lessons 0-8, on the phone for lesson 9). One lesson per session is fine;
+nothing moves on until the checkpoint passes. Classes mirror `RendererWebGPU`/`RendererMetal`.
+
+| # | Topic | Writes | Checkpoint |
+|---|---|---|---|
+| 0 | Vulkan's model mapped onto the engine's existing `RendererWebGPU` classes; handles, `VkResult`, struct chains | — | — |
+| 1 | Instance, validation layer, debug messenger; enumerate GPUs; compare with the phone's caps (Vulkan Caps Viewer app) | `RendererVulkan::InitVulkan` (part) | log shows GPU name and Vulkan version |
+| 2 | Surface through `VulkanView`, queue family, logical device, queue | renderer | log: device created, no validation errors |
+| 3 | Swapchain, image views, command pools and buffers, fences and semaphores, `FramesInFlight`; clear via dynamic rendering; first RenderDoc capture | renderer | window cleared to a color |
+| 4 | GLSL → SPIR-V, shader modules, pipeline layout, graphics pipeline; vertex/index buffers and memory types | `ShaderVulkan`, `PSOVulkan`, `QuadVulkan` | one colored quad |
+| 5 | Descriptor sets and pools, uniform buffers per frame in flight, dynamic offsets (as WebGPU); Y-flip viewport | `UploadBufferVulkan` | quad moves with the camera |
+| 6 | Images, staging copies, layout transitions and barriers, samplers; load cooked `.dds` | `TextureVulkan` | a textured sprite |
+| 7 | Scene sprites: per-sprite data, instanced sets via a storage buffer; depth buffer | `SceneVulkan` | a sample's game scene draws |
+| 8 | UI sprite and text passes, debug overlay | `SceneUIVulkan` | full sample, UI and text |
+| 9 | **On the phone:** pause, surface lost and recreated, swapchain out of date, pre-rotation, `End`, vsync via present modes | renderer | background/foreground works; clean shutdown |
+
+- Window resize on Windows is out of scope (the engine has none); lesson 9 covers swapchain recreation.
+- Vulkan version: chosen in lesson 1 from the **phone's** caps, not the desktop GPU's. Default is Vulkan 1.3 (dynamic
+  rendering and synchronization2: no render pass or framebuffer objects, much simpler); if the phone only has 1.1,
+  lesson 3 teaches render passes instead.
+- On Android the validation layer is Khronos's prebuilt `.so`, packed into the APK only when
+  `MOKSHA_VULKAN_VALIDATION_DIR` is set.
+
+## Verification
+- Part W: a sample built with `-DMOKSHA_RENDERER=VULKAN` on Windows opens a blank window; the DX12 build is unchanged.
+- Each Part A step: the user builds the `android-arm64` preset on Mac and on Windows; `python tools/check_layers.py`
+  passes; desktop builds (DX12, Metal, web, headless) are unaffected.
+- After A6: `<target>_install` installs a sample, logcat shows engine logs, resources load from the APK, touch reaches
+  the game, audio plays.
+- Each lesson: its checkpoint, with no validation-layer messages in the log.
+- End: every sample in `moksha_samples` runs on the phone; `git diff --stat` shows no changes outside the files listed.
