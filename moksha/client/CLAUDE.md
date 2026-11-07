@@ -81,8 +81,12 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   concrete type and creates it with the backend's own `InitDX`/`InitMetal`/`InitNull`; the rest goes through the interface.
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
   Metal (`rendering/metal/`, `scene/scene_metal.*`), WebGPU (`rendering/webgpu/`, `scene/scene_webgpu.*`,
-  `scene/scene_ui_webgpu.*`), null (`rendering/null/`, headless: updates scenes, draws nothing). They switch on
-  `ME_DX12` / `ME_METAL` / `ME_WEBGPU` / `ME_HEADLESS`, never on the OS define.
+  `scene/scene_ui_webgpu.*`), Vulkan (`rendering/vulkan/`, Android; skeleton, see
+  [docs/android_port_plan.md](../../docs/android_port_plan.md)), null (`rendering/null/`, headless: updates scenes, draws
+  nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_WEBGPU` / `ME_VULKAN` / `ME_HEADLESS`, never on the OS define.
+- Vulkan reaches the window only through `VulkanView` (`rendering/vulkan/vulkan_view.h`: instance extensions,
+  `CreateSurface`, pixel size), implemented per OS in `platform/<os>/`. On Windows (`win_vulkan_view.*`) it is a
+  development-only build (`-DMOKSHA_RENDERER=VULKAN`, needs the Vulkan SDK); DX12 stays the Windows renderer.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources
   alive, and `queue.writeBuffer` copies, so there are no frames in flight, fences or `FlushCommandQueue`; never call

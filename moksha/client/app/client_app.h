@@ -42,6 +42,9 @@
 #elif defined(ME_WEBGPU)
 #include "moksha/client/rendering/webgpu/renderer_webgpu.h"
 #include "moksha/client/rendering/webgpu/webgpu_view.h"
+#elif defined(ME_VULKAN)
+#include "moksha/client/rendering/vulkan/renderer_vulkan.h"
+#include "moksha/client/rendering/vulkan/vulkan_view.h"
 #else
 #include "moksha/client/rendering/null/renderer_null.h"
 #endif
@@ -76,6 +79,10 @@ class ClientApp {
 #elif defined(ME_WEBGPU)
     // Initializes every system for view (the page's canvas, with its device ready) and starts the game.
     bool Init(const WebGPUView* view);
+#elif defined(ME_VULKAN)
+    // Initializes every system for view (the window's surface source, which must outlive the app) and starts the
+    // game.
+    bool Init(const VulkanView* view);
 #else
     // Initializes every system without a window and starts the game. The config's size is kept for layout.
     bool Init();
@@ -147,6 +154,8 @@ class ClientApp {
     RendererMetal renderer;
 #elif defined(ME_WEBGPU)
     RendererWebGPU renderer;
+#elif defined(ME_VULKAN)
+    RendererVulkan renderer;
 #else
     RendererNull renderer;
 #endif

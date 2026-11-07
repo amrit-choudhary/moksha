@@ -23,6 +23,10 @@
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/platform/exe_path.h"
 
+#ifdef ME_VULKAN
+#include "win_vulkan_view.h"
+#endif
+
 namespace {
 
 void AttachDebugConsole() {
@@ -119,6 +123,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     ME::AppArgs args;
     args.Set(__argc, __argv);
 
+#ifdef ME_VULKAN
+    // Before the app, so it outlives the renderer.
+    ME::WinVulkanView vulkanView;
+#endif
     ME::ClientApp app;
     const ME::AppConfig& config = app.Configure(args);
 
@@ -140,7 +148,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     const std::wstring title = ToWide(config.windowTitle);
     HWND hWnd = CreateWindowExW(0, windowClass.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, 60, 60, windowWidth,
                                 windowHeight, nullptr, nullptr, hInstance, &app);
-    if (hWnd == nullptr || !app.Init(hWnd)) {
+#ifdef ME_VULKAN
+    vulkanView.instance = hInstance;
+    vulkanView.window = hWnd;
+    const bool initialized = hWnd != nullptr && app.Init(&vulkanView);
+#else
+    const bool initialized = hWnd != nullptr && app.Init(hWnd);
+#endif
+    if (!initialized) {
         app.Shutdown();
         return 1;
     }

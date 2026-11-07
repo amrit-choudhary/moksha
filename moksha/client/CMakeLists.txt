@@ -17,11 +17,17 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     # Only this graphics API's renderer files.
     set(CLIENT_SOURCES ${SOURCES})
     if(MOKSHA_RENDERER STREQUAL "DX12")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(metal|webgpu)/|/scene/scene_(ui_)?(metal|webgpu)\.")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX
+             "/rendering/(metal|webgpu|vulkan)/|/scene/scene_(ui_)?(metal|webgpu|vulkan)\.")
     elseif(MOKSHA_RENDERER STREQUAL "METAL")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|webgpu)/|/scene/scene_(ui_)?(dx|webgpu)\.")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX
+             "/rendering/(directx|webgpu|vulkan)/|/scene/scene_(ui_)?(dx|webgpu|vulkan)\.")
     elseif(MOKSHA_RENDERER STREQUAL "WEBGPU")
-        list(FILTER CLIENT_SOURCES EXCLUDE REGEX "/rendering/(directx|metal)/|/scene/scene_(ui_)?(dx|metal)\.")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX
+             "/rendering/(directx|metal|vulkan)/|/scene/scene_(ui_)?(dx|metal|vulkan)\.")
+    elseif(MOKSHA_RENDERER STREQUAL "VULKAN")
+        list(FILTER CLIENT_SOURCES EXCLUDE REGEX
+             "/rendering/(directx|metal|webgpu)/|/scene/scene_(ui_)?(dx|metal|webgpu)\.")
     endif()
 
     add_library(Moksha_Client STATIC ${CLIENT_SOURCES})
@@ -41,6 +47,10 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         # Both compiling and linking need the port.
         target_compile_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
         target_link_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
+    elseif(MOKSHA_RENDERER STREQUAL "VULKAN")
+        # Headers and the loader: the Vulkan SDK on Windows (VULKAN_SDK), the NDK on Android.
+        find_package(Vulkan REQUIRED)
+        target_link_libraries(Moksha_Client PUBLIC Vulkan::Vulkan)
     endif()
 
     # OS libraries.
@@ -76,7 +86,7 @@ endif()
 # Headless client: the same sources without the GPU, OS input, audio device and windowed app files.
 set(HEADLESS_SOURCES ${SOURCES})
 list(FILTER HEADLESS_SOURCES EXCLUDE REGEX
-     "/rendering/(directx|metal|webgpu)/|/scene/scene_(ui_)?(dx|metal|webgpu)\.|/input/input_manager_(win|mac|ios|web)\.|/audio/audio_impl_miniaudio\.")
+     "/rendering/(directx|metal|webgpu|vulkan)/|/scene/scene_(ui_)?(dx|metal|webgpu|vulkan)\.|/input/input_manager_(win|mac|ios|web)\.|/audio/audio_impl_miniaudio\.")
 
 add_library(Moksha_ClientHeadless STATIC ${HEADLESS_SOURCES})
 

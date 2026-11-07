@@ -39,6 +39,8 @@ bool ME::ClientApp::Init(HWND hWnd) {
 bool ME::ClientApp::Init(const MetalView* view) {
 #elif defined(ME_WEBGPU)
 bool ME::ClientApp::Init(const WebGPUView* view) {
+#elif defined(ME_VULKAN)
+bool ME::ClientApp::Init(const VulkanView* view) {
 #else
 bool ME::ClientApp::Init() {
 #endif
@@ -104,6 +106,10 @@ bool ME::ClientApp::Init() {
     renderer.InitMetal(view, &window);
 #elif defined(ME_WEBGPU)
     if (!renderer.InitWebGPU(view, &window)) {
+        return false;
+    }
+#elif defined(ME_VULKAN)
+    if (!renderer.InitVulkan(view, &window)) {
         return false;
     }
 #else
