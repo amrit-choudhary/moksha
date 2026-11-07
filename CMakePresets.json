@@ -6,12 +6,30 @@
             "displayName": "Engine development",
             "description": "Engine libraries, tools and tests.",
             "binaryDir": "${sourceDir}/build"
+        },
+        {
+            "name": "win-vulkan-dev",
+            "displayName": "Engine development, Vulkan on Windows",
+            "description": "Development only: the Vulkan renderer on Windows (needs the Vulkan SDK). DX12 stays the Windows renderer.",
+            "binaryDir": "${sourceDir}/build-vk",
+            "cacheVariables": {
+                "MOKSHA_RENDERER": "VULKAN"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
         }
     ],
     "buildPresets": [
         {
             "name": "dev",
             "configurePreset": "dev"
+        },
+        {
+            "name": "win-vulkan-dev",
+            "configurePreset": "win-vulkan-dev"
         }
     ]
 }

@@ -188,12 +188,15 @@ ME::Cook::CookTarget ME::Cook::ParseTarget(const char* name) {
     if (std::strcmp(name, "web-webgpu") == 0) {
         return CookTarget::WebWebGPU;
     }
+    if (std::strcmp(name, "win-vulkan") == 0) {
+        return CookTarget::WinVulkan;
+    }
     return CookTarget::None;
 }
 
 bool ME::Cook::Cooker::Init(CookTarget inTarget, const fs::path& inOutDir, const CookTools& inTools) {
     if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal &&
-        inTarget != CookTarget::IosMetal && inTarget != CookTarget::WebWebGPU) {
+        inTarget != CookTarget::IosMetal && inTarget != CookTarget::WebWebGPU && inTarget != CookTarget::WinVulkan) {
         std::cerr << "Cook: error: this target is not supported yet\n";
         return false;
     }
@@ -405,6 +408,55 @@ bool ME::Cook::Cooker::CookWgslShaders(cJSON* shaders, const fs::path& srcRoot, 
     return true;
 }
 
+bool ME::Cook::Cooker::CookGlslShaders(cJSON* shaders, const fs::path& srcRoot, const fs::path& listPath) {
+    cJSON* entries = nullptr;
+    if (!GetArray(shaders, "glsl", listPath, entries)) {
+        return false;
+    }
+    const cJSON* item = nullptr;
+    cJSON_ArrayForEach(item, entries) {
+        const char* entry = GetEntry(item, listPath);
+        if (entry == nullptr) {
+            return false;
+        }
+        const fs::path relOut = fs::path(entry).concat(".spv");
+        if (!ClaimOutput(relOut.generic_string(), listPath)) {
+            return false;
+        }
+
+        const fs::path src = srcRoot / entry;
+        fs::file_time_type srcTime;
+        if (!GetSourceTime(src, listPath, entry, srcTime)) {
+            return false;
+        }
+        // Any change in the shader's folder (its includes live there) rebuilds it.
+        fs::file_time_type folderTime;
+        if (GetNewestInFolder(src.parent_path(), folderTime) && folderTime > srcTime) {
+            srcTime = folderTime;
+        }
+        const fs::path dst = outDir / relOut;
+        if (IsUpToDate(srcTime, dst)) {
+            ++upToDateCount;
+            continue;
+        }
+
+        if (!EnsureFolder(dst.parent_path(), listPath, entry)) {
+            return false;
+        }
+        // The stage comes from the extension (.vert, .frag). Vulkan 1.1 SPIR-V loads on every Vulkan 1.1+ device.
+        const std::string command = Quote(tools.glslc) + " --target-env=vulkan1.1 -O -I " +
+                                    Quote(src.parent_path().string()) + " -o " + Quote(dst.string()) + " " +
+                                    Quote(src.string());
+        std::error_code ec;
+        if (RunCommand(command) != 0 || !fs::exists(dst, ec)) {
+            PrintError(listPath, entry, "glslc failed (is it on PATH, or passed with --glslc?)");
+            return false;
+        }
+        ++cookedCount;
+    }
+    return true;
+}
+
 bool ME::Cook::Cooker::CookTextures(cJSON* root, const fs::path& srcRoot, const fs::path& listPath) {
     cJSON* entries = nullptr;
     if (!GetArray(root, "textures", listPath, entries)) {
@@ -465,6 +517,9 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
     }
     if (target == CookTarget::WebWebGPU) {
         return CookWgslShaders(shaders, srcRoot, listPath);
+    }
+    if (target == CookTarget::WinVulkan) {
+        return CookGlslShaders(shaders, srcRoot, listPath);
     }
     // Nothing is drawn headless; other languages belong to other graphics APIs.
     if (target != CookTarget::WinDX12) {

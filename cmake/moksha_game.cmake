@@ -23,6 +23,12 @@ if(CMAKE_HOST_WIN32)
     find_program(MOKSHA_DXC dxc DOC "DirectX shader compiler used by Moksha_Cook")
 endif()
 
+# The tool the win-vulkan cook runs to compile glsl to SPIR-V, from the Vulkan SDK. Not found means the plain name on
+# PATH.
+if(CMAKE_HOST_WIN32 AND MOKSHA_RENDERER STREQUAL "VULKAN")
+    find_program(MOKSHA_GLSLC glslc HINTS "$ENV{VULKAN_SDK}/Bin" DOC "GLSL to SPIR-V compiler used by Moksha_Cook")
+endif()
+
 # The mac-metal and ios-metal cooks compile shaders with `xcrun metal`, which needs Xcode and its Metal toolchain.
 # xcode-select may point at the Command Line Tools (no Metal compiler), so fall back to Xcode's folder; set this to
 # override.
@@ -59,6 +65,8 @@ function(_moksha_windowed_cook_target outVar)
     set(name "")
     if(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "Windows" AND MOKSHA_RENDERER STREQUAL "DX12")
         set(name win-dx12)
+    elseif(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "Windows" AND MOKSHA_RENDERER STREQUAL "VULKAN")
+        set(name win-vulkan)
     elseif(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND MOKSHA_RENDERER STREQUAL "METAL")
         set(name mac-metal)
     elseif(TARGET Moksha_Client AND CMAKE_SYSTEM_NAME STREQUAL "iOS" AND MOKSHA_RENDERER STREQUAL "METAL")
@@ -83,6 +91,9 @@ function(_moksha_add_cook target cookTarget engineList resList)
     set(toolArgs "")
     if(MOKSHA_DXC)
         list(APPEND toolArgs --dxc "${MOKSHA_DXC}")
+    endif()
+    if(MOKSHA_GLSLC)
+        list(APPEND toolArgs --glslc "${MOKSHA_GLSLC}")
     endif()
     if(MOKSHA_METAL_DEVELOPER_DIR_FOUND)
         list(APPEND toolArgs --metal-developer-dir "${MOKSHA_METAL_DEVELOPER_DIR_FOUND}")

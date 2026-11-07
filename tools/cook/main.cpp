@@ -1,7 +1,7 @@
 /**
  * Moksha_Cook: cooks res_list.json files for one target platform into one output folder (see cook.h).
- *   Moksha_Cook --target <win-dx12|mac-metal|ios-metal|headless> --out <dir> [--dxc <exe>]
- *               [--metal-developer-dir <dir>] <res_list.json>...
+ *   Moksha_Cook --target <win-dx12|win-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir> [--dxc <exe>]
+ *               [--glslc <exe>] [--metal-developer-dir <dir>] <res_list.json>...
  * Lists cook in the order given; a later list may not produce a path an earlier one already produced.
  */
 
@@ -16,8 +16,9 @@ namespace {
 constexpr uint32_t MaxLists = 16;
 
 void PrintUsage() {
-    std::cerr << "Usage: Moksha_Cook --target <win-dx12|mac-metal|ios-metal|headless> --out <dir> [--dxc <exe>] "
-                 "[--metal-developer-dir <dir>] <res_list.json>...\n";
+    std::cerr
+        << "Usage: Moksha_Cook --target <win-dx12|win-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir> "
+           "[--dxc <exe>] [--glslc <exe>] [--metal-developer-dir <dir>] <res_list.json>...\n";
 }
 
 }  // namespace
@@ -38,6 +39,8 @@ int main(int argc, char** argv) {
             outDir = argv[++i];
         } else if (std::strcmp(arg, "--dxc") == 0 && hasValue) {
             tools.dxc = argv[++i];
+        } else if (std::strcmp(arg, "--glslc") == 0 && hasValue) {
+            tools.glslc = argv[++i];
         } else if (std::strcmp(arg, "--metal-developer-dir") == 0 && hasValue) {
             tools.metalDeveloperDir = argv[++i];
         } else if (std::strncmp(arg, "--", 2) == 0) {

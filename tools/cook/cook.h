@@ -7,10 +7,11 @@
  *   "copy":     files copied as they are (config, atlas and game data).
  *   "textures": png images, each converted to an RGBA8 .dds next to where the png would go (ConvertPngToDds, the same
  *               on every target that draws).
- *   "shaders":  {"hlsl": [...], "metal": [...], "wgsl": [...]}; each target compiles the language its graphics API
- *               uses: win-dx12 hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal with
- *               `xcrun metal` for their OS's SDK (<name>.metallib). web-webgpu wgsl stays source, which the browser
- *               compiles; its `#include "file"` lines are replaced by the file, from the shader's folder.
+ *   "shaders":  {"hlsl": [...], "metal": [...], "wgsl": [...], "glsl": [...]}; each target compiles the language its
+ *               graphics API uses: win-dx12 hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal
+ *               with `xcrun metal` for their OS's SDK (<name>.metallib). web-webgpu wgsl stays source, which the
+ *               browser compiles; its `#include "file"` lines are replaced by the file, from the shader's folder.
+ *               win-vulkan glsl: one file per stage (.vert, .frag), each compiled by glslc to SPIR-V (<file>.spv).
  * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its includes) changed.
  */
 #pragma once
@@ -33,6 +34,7 @@ enum class CookTarget : uint8_t {
     IosMetal,       // iOS devices, Metal 4: metal -> .metallib for the iphoneos SDK, png -> dds in the cook
     AndroidVulkan,  // not supported yet
     WebWebGPU,      // web, WebGPU: wgsl with includes resolved, png -> dds in the cook
+    WinVulkan,      // Windows, Vulkan (development only): glsl -> .spv via glslc, png -> dds in the cook
 };
 
 // Parses a --target name such as "win-dx12". None if unknown.
@@ -42,6 +44,7 @@ CookTarget ParseTarget(const char* name);
 class CookTools {
    public:
     std::string dxc = "dxc";
+    std::string glslc = "glslc";
     // Developer folder for `xcrun metal` (DEVELOPER_DIR); empty uses the one xcode-select picked.
     std::string metalDeveloperDir;
 };
@@ -80,6 +83,7 @@ class Cooker {
     bool CookShaders(cJSON* root, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookMetalShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
     bool CookWgslShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
+    bool CookGlslShaders(cJSON* shaders, const std::filesystem::path& srcRoot, const std::filesystem::path& listPath);
 
     // Records relPath as produced by listPath. False if another entry already produces it or the table is full.
     bool ClaimOutput(const std::string& relPath, const std::filesystem::path& listPath);
