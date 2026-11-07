@@ -20,13 +20,13 @@ class UILayoutEngine {
     UILayoutEngine();
     ~UILayoutEngine();
 
-    // Root elements are laid out against window's size.
+    // Root elements are laid out against window's size, inside its safe area insets.
     void Init(const WindowState* inWindow);
     void End();
 
     // Walks `elements` (all of them, roots and children alike), finds roots
     // (GetParent() == nullptr), and computes each one's absolute UIRect top-down against the
-    // screen rect, then recurses into children.
+    // window's safe area rect, then recurses into children.
     void RecalculateLayouts(UIElement** elements, uint32_t count);
 
    private:

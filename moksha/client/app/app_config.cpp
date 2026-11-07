@@ -39,6 +39,16 @@ bool ParsePositiveDouble(const std::string& text, double& out) {
     return true;
 }
 
+bool ParseNonNegativeFloat(const std::string& text, float& out) {
+    char* end = nullptr;
+    const float value = std::strtof(text.c_str(), &end);
+    if (end == text.c_str() || *end != '\0' || !(value >= 0.0f)) {
+        return false;
+    }
+    out = value;
+    return true;
+}
+
 }  // namespace
 
 void ME::AppArgs::Set(int argc, char** argv) {
@@ -71,7 +81,7 @@ const char* ME::AppArgs::GetValue(const char* name) const {
 }
 
 void ME::AppConfig::ApplySettings(const INIMap& settings) {
-    constexpr const char* sections[] = {"window", "time", "net", "debug"};
+    constexpr const char* sections[] = {"window", "time", "net", "debug", "ui"};
     for (const char* sectionName : sections) {
         const auto section = settings.find(sectionName);
         if (section == settings.end()) {
@@ -119,5 +129,9 @@ bool ME::AppConfig::ApplyValue(const std::string& key, const std::string& value)
     }
     if (key == "contentServerPort") return ParseU16(value, contentServerPort);
     if (key == "debugOverlay") return ParseBool(value, debugOverlay);
+    if (key == "safeAreaTop") return ParseNonNegativeFloat(value, safeAreaTop);
+    if (key == "safeAreaBottom") return ParseNonNegativeFloat(value, safeAreaBottom);
+    if (key == "safeAreaLeft") return ParseNonNegativeFloat(value, safeAreaLeft);
+    if (key == "safeAreaRight") return ParseNonNegativeFloat(value, safeAreaRight);
     return false;
 }

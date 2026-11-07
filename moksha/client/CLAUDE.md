@@ -62,7 +62,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   secure page (`localhost` or HTTPS); the page shows a message without it.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
-  contentServerIP contentServerPort`, `[debug] debugOverlay`) → command line `--key=value` with the same keys. Window size is a request.
+  contentServerIP contentServerPort`, `[debug] debugOverlay`, `[ui] safeAreaTop safeAreaBottom safeAreaLeft safeAreaRight`, copied into `WindowState` for the
+  UI layout) → command line `--key=value` with the same keys. Window size is a request.
 - `app/engine.h` (`Engine`): what the game gets in `Game::Init(Engine&)` — `time`, `timers`, `input`,
   `physics`, `animation`, `audio`, `ui`, `gameClient`, `contentClient`, `config`, `window`, plus `Quit()` and
   `IsHeadless()`. Passed in, never global.

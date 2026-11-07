@@ -74,7 +74,9 @@ base class stores in `engine`; never put engine systems in globals.
   Fill them in `CreateResources`.
 - **Coordinates:** world space is Y-up. `spriteCamera` is orthographic: `orthographicSize` is half the view
   height in world units, and its `aspectRatio` defaults to 1.33, so set it from `engine->window`. UI space is
-  Y-down from the top-left, in pixels.
+  Y-down from the top-left, in pixels. Root UI elements anchor inside the safe area (`[ui] safeAreaTop`,
+  `safeAreaBottom`, `safeAreaLeft`, `safeAreaRight` in settings.ini, window units, default 0); positions stay
+  measured from the window's top-left. Sprites ignore it.
 - **Debug overlay slots 0-2 are the engine's** (FPS, game name, scene name). Use slots 3-15. The overlay is off in
   Release unless `[debug] debugOverlay=1` is set, so player-facing text belongs in the game's own UI.
 - **Textures are cooked**: list `textures/x.png` in `res_list.json`, load `textures/x.dds` in code. Other

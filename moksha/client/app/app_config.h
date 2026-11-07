@@ -63,8 +63,16 @@ class AppConfig {
     bool debugOverlay = true;
 #endif
 
+    // UI safe area: insets from each window edge, in window units, that the UI (game and debug overlay) lays out
+    // inside; for notches, rounded corners and home indicators. Set per platform build in settings.ini.
+    float safeAreaTop = 0.0f;
+    float safeAreaBottom = 0.0f;
+    float safeAreaLeft = 0.0f;
+    float safeAreaRight = 0.0f;
+
     // Applies [window] (title, width, height, vsync, fullscreen), [time] (fixedStepFPS), [net] (serverIP, serverPort,
-    // contentServerIP, contentServerPort) and [debug] (debugOverlay). Missing keys keep their current value.
+    // contentServerIP, contentServerPort), [debug] (debugOverlay) and [ui] (safeAreaTop, safeAreaBottom,
+    // safeAreaLeft, safeAreaRight). Missing keys keep their current value.
     void ApplySettings(const INIMap& settings);
 
     // Applies "--key=value" arguments, using the same key names as ApplySettings.
@@ -83,6 +91,12 @@ class WindowState {
     uint16_t width = 0;
     uint16_t height = 0;
     float dpiScale = 1.0f;
+
+    // UI safe area insets in window units, from AppConfig; root UI elements lay out inside them.
+    float safeAreaTop = 0.0f;
+    float safeAreaBottom = 0.0f;
+    float safeAreaLeft = 0.0f;
+    float safeAreaRight = 0.0f;
 };
 
 }  // namespace ME

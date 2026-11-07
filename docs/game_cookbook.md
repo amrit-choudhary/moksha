@@ -264,6 +264,14 @@ ME::Delegate::Bind<GameMain, &GameMain::OnPlayClicked>(sceneUIMain->GetPlayButto
 ```
 Full working tree: `ui_demo/scene/scene_ui_demo.cpp` in `moksha_samples`.
 
+Keep UI clear of a phone's notch and home indicator with a safe area in that build's settings.ini. Root elements
+(and the debug overlay) anchor inside it; offsets are unchanged:
+```ini
+[ui]
+safeAreaTop=59
+safeAreaBottom=34
+```
+
 ## Audio
 ```cpp
 // Scene::CreateResources (after the base call); files listed under "copy" in res_list.json.

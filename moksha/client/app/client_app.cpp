@@ -51,6 +51,10 @@ bool ME::ClientApp::Init() {
         window.width = config.windowWidth;
         window.height = config.windowHeight;
     }
+    window.safeAreaTop = config.safeAreaTop;
+    window.safeAreaBottom = config.safeAreaBottom;
+    window.safeAreaLeft = config.safeAreaLeft;
+    window.safeAreaRight = config.safeAreaRight;
 
     engine.time = &timeManager;
     engine.timers = &timerManager;

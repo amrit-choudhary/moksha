@@ -14,15 +14,20 @@ void ME::UILayoutEngine::Init(const WindowState* inWindow) {
 void ME::UILayoutEngine::End() {}
 
 void ME::UILayoutEngine::RecalculateLayouts(UIElement** elements, uint32_t count) {
-    Vec2 screenSize = Vec2::Zero;
+    // Root elements resolve against the window shrunk by its safe area insets.
+    Vec2 safeOrigin = Vec2::Zero;
+    Vec2 safeSize = Vec2::Zero;
     if (window != nullptr) {
-        screenSize = Vec2{static_cast<float>(window->width), static_cast<float>(window->height)};
+        const float width = static_cast<float>(window->width) - window->safeAreaLeft - window->safeAreaRight;
+        const float height = static_cast<float>(window->height) - window->safeAreaTop - window->safeAreaBottom;
+        safeOrigin = Vec2{window->safeAreaLeft, window->safeAreaTop};
+        safeSize = Vec2{width > 0.0f ? width : 0.0f, height > 0.0f ? height : 0.0f};
     }
 
-    // Root elements resolve against the screen itself. TopLeft anchor/pivot + zero offset means
-    // the dummy parent's own (zero) size never factors in, so an empty UIRect is a safe stand-in.
+    // TopLeft anchor/pivot means the dummy parent's own (zero) size never factors in, so an empty UIRect is a safe
+    // stand-in; the offset places the rect at the safe area's top-left corner.
     UIRect screenRect;
-    screenRect.ComputeAbsolute(UIRect(), UIAnchor::TopLeft, UIPivot::TopLeft, Vec2::Zero, screenSize);
+    screenRect.ComputeAbsolute(UIRect(), UIAnchor::TopLeft, UIPivot::TopLeft, safeOrigin, safeSize);
 
     for (uint32_t i = 0; i < count; ++i) {
         UIElement* element = elements[i];
