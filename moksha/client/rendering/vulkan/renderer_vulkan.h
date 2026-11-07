@@ -6,6 +6,8 @@
  * VulkanView, so the same code runs on every OS. Skeleton for now: it updates the scenes and draws nothing.
  */
 
+#include <vulkan/vulkan.h>
+
 #include <cstdint>
 
 #include "moksha/client/rendering/shared/renderer.h"
@@ -43,6 +45,14 @@ class RendererVulkan : public PlatformRenderer {
 
     const VulkanView* view = nullptr;
     const WindowState* window = nullptr;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    bool validationEnabled = false;
+
+    bool CreateInstance();
+    bool SetupDebugMessenger();
+    bool PickPhysicalDevice();
 };
 
 }  // namespace ME
