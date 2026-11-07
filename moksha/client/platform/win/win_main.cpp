@@ -112,7 +112,7 @@ bool DispatchOne(MSG& msg) {
 }  // namespace
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
-#ifdef _DEBUG
+#ifndef NDEBUG
     AttachDebugConsole();
 #endif
 

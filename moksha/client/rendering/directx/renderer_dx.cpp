@@ -121,11 +121,14 @@ void ME::RendererDX::End() {
 }
 
 bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
-#ifdef _DEBUG
-    // Enable the D3D12 debug layer.
+#ifndef NDEBUG
+    // The D3D12 debug layer comes with Windows' optional Graphics Tools; without them, run without it.
     ComPtr<ID3D12Debug> debugController;
-    D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
-    debugController->EnableDebugLayer();
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+        debugController->EnableDebugLayer();
+    } else {
+        ME::LogWarning("RendererDX: D3D12 debug layer not available (install Graphics Tools); running without it");
+    }
 #endif
 
     hWnd = currenthWnd;
