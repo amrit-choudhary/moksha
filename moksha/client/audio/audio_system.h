@@ -37,7 +37,7 @@ class IAudioImpl {
     // Unload all sound files from memory.
     virtual void UnloadAllAudioFiles() = 0;
 
-    // Plays music track. Used for background music.
+    // Plays music track from the start. Used for background music; it replaces any track playing.
     virtual void PlayMusic(uint8_t musicId, bool bLoop) = 0;
 
     // Stops the currently playing music track.
@@ -54,6 +54,10 @@ class IAudioImpl {
 
     // Gets the master volume for all audio.
     virtual float GetMasterVolume() = 0;
+
+    // Volume of all music, and of all sound effects, under the master volume (1 = full).
+    virtual void SetMusicVolume(float volume) = 0;
+    virtual void SetSfxVolume(float volume) = 0;
 
     // Toggles mute for all sounds.
     virtual void ToggleMuteAllSounds(bool bMute) = 0;
@@ -78,7 +82,7 @@ class AudioSystem {
     // Set Scene for the audio system.
     void SetScene(Scene* scene);
 
-    // Plays music track. Used for background music.
+    // Plays music track from the start. Used for background music; it replaces any track playing.
     void PlayMusic(uint8_t musicId, bool bLoop);
 
     // Stops the currently playing music track.
@@ -90,13 +94,17 @@ class AudioSystem {
     // Stops a sound effect.
     void StopAudio(uint8_t soundId, bool bLoop);
 
-    // Sets the master volume for all audio.
+    // Sets the master volume for all audio. While muted, it is kept and applies on unmute.
     void SetMasterVolume(float volume);
 
-    // Gets the master volume for all audio.
+    // Gets the master volume for all audio (the set value, even while muted).
     float GetMasterVolume();
 
-    // Toggles mute for all sounds.
+    // Volume of all music, and of all sound effects, under the master volume (1 = full).
+    void SetMusicVolume(float volume);
+    void SetSfxVolume(float volume);
+
+    // Silences all sounds, or restores the master volume. Sounds keep playing while muted.
     void ToggleMuteAllSounds(bool bMute);
 
    private:

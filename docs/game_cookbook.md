@@ -274,8 +274,14 @@ musicPaths.count = 1;
 
 // Anywhere from Start on:
 engine->audio->PlayAudio(0, false);  // sfx id = index in sfxPaths
-engine->audio->PlayMusic(0, true);
+engine->audio->PlayMusic(0, true);   // replaces any track playing
+engine->audio->StopMusic();
+engine->audio->SetMusicVolume(0.6f);   // music and sfx have their own volumes, under the master volume
+engine->audio->SetSfxVolume(1.0f);
+engine->audio->ToggleMuteAllSounds(true);  // e.g. on pause; false restores the master volume
 ```
+WAV, MP3 and FLAC all load (each file is decoded from memory). Ship music as MP3: an MP3 whose encoder wrote a
+LAME/Xing header (most do) loops with no gap, since the decoder trims the encoder's delay and padding.
 
 ## Timers
 ```cpp

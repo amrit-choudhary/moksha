@@ -53,18 +53,19 @@ class AudioImplMiniaudio : public IAudioImpl {
     // Gets the master volume for all audio.
     float GetMasterVolume() override;
 
+    // Volume of all music, and of all sound effects, under the master volume (1 = full).
+    void SetMusicVolume(float volume) override;
+    void SetSfxVolume(float volume) override;
+
     // Toggles mute for all sounds.
     void ToggleMuteAllSounds(bool bMute) override;
 
    private:
-    float masterVolume = 1.0f;  // Master volume level.
+    float masterVolume = 1.0f;  // Master volume level, kept while muted.
     bool isMuted = false;       // Mute state.
 
-    size_t loadedSFXCount = 0;    // Number of loaded sound effects.
-    size_t loadedMusicCount = 0;  // Number of loaded music tracks.
-
     // PIMPL implementation.
-    struct Impl;
+    class Impl;
     Impl* pimpl = nullptr;
 };
 

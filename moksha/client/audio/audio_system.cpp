@@ -56,13 +56,17 @@ void ME::AudioSystem::PlayMusic(uint8_t musicId, bool bLoop) {
     audioImpl->PlayMusic(musicId, bLoop);
 }
 
-void ME::AudioSystem::StopMusic() {}
+void ME::AudioSystem::StopMusic() {
+    audioImpl->StopMusic();
+}
 
 void ME::AudioSystem::PlayAudio(uint8_t soundId, bool bLoop) {
     audioImpl->PlayAudio(soundId, bLoop);
 }
 
-void ME::AudioSystem::StopAudio(uint8_t soundId, bool bLoop) {}
+void ME::AudioSystem::StopAudio(uint8_t soundId, bool bLoop) {
+    audioImpl->StopAudio(soundId, bLoop);
+}
 
 void ME::AudioSystem::SetMasterVolume(float volume) {
     audioImpl->SetMasterVolume(volume);
@@ -72,4 +76,14 @@ float ME::AudioSystem::GetMasterVolume() {
     return audioImpl->GetMasterVolume();
 }
 
-void ME::AudioSystem::ToggleMuteAllSounds(bool bMute) {}
+void ME::AudioSystem::SetMusicVolume(float volume) {
+    audioImpl->SetMusicVolume(volume);
+}
+
+void ME::AudioSystem::SetSfxVolume(float volume) {
+    audioImpl->SetSfxVolume(volume);
+}
+
+void ME::AudioSystem::ToggleMuteAllSounds(bool bMute) {
+    audioImpl->ToggleMuteAllSounds(bMute);
+}

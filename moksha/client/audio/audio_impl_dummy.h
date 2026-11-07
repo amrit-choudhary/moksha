@@ -43,13 +43,23 @@ class AudioImplDummy : public IAudioImpl {
     void StopAudio(uint8_t soundId, bool bLoop) override {}
 
     // Sets the master volume for all audio.
-    void SetMasterVolume(float volume) override {}
+    void SetMasterVolume(float volume) override {
+        masterVolume = volume;
+    }
 
     // Gets the master volume for all audio.
-    float GetMasterVolume() override { return masterVolume; }
+    float GetMasterVolume() override {
+        return masterVolume;
+    }
+
+    // Volume of all music, and of all sound effects.
+    void SetMusicVolume(float volume) override {}
+    void SetSfxVolume(float volume) override {}
 
     // Toggles mute for all sounds.
-    void ToggleMuteAllSounds(bool bMute) override {}
+    void ToggleMuteAllSounds(bool bMute) override {
+        isMuted = bMute;
+    }
 
    private:
     float masterVolume = 1.0f;  // Master volume level.
