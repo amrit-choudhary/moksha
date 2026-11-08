@@ -68,6 +68,9 @@ class RendererVulkan : public PlatformRenderer {
     VkCommandPool commandPools[Constants::FramesInFlight] = {};
     VkCommandBuffer commandBuffers[Constants::FramesInFlight] = {};
     uint32_t frameIndex = 0;
+    VkSemaphore imageAvailableSemaphores[Constants::FramesInFlight] = {};
+    VkFence inFlightFences[Constants::FramesInFlight] = {};
+    VkSemaphore renderFinishedSemaphores[kMaxSwapchainImages] = {};
 
     bool CreateInstance();
     bool SetupDebugMessenger();
@@ -80,6 +83,7 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateRenderPass();
     bool CreateSwapchainFramebuffers();
     bool CreateCommandBuffers();
+    bool CreateSyncObjects();
 };
 
 }  // namespace ME

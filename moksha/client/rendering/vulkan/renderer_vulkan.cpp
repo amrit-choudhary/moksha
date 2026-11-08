@@ -133,6 +133,11 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    if (!CreateSyncObjects()) {
+        ME::LogError("RendererVulkan: failed to create sync objects");
+        return false;
+    }
+
     return true;
 }
 
@@ -162,6 +167,22 @@ void ME::RendererVulkan::Draw() {}
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
+        for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
+            if (renderFinishedSemaphores[i] != VK_NULL_HANDLE) {
+                vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
+                renderFinishedSemaphores[i] = VK_NULL_HANDLE;
+            }
+        }
+        for (uint32_t i = 0; i < Constants::FramesInFlight; ++i) {
+            if (inFlightFences[i] != VK_NULL_HANDLE) {
+                vkDestroyFence(device, inFlightFences[i], nullptr);
+                inFlightFences[i] = VK_NULL_HANDLE;
+            }
+            if (imageAvailableSemaphores[i] != VK_NULL_HANDLE) {
+                vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
+                imageAvailableSemaphores[i] = VK_NULL_HANDLE;
+            }
+        }
         for (uint32_t i = 0; i < Constants::FramesInFlight; ++i) {
             if (commandPools[i] != VK_NULL_HANDLE) {
                 vkDestroyCommandPool(device, commandPools[i], nullptr);  // frees commandBuffers[i] too
@@ -622,6 +643,44 @@ bool ME::RendererVulkan::CreateCommandBuffers() {
     }
 
     ME::Log("RendererVulkan: ", Constants::FramesInFlight, " command pools and buffers created");
+    return true;
+}
+
+bool ME::RendererVulkan::CreateSyncObjects() {
+    VkSemaphoreCreateInfo semaphoreInfo = {};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo = {};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;  // the first wait on each slot returns at once
+
+    // Per frame slot: acquire signals imageAvailable; the slot's submit signals its fence.
+    for (uint32_t i = 0; i < Constants::FramesInFlight; ++i) {
+        VkResult result = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]);
+        if (result < 0) {
+            ME::LogError("RendererVulkan: vkCreateSemaphore (image available) failed for frame ", i, " (",
+                         static_cast<int>(result), ")");
+            return false;
+        }
+        result = vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]);
+        if (result < 0) {
+            ME::LogError("RendererVulkan: vkCreateFence failed for frame ", i, " (", static_cast<int>(result), ")");
+            return false;
+        }
+    }
+
+    // Per swapchain image: present waits on it and signals no fence, so the image's next acquire proves it is free.
+    for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        const VkResult result = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]);
+        if (result < 0) {
+            ME::LogError("RendererVulkan: vkCreateSemaphore (render finished) failed for image ", i, " (",
+                         static_cast<int>(result), ")");
+            return false;
+        }
+    }
+
+    ME::Log("RendererVulkan: sync objects created (", Constants::FramesInFlight, " frames, ", swapchainImageCount,
+            " images)");
     return true;
 }
 
