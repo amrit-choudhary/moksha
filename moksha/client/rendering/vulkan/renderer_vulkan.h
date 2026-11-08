@@ -3,8 +3,8 @@
 
 /**
  * Renderer class for Vulkan (Android; on Windows a development-only build). Reaches the window only through
- * VulkanView, so the same code runs on every OS. In progress: it creates the device and swapchain, updates the
- * scenes, and draws nothing yet.
+ * VulkanView, so the same code runs on every OS. In progress: each frame clears the swapchain image through the
+ * render pass and presents it; the scenes are updated but not drawn yet.
  */
 
 #include <vulkan/vulkan.h>

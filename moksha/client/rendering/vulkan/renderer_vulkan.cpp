@@ -162,7 +162,92 @@ void ME::RendererVulkan::Update() {
     }
 }
 
-void ME::RendererVulkan::Draw() {}
+void ME::RendererVulkan::Draw() {
+    VkCommandBuffer cmd = commandBuffers[frameIndex];
+    VkFence fence = inFlightFences[frameIndex];
+
+    vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex = 0;
+    VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphores[frameIndex],
+                                            VK_NULL_HANDLE, &imageIndex);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        return;  // swapchain no longer matches the surface; recreated in lesson 9
+    }
+
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkAcquireNextImageKHR failed (", static_cast<int>(result), ")");
+        return;
+    }
+
+    vkResetFences(device, 1, &fence);
+
+    vkResetCommandPool(device, commandPools[frameIndex], 0);
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cmd, &beginInfo);
+
+    VkClearValue clearValue = {};
+    clearValue.color = {{0.01f, 0.01f, 0.01f, 1.0f}};  // same as RendererDX
+
+    VkRenderPassBeginInfo passInfo = {};
+    passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    passInfo.renderPass = renderPass;
+    passInfo.framebuffer = swapchainFramebuffers[imageIndex];
+    passInfo.renderArea.offset = {0, 0};
+    passInfo.renderArea.extent = swapchainExtent;
+    passInfo.clearValueCount = 1;
+    passInfo.pClearValues = &clearValue;
+
+    vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
+    // draws go here (lesson 4)
+    vkCmdEndRenderPass(cmd);
+
+    result = vkEndCommandBuffer(cmd);
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkEndCommandBuffer failed (", static_cast<int>(result), ")");
+        return;
+    }
+
+    const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+    VkSubmitInfo submit = {};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.waitSemaphoreCount = 1;
+    submit.pWaitSemaphores = &imageAvailableSemaphores[frameIndex];
+    submit.pWaitDstStageMask = &waitStage;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &cmd;
+    submit.signalSemaphoreCount = 1;
+    submit.pSignalSemaphores = &renderFinishedSemaphores[imageIndex];
+
+    result = vkQueueSubmit(graphicsQueue, 1, &submit, fence);
+
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkQueueSubmit failed (", static_cast<int>(result), ")");
+        return;
+    }
+
+    VkPresentInfoKHR present = {};
+    present.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present.waitSemaphoreCount = 1;
+    present.pWaitSemaphores = &renderFinishedSemaphores[imageIndex];
+    present.swapchainCount = 1;
+    present.pSwapchains = &swapchain;
+    present.pImageIndices = &imageIndex;
+
+    result = vkQueuePresentKHR(graphicsQueue, &present);
+    if (result < 0 && result != VK_ERROR_OUT_OF_DATE_KHR) {
+        ME::LogError("RendererVulkan: vkQueuePresentKHR failed (", static_cast<int>(result), ")");
+    }
+    // OUT_OF_DATE / SUBOPTIMAL: the swapchain is recreated in lesson 9; until then carry on.
+
+    // The slot was submitted, so it always advances.
+    frameIndex = (frameIndex + 1) % static_cast<uint32_t>(Constants::FramesInFlight);
+}
 
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
