@@ -118,6 +118,21 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    if (!CreateRenderPass()) {
+        ME::LogError("RendererVulkan: failed to create render pass");
+        return false;
+    }
+
+    if (!CreateSwapchainFramebuffers()) {
+        ME::LogError("RendererVulkan: failed to create swapchain framebuffers");
+        return false;
+    }
+
+    if (!CreateCommandBuffers()) {
+        ME::LogError("RendererVulkan: failed to create command buffers");
+        return false;
+    }
+
     return true;
 }
 
@@ -147,6 +162,24 @@ void ME::RendererVulkan::Draw() {}
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
+        for (uint32_t i = 0; i < Constants::FramesInFlight; ++i) {
+            if (commandPools[i] != VK_NULL_HANDLE) {
+                vkDestroyCommandPool(device, commandPools[i], nullptr);  // frees commandBuffers[i] too
+                commandPools[i] = VK_NULL_HANDLE;
+            }
+            commandBuffers[i] = VK_NULL_HANDLE;
+        }
+        frameIndex = 0;
+        for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
+            if (swapchainFramebuffers[i] != VK_NULL_HANDLE) {
+                vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
+                swapchainFramebuffers[i] = VK_NULL_HANDLE;
+            }
+        }
+        if (renderPass != VK_NULL_HANDLE) {
+            vkDestroyRenderPass(device, renderPass, nullptr);
+            renderPass = VK_NULL_HANDLE;
+        }
         for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
             if (swapchainImageViews[i] != VK_NULL_HANDLE) {
                 vkDestroyImageView(device, swapchainImageViews[i], nullptr);
@@ -486,6 +519,109 @@ bool ME::RendererVulkan::CreateSwapchainImageViews() {
     }
 
     ME::Log("RendererVulkan: ", swapchainImageCount, " image views created");
+    return true;
+}
+
+bool ME::RendererVulkan::CreateRenderPass() {
+    VkAttachmentDescription color = {};
+    color.format = swapchainFormat;
+    color.samples = VK_SAMPLE_COUNT_1_BIT;
+    color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorRef = {};
+    colorRef.attachment = 0;
+    colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorRef;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = 1;
+    info.pAttachments = &color;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 1;
+    info.pDependencies = &dependency;
+
+    const VkResult result = vkCreateRenderPass(device, &info, nullptr, &renderPass);
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkCreateRenderPass failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    ME::Log("RendererVulkan: render pass created");
+    return true;
+}
+
+bool ME::RendererVulkan::CreateSwapchainFramebuffers() {
+    for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        VkFramebufferCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        info.renderPass = renderPass;
+        info.attachmentCount = 1;
+        info.pAttachments = &swapchainImageViews[i];
+        info.width = swapchainExtent.width;
+        info.height = swapchainExtent.height;
+        info.layers = 1;
+
+        const VkResult result = vkCreateFramebuffer(device, &info, nullptr, &swapchainFramebuffers[i]);
+        if (result < 0) {
+            ME::LogError("RendererVulkan: vkCreateFramebuffer failed for image ", i, " (", static_cast<int>(result),
+                         ")");
+            return false;
+        }
+    }
+
+    ME::Log("RendererVulkan: ", swapchainImageCount, " framebuffers created");
+    return true;
+}
+
+bool ME::RendererVulkan::CreateCommandBuffers() {
+    for (uint32_t i = 0; i < Constants::FramesInFlight; ++i) {
+        VkCommandPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = graphicsQueueFamily;
+        // Re-recorded every frame; Draw resets the whole pool (vkResetCommandPool), like a DX12 allocator.
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+
+        const VkResult poolResult = vkCreateCommandPool(device, &poolInfo, nullptr, &commandPools[i]);
+        if (poolResult < 0) {
+            ME::LogError("RendererVulkan: vkCreateCommandPool failed for frame ", i, " (", static_cast<int>(poolResult),
+                         ")");
+            return false;
+        }
+
+        VkCommandBufferAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = commandPools[i];
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+
+        const VkResult allocResult = vkAllocateCommandBuffers(device, &allocInfo, &commandBuffers[i]);
+        if (allocResult < 0) {
+            ME::LogError("RendererVulkan: vkAllocateCommandBuffers failed for frame ", i, " (",
+                         static_cast<int>(allocResult), ")");
+            return false;
+        }
+    }
+
+    ME::Log("RendererVulkan: ", Constants::FramesInFlight, " command pools and buffers created");
     return true;
 }
 

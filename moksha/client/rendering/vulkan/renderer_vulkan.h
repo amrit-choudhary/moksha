@@ -12,6 +12,7 @@
 #include <cstdint>
 
 #include "moksha/client/rendering/shared/renderer.h"
+#include "moksha/shared/misc/engine_limits.h"
 
 namespace ME {
 
@@ -62,6 +63,11 @@ class RendererVulkan : public PlatformRenderer {
     VkImage swapchainImages[kMaxSwapchainImages] = {};
     uint32_t swapchainImageCount = 0;
     VkImageView swapchainImageViews[kMaxSwapchainImages] = {};
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    VkFramebuffer swapchainFramebuffers[kMaxSwapchainImages] = {};
+    VkCommandPool commandPools[Constants::FramesInFlight] = {};
+    VkCommandBuffer commandBuffers[Constants::FramesInFlight] = {};
+    uint32_t frameIndex = 0;
 
     bool CreateInstance();
     bool SetupDebugMessenger();
@@ -71,6 +77,9 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateLogicalDevice();
     bool CreateSwapchain();
     bool CreateSwapchainImageViews();
+    bool CreateRenderPass();
+    bool CreateSwapchainFramebuffers();
+    bool CreateCommandBuffers();
 };
 
 }  // namespace ME
