@@ -5,12 +5,16 @@
 #include <cstring>
 
 #include "moksha/logging/logging.h"
+#include "moksha/shared/math/math.h"
 #include "vulkan_view.h"
 
 namespace {
 
 const char* const kValidationLayer = "VK_LAYER_KHRONOS_validation";
 constexpr uint32_t kMaxInstanceExtensions = 8;
+constexpr uint32_t kMaxPhysicalDevices = 8;
+constexpr uint32_t kMaxQueueFamilies = 16;
+constexpr uint32_t kMaxSurfaceFormats = 32;
 
 // True if the loader finds the validation layer. Used for debug.
 bool HasValidationLayer() {
@@ -51,8 +55,6 @@ VkDebugUtilsMessengerCreateInfoEXT MakeMessengerCreateInfo() {
     return info;
 }
 
-constexpr uint32_t kMaxPhysicalDevices = 8;
-
 // Readable name of a GPU type, for the log.
 const char* DeviceTypeName(VkPhysicalDeviceType type) {
     switch (type) {
@@ -86,8 +88,33 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    if (!CreateSurface()) {
+        ME::LogError("RendererVulkan: failed to create surface");
+        return false;
+    }
+
     if (!PickPhysicalDevice()) {
         ME::LogError("RendererVulkan: failed to pick a physical device");
+        return false;
+    }
+
+    if (!PickQueueFamily()) {
+        ME::LogError("RendererVulkan: failed to pick a queue family");
+        return false;
+    }
+
+    if (!CreateLogicalDevice()) {
+        ME::LogError("RendererVulkan: failed to create logical device");
+        return false;
+    }
+
+    if (!CreateSwapchain()) {
+        ME::LogError("RendererVulkan: failed to create swapchain");
+        return false;
+    }
+
+    if (!CreateSwapchainImageViews()) {
+        ME::LogError("RendererVulkan: failed to create image views");
         return false;
     }
 
@@ -118,6 +145,31 @@ void ME::RendererVulkan::Update() {
 void ME::RendererVulkan::Draw() {}
 
 void ME::RendererVulkan::End() {
+    if (device != VK_NULL_HANDLE) {
+        vkDeviceWaitIdle(device);
+        for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
+            if (swapchainImageViews[i] != VK_NULL_HANDLE) {
+                vkDestroyImageView(device, swapchainImageViews[i], nullptr);
+                swapchainImageViews[i] = VK_NULL_HANDLE;
+            }
+        }
+        if (swapchain != VK_NULL_HANDLE) {
+            vkDestroySwapchainKHR(device, swapchain, nullptr);
+            swapchain = VK_NULL_HANDLE;
+        }
+        vkDestroyDevice(device, nullptr);
+        device = VK_NULL_HANDLE;
+    }
+    graphicsQueue = VK_NULL_HANDLE;
+    swapchainFormat = VK_FORMAT_UNDEFINED;
+    swapchainExtent = {};
+    swapchainImageCount = 0;  // the images were owned by the swapchain
+
+    if (surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        surface = VK_NULL_HANDLE;
+    }
+
     if (debugMessenger != VK_NULL_HANDLE) {
         auto destroyMessenger = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
             vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
@@ -133,6 +185,7 @@ void ME::RendererVulkan::End() {
     }
 
     physicalDevice = VK_NULL_HANDLE;
+    graphicsQueueFamily = UINT32_MAX;
 
     ME::Log("RendererVulkan::End");
 }
@@ -260,6 +313,179 @@ bool ME::RendererVulkan::PickPhysicalDevice() {
     vkGetPhysicalDeviceProperties(physicalDevice, &picked);
     ME::Log("RendererVulkan: using ", picked.deviceName);
 
+    return true;
+}
+
+bool ME::RendererVulkan::CreateSurface() {
+    if (!view->CreateSurface(instance, &surface)) {
+        return false;
+    }
+    ME::Log("RendererVulkan: surface created");
+    return true;
+}
+
+bool ME::RendererVulkan::PickQueueFamily() {
+    VkQueueFamilyProperties families[kMaxQueueFamilies] = {};
+    uint32_t familyCount = kMaxQueueFamilies;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &familyCount, families);
+
+    for (uint32_t i = 0; i < familyCount; ++i) {
+        const VkQueueFamilyProperties& family = families[i];
+        VkBool32 canPresent = VK_FALSE;
+        if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &canPresent) < 0) {
+            ME::LogWarning("RendererVulkan: present query failed for queue family ", i);
+            continue;
+        }
+
+        if ((family.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0 && canPresent == VK_TRUE) {
+            graphicsQueueFamily = i;
+            ME::Log("RendererVulkan: using queue family ", i, " (", family.queueCount, " queues)");
+            return true;
+        }
+    }
+
+    ME::LogError("RendererVulkan: no queue family supports graphics and present");
+    return false;
+}
+
+bool ME::RendererVulkan::CreateLogicalDevice() {
+    const float priority = 1.0f;
+    VkDeviceQueueCreateInfo queueInfo = {};
+    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueInfo.queueFamilyIndex = graphicsQueueFamily;
+    queueInfo.queueCount = 1;
+    queueInfo.pQueuePriorities = &priority;
+
+    const char* const extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+    VkDeviceCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos = &queueInfo;
+    createInfo.enabledExtensionCount = 1;
+    createInfo.ppEnabledExtensionNames = extensions;
+    createInfo.pEnabledFeatures = nullptr;
+
+    const VkResult result = vkCreateDevice(physicalDevice, &createInfo, nullptr, &device);
+
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkCreateDevice failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    vkGetDeviceQueue(device, graphicsQueueFamily, 0, &graphicsQueue);
+    ME::Log("RendererVulkan: device created");
+    return true;
+}
+
+bool ME::RendererVulkan::CreateSwapchain() {
+    VkSurfaceCapabilitiesKHR caps = {};
+    VkResult result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &caps);
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed (", static_cast<int>(result),
+                     ")");
+        return false;
+    }
+
+    // The surface dictates the size, unless it reports UINT32_MAX ("app chooses"): then the window's pixel size.
+    if (caps.currentExtent.width != UINT32_MAX) {
+        swapchainExtent = caps.currentExtent;
+    } else {
+        swapchainExtent.width =
+            ME::Math::Clamp(view->GetPixelWidth(), caps.minImageExtent.width, caps.maxImageExtent.width);
+        swapchainExtent.height =
+            ME::Math::Clamp(view->GetPixelHeight(), caps.minImageExtent.height, caps.maxImageExtent.height);
+    }
+
+    VkSurfaceFormatKHR surfaceFormats[kMaxSurfaceFormats] = {};
+    uint32_t formatCount = kMaxSurfaceFormats;
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, surfaceFormats);
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkGetPhysicalDeviceSurfaceFormatsKHR failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    // An 8-bit sRGB format; Windows drivers usually offer BGRA, Android ones RGBA.
+    swapchainFormat = VK_FORMAT_UNDEFINED;
+    for (uint32_t i = 0; i < formatCount; ++i) {
+        const VkFormat format = surfaceFormats[i].format;
+        if ((format == VK_FORMAT_R8G8B8A8_SRGB || format == VK_FORMAT_B8G8R8A8_SRGB) &&
+            surfaceFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            swapchainFormat = format;
+            break;
+        }
+    }
+
+    if (swapchainFormat == VK_FORMAT_UNDEFINED) {
+        ME::LogError("RendererVulkan: no suitable surface format found");
+        return false;
+    }
+
+    uint32_t imageCount = caps.minImageCount + 1;
+    if (caps.maxImageCount != 0 && imageCount > caps.maxImageCount) {
+        imageCount = caps.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    info.surface = surface;
+    info.minImageCount = imageCount;
+    info.imageFormat = swapchainFormat;
+    info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;  // the only one the format search accepts
+    info.imageExtent = swapchainExtent;
+    info.imageArrayLayers = 1;
+    info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    info.preTransform = caps.currentTransform;
+    // Many Android surfaces offer only INHERIT.
+    info.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR) != 0
+                              ? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+                              : VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+    info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    info.clipped = VK_TRUE;
+    info.oldSwapchain = VK_NULL_HANDLE;
+
+    result = vkCreateSwapchainKHR(device, &info, nullptr, &swapchain);
+    if (result < 0) {
+        ME::LogError("RendererVulkan: vkCreateSwapchainKHR failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    // The driver may make more images than asked; VK_INCOMPLETE means the array is too small.
+    swapchainImageCount = kMaxSwapchainImages;
+    result = vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCount, swapchainImages);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkGetSwapchainImagesKHR failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    ME::Log("RendererVulkan: swapchain ", swapchainExtent.width, "x", swapchainExtent.height, ", ", swapchainImageCount,
+            " images, format ", static_cast<int>(swapchainFormat));
+    return true;
+}
+
+bool ME::RendererVulkan::CreateSwapchainImageViews() {
+    for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        VkImageViewCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        info.image = swapchainImages[i];
+        info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        info.format = swapchainFormat;
+        info.components = {};
+        info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        info.subresourceRange.baseMipLevel = 0;
+        info.subresourceRange.levelCount = 1;
+        info.subresourceRange.baseArrayLayer = 0;
+        info.subresourceRange.layerCount = 1;
+
+        const VkResult result = vkCreateImageView(device, &info, nullptr, &swapchainImageViews[i]);
+        if (result < 0) {
+            ME::LogError("RendererVulkan: vkCreateImageView failed for image ", i, " (", static_cast<int>(result), ")");
+            return false;
+        }
+    }
+
+    ME::Log("RendererVulkan: ", swapchainImageCount, " image views created");
     return true;
 }
 

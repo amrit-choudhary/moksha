@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 // Including the math libraries. So users will need to include this one header.
 #include "fp_24_8.h"
 #include "matrix4.h"
@@ -41,6 +43,16 @@ class Math {
    public:
     // Clamps a value between min and max.
     static inline float Clamp(float value, float min, float max) {
+        if (value < min) {
+            return min;
+        } else if (value > max) {
+            return max;
+        }
+        return value;
+    }
+
+    // Clamps an unsigned value between min and max.
+    static inline uint32_t Clamp(uint32_t value, uint32_t min, uint32_t max) {
         if (value < min) {
             return min;
         } else if (value > max) {
