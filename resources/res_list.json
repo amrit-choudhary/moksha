@@ -25,6 +25,10 @@
             "shaders/wgsl/sprite_instanced_atlas.wgsl",
             "shaders/wgsl/ui_text.wgsl",
             "shaders/wgsl/ui_sprite.wgsl"
+        ],
+        "glsl": [
+            "shaders/glsl/sprite_atlas.vert",
+            "shaders/glsl/sprite_atlas.frag"
         ]
     }
 }

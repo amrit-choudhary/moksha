@@ -6,6 +6,7 @@
 
 #include "moksha/logging/logging.h"
 #include "moksha/shared/math/math.h"
+#include "shader_vulkan.h"
 #include "vulkan_view.h"
 
 namespace {
@@ -138,6 +139,13 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    ShaderVulkan shader;
+    if (!shader.Init(device, "sprite_atlas")) {
+        ME::LogError("Can't load shader");
+    }
+    ME::Log("RendererVulkan: sprite_atlas shader loaded");
+    shader.End();
+
     return true;
 }
 
@@ -173,7 +181,7 @@ void ME::RendererVulkan::Draw() {
                                             VK_NULL_HANDLE, &imageIndex);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        return;  // swapchain no longer matches the surface; recreated in lesson 9
+        return;  // swapchain no longer matches the surface. TODO: recreate it
     }
 
     if (result < 0) {
@@ -203,7 +211,7 @@ void ME::RendererVulkan::Draw() {
     passInfo.pClearValues = &clearValue;
 
     vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
-    // draws go here (lesson 4)
+    // draws go here
     vkCmdEndRenderPass(cmd);
 
     result = vkEndCommandBuffer(cmd);
@@ -243,7 +251,7 @@ void ME::RendererVulkan::Draw() {
     if (result < 0 && result != VK_ERROR_OUT_OF_DATE_KHR) {
         ME::LogError("RendererVulkan: vkQueuePresentKHR failed (", static_cast<int>(result), ")");
     }
-    // OUT_OF_DATE / SUBOPTIMAL: the swapchain is recreated in lesson 9; until then carry on.
+    // OUT_OF_DATE / SUBOPTIMAL: carry on. TODO: recreate the swapchain.
 
     // The slot was submitted, so it always advances.
     frameIndex = (frameIndex + 1) % static_cast<uint32_t>(Constants::FramesInFlight);
