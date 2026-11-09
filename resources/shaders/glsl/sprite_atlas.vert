@@ -21,5 +21,5 @@ layout(location = 0) out vec2 outUV;
 
 void main() {
     gl_Position = passData.projectionMatrix * passData.viewMatrix * spriteData.modelMatrix * vec4(inPosition, 0.0, 1.0);
-    outUV = inUV;
+    outUV = vec2(inUV.x, 1.0 - inUV.y);
 }

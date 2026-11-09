@@ -10,6 +10,7 @@
 #include "moksha/shared/math/math.h"
 #include "pipeline_layout_vulkan.h"
 #include "pso_vulkan.h"
+#include "sampler_vulkan.h"
 #include "utils_vulkan.h"
 #include "vulkan_view.h"
 
@@ -132,8 +133,20 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    // Before the pipelines: their set layouts hold the samplers.
+    samplerPointClamp = ME::SamplerVulkan::CreatePointClamp(device);
+    if (samplerPointClamp == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the point clamp sampler");
+        return false;
+    }
+
     if (!CreatePSO()) {
         ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
+        return false;
+    }
+
+    if (!testTexture.Init(physicalDevice, device, graphicsQueue, uploadCommandPool, "textures/ui/ui_atlas.dds")) {
+        ME::LogError("RendererVulkan: failed to initialize the test texture");
         return false;
     }
 
@@ -221,10 +234,10 @@ void ME::RendererVulkan::Draw() {
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
 
-    const VkDescriptorSet sets[2] = {perPassSet, perSpriteSet};
+    const VkDescriptorSet sets[3] = {perPassSet, perSpriteSet, textureSet};
     const uint32_t dynamicOffsets[2] = {perPassBuffer.GetOffset(frameIndex, 0),
                                         perSpriteBuffer.GetOffset(frameIndex, 0)};
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 2, sets, 2, dynamicOffsets);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 3, sets, 2, dynamicOffsets);
 
     VkViewport viewport = {};
     viewport.x = 0.0f;
@@ -302,8 +315,10 @@ void ME::RendererVulkan::End() {
         }
         perPassSet = VK_NULL_HANDLE;
         perSpriteSet = VK_NULL_HANDLE;
+        textureSet = VK_NULL_HANDLE;
         perSpriteBuffer.End();
         perPassBuffer.End();
+        testTexture.End();
         if (pso2DAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DAtl, nullptr);
             pso2DAtl = VK_NULL_HANDLE;
@@ -312,6 +327,10 @@ void ME::RendererVulkan::End() {
             vkDestroyPipelineLayout(device, layout2DAtl, nullptr);
             layout2DAtl = VK_NULL_HANDLE;
         }
+        if (setLayoutTexture != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(device, setLayoutTexture, nullptr);
+            setLayoutTexture = VK_NULL_HANDLE;
+        }
         if (setLayoutPerSprite != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, setLayoutPerSprite, nullptr);
             setLayoutPerSprite = VK_NULL_HANDLE;
@@ -319,6 +338,10 @@ void ME::RendererVulkan::End() {
         if (setLayoutPerPass != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, setLayoutPerPass, nullptr);
             setLayoutPerPass = VK_NULL_HANDLE;
+        }
+        if (samplerPointClamp != VK_NULL_HANDLE) {
+            vkDestroySampler(device, samplerPointClamp, nullptr);
+            samplerPointClamp = VK_NULL_HANDLE;
         }
         quad.End();
         for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
@@ -345,6 +368,12 @@ void ME::RendererVulkan::End() {
             commandBuffers[i] = VK_NULL_HANDLE;
         }
         frameIndex = 0;
+
+        if (uploadCommandPool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(device, uploadCommandPool, nullptr);
+            uploadCommandPool = VK_NULL_HANDLE;
+        }
+
         for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
             if (swapchainFramebuffers[i] != VK_NULL_HANDLE) {
                 vkDestroyFramebuffer(device, swapchainFramebuffers[i], nullptr);
@@ -796,6 +825,17 @@ bool ME::RendererVulkan::CreateCommandBuffers() {
         }
     }
 
+    VkCommandPoolCreateInfo uploadPoolInfo = {};
+    uploadPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    uploadPoolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    uploadPoolInfo.queueFamilyIndex = graphicsQueueFamily;
+    VkResult uploadPoolResult = vkCreateCommandPool(device, &uploadPoolInfo, nullptr, &uploadCommandPool);
+    if (uploadPoolResult != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkCreateCommandPool failed for upload pool (", static_cast<int>(uploadPoolResult),
+                     ")");
+        return false;
+    }
+
     ME::Log("RendererVulkan: ", Constants::FramesInFlight, " command pools and buffers created");
     return true;
 }
@@ -851,7 +891,14 @@ bool ME::RendererVulkan::CreatePSO() {
         return false;
     }
 
-    layout2DAtl = PipelineLayoutVulkan::CreateLayout2DAtlas(device, setLayoutPerPass, setLayoutPerSprite);
+    setLayoutTexture = PipelineLayoutVulkan::CreateSetLayoutTexture(device, samplerPointClamp);
+    if (setLayoutTexture == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the texture descriptor set layout");
+        return false;
+    }
+
+    layout2DAtl =
+        PipelineLayoutVulkan::CreateLayout2DAtlas(device, setLayoutPerPass, setLayoutPerSprite, setLayoutTexture);
     if (layout2DAtl == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline layout");
         return false;
@@ -876,15 +923,17 @@ bool ME::RendererVulkan::CreateDescriptorSets() {
         return false;
     }
 
-    VkDescriptorPoolSize poolSize = {};
-    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    poolSize.descriptorCount = 2;
+    VkDescriptorPoolSize poolSizes[2] = {};
+    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    poolSizes[0].descriptorCount = 2;
+    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = 2;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = 3;
+    poolInfo.poolSizeCount = 2;
+    poolInfo.pPoolSizes = poolSizes;
     VkResult result = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
     if (result != VK_SUCCESS) {
         ME::LogError("RendererVulkan: vkCreateDescriptorPool failed (", static_cast<int>(result), ")");
@@ -909,6 +958,18 @@ bool ME::RendererVulkan::CreateDescriptorSets() {
         return false;
     }
 
+    allocInfo.pSetLayouts = &setLayoutTexture;
+    result = vkAllocateDescriptorSets(device, &allocInfo, &textureSet);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (texture) failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.sampler = VK_NULL_HANDLE;  // ignored: the layout's immutable sampler is used
+    imageInfo.imageView = testTexture.GetImageView();
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
     VkDescriptorBufferInfo passInfo = {};
     passInfo.buffer = perPassBuffer.GetBuffer();
     passInfo.offset = 0;
@@ -919,7 +980,7 @@ bool ME::RendererVulkan::CreateDescriptorSets() {
     spriteInfo.offset = 0;
     spriteInfo.range = perSpriteBuffer.GetElementSize();
 
-    VkWriteDescriptorSet writes[2] = {};
+    VkWriteDescriptorSet writes[3] = {};
     writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writes[0].dstSet = perPassSet;
     writes[0].dstBinding = 0;
@@ -930,9 +991,16 @@ bool ME::RendererVulkan::CreateDescriptorSets() {
     writes[1] = writes[0];
     writes[1].dstSet = perSpriteSet;
     writes[1].pBufferInfo = &spriteInfo;
+    writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[2].dstSet = textureSet;
+    writes[2].dstBinding = 0;
+    writes[2].dstArrayElement = 0;
+    writes[2].descriptorCount = 1;
+    writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    writes[2].pImageInfo = &imageInfo;
 
     // Written once: the descriptors cover every frame's copy, and each frame picks its copy with a dynamic offset.
-    vkUpdateDescriptorSets(device, 2, writes, 0, nullptr);
+    vkUpdateDescriptorSets(device, 3, writes, 0, nullptr);
 
     ME::Log("RendererVulkan: descriptor sets created");
     return true;

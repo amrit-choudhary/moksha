@@ -14,6 +14,7 @@
 #include "moksha/client/rendering/shared/renderer.h"
 #include "moksha/shared/misc/engine_limits.h"
 #include "quad_vulkan.h"
+#include "texture_vulkan.h"
 #include "upload_buffer_vulkan.h"
 
 namespace ME {
@@ -76,9 +77,14 @@ class RendererVulkan : public PlatformRenderer {
 
     ME::QuadVulkan quad;
 
-    // Descriptor set layouts (set 0 per pass, set 1 per sprite), shared by the pipeline layouts and the sets.
+    // Shared samplers, built into the set layouts as DX12's static samplers are; destroyed after the layouts.
+    VkSampler samplerPointClamp = VK_NULL_HANDLE;
+
+    // Descriptor set layouts (set 0 per pass, set 1 per sprite, set 2 texture), shared by the pipeline layouts and the
+    // sets.
     VkDescriptorSetLayout setLayoutPerPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout setLayoutPerSprite = VK_NULL_HANDLE;
+    VkDescriptorSetLayout setLayoutTexture = VK_NULL_HANDLE;
 
     // Pipelines and their layouts, as RendererDX's PSOs and root signatures.
     VkPipelineLayout layout2DAtl = VK_NULL_HANDLE;
@@ -89,6 +95,12 @@ class RendererVulkan : public PlatformRenderer {
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSet perPassSet = VK_NULL_HANDLE;
     VkDescriptorSet perSpriteSet = VK_NULL_HANDLE;
+    VkDescriptorSet textureSet = VK_NULL_HANDLE;
+
+    VkCommandPool uploadCommandPool = VK_NULL_HANDLE;
+
+    // TODO: a test texture; textures move to the scene once the scenes are drawn.
+    ME::TextureVulkan testTexture;
 
     bool CreateInstance();
     bool SetupDebugMessenger();

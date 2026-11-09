@@ -28,6 +28,12 @@ bool CreateBuffer(VkPhysicalDevice physicalDevice, VkDevice device, VkDeviceSize
 // Destroys a buffer made by CreateBuffer and frees its memory; nulls both. Safe on null handles.
 void DestroyBuffer(VkDevice device, VkBuffer* buffer, VkDeviceMemory* memory);
 
+// Allocates a primary command buffer from pool and begins it for one submission. False (logged) on failure.
+bool BeginOneTimeCommands(VkDevice device, VkCommandPool pool, VkCommandBuffer* outCmd);
+
+// Ends cmd, submits it to queue, waits for it to finish, and frees it. False (logged) on failure.
+bool EndOneTimeCommands(VkDevice device, VkQueue queue, VkCommandPool pool, VkCommandBuffer cmd);
+
 }  // namespace VulkanUtils
 
 }  // namespace ME

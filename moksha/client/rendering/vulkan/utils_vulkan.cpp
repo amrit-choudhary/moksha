@@ -114,4 +114,60 @@ void ME::VulkanUtils::DestroyBuffer(VkDevice device, VkBuffer* buffer, VkDeviceM
     }
 }
 
+bool ME::VulkanUtils::BeginOneTimeCommands(VkDevice device, VkCommandPool pool, VkCommandBuffer* outCmd) {
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = pool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+    VkResult result = vkAllocateCommandBuffers(device, &allocInfo, outCmd);
+    if (result < 0) {
+        ME::LogError("VulkanUtils: vkAllocateCommandBuffers failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    result = vkBeginCommandBuffer(*outCmd, &beginInfo);
+    if (result < 0) {
+        ME::LogError("VulkanUtils: vkBeginCommandBuffer failed (", static_cast<int>(result), ")");
+        vkFreeCommandBuffers(device, pool, 1, outCmd);
+        *outCmd = VK_NULL_HANDLE;
+        return false;
+    }
+
+    return true;
+}
+
+bool ME::VulkanUtils::EndOneTimeCommands(VkDevice device, VkQueue queue, VkCommandPool pool, VkCommandBuffer cmd) {
+    // The buffer goes back to the pool on every path.
+    VkResult result = vkEndCommandBuffer(cmd);
+    if (result < 0) {
+        ME::LogError("VulkanUtils: vkEndCommandBuffer failed (", static_cast<int>(result), ")");
+        vkFreeCommandBuffers(device, pool, 1, &cmd);
+        return false;
+    }
+
+    VkSubmitInfo submit = {};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &cmd;
+    result = vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE);
+    if (result < 0) {
+        ME::LogError("VulkanUtils: vkQueueSubmit failed (", static_cast<int>(result), ")");
+        vkFreeCommandBuffers(device, pool, 1, &cmd);
+        return false;
+    }
+
+    // Waits for the GPU, so the commands and anything they read may be freed afterwards.
+    result = vkQueueWaitIdle(queue);
+    vkFreeCommandBuffers(device, pool, 1, &cmd);
+    if (result < 0) {
+        ME::LogError("VulkanUtils: vkQueueWaitIdle failed (", static_cast<int>(result), ")");
+        return false;
+    }
+    return true;
+}
+
 #endif  // ME_VULKAN

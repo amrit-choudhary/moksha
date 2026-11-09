@@ -91,12 +91,17 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 - `RendererVulkan` (in progress; the user writes it lesson by lesson, see the plan) targets Vulkan 1.1 core with only the
   surface and swapchain extensions, and only what phones support. Its classes mirror the DX12 ones: `ShaderVulkan`
   (`shaders/glsl/<name>.vert/.frag.spv` through `Vfs`), `QuadVulkan`, `PSOVulkan` and `PipelineLayoutVulkan` (static
-  factories like `PSODirectX` / `RootSigDx`; the renderer owns and destroys what they return), and `utils_vulkan.*`
-  (`FindMemoryType`, `CreateBuffer` / `DestroyBuffer`). One graphics + present queue family, `EXCLUSIVE` sharing.
-  Buffers use CPU-written memory, shared GPU-fast memory first (phones), plain host-visible memory as the fallback.
+  factories like `PSODirectX` / `RootSigDx`; the renderer owns and destroys what they return), `SamplerVulkan` (named
+  static factories, like DX12's static samplers), `UploadBufferVulkan`, `TextureVulkan` and `utils_vulkan.*`
+  (`FindMemoryType`, `CreateBuffer` / `DestroyBuffer`, one-time upload commands). One graphics + present queue family,
+  `EXCLUSIVE` sharing. Buffers use CPU-written memory, shared GPU-fast memory first (phones), plain host-visible memory
+  as the fallback; textures are device-local, filled through a staging copy. Descriptor sets: set 0 per pass, set 1
+  per sprite (dynamic uniform buffers, one copy per frame picked by dynamic offset), set 2 texture (combined image
+  sampler; the sampler is immutable, built into the set layout, and destroyed after the layouts).
   A `VkRenderPass` with one framebuffer per swapchain image clears through its load op; `FramesInFlight` command pools,
   fences and image-available semaphores, render-finished semaphores per swapchain image; viewport and scissor are
-  dynamic. Not done yet: constants, textures, depth, the scenes (it draws a test quad), swapchain recreation.
+  dynamic, Y flipped by a negative viewport height. Not done yet: depth, blending, the scenes (it draws one test quad
+  with a test texture), swapchain recreation.
   `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources
