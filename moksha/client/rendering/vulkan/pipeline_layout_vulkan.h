@@ -14,8 +14,14 @@ class PipelineLayoutVulkan {
    public:
     PipelineLayoutVulkan() = delete;
 
-    // Layout for 2D rendering without instancing, with texture atlases. Null on failure (logged).
-    static VkPipelineLayout CreateLayout2DAtlas(VkDevice device);
+    // Set 0: the per-pass constants (one dynamic uniform buffer, vertex stage). Null on failure (logged).
+    static VkDescriptorSetLayout CreateSetLayoutPerPass(VkDevice device);
+    // Set 1: the per-sprite constants (one dynamic uniform buffer, vertex stage). Null on failure (logged).
+    static VkDescriptorSetLayout CreateSetLayoutPerSprite(VkDevice device);
+
+    // Layout for 2D rendering without instancing, with texture atlases: set 0 per pass, set 1 per sprite.
+    static VkPipelineLayout CreateLayout2DAtlas(VkDevice device, VkDescriptorSetLayout perPass,
+                                                VkDescriptorSetLayout perSprite);
 };
 
 }  // namespace ME

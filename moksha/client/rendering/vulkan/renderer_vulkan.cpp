@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include "moksha/client/rendering/shared/shader_constants.h"
+#include "moksha/client/rendering/shared/sprite_renderer.h"
 #include "moksha/logging/logging.h"
 #include "moksha/shared/math/math.h"
 #include "pipeline_layout_vulkan.h"
@@ -130,14 +132,13 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
-    layout2DAtl = PipelineLayoutVulkan::CreateLayout2DAtlas(device);
-    if (layout2DAtl == VK_NULL_HANDLE) {
-        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline layout");
+    if (!CreatePSO()) {
+        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
         return false;
     }
-    pso2DAtl = PSOVulkan::CreatePSO2DAtlas(device, renderPass, layout2DAtl, "sprite_atlas");
-    if (pso2DAtl == VK_NULL_HANDLE) {
-        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
+
+    if (!CreateDescriptorSets()) {
+        ME::LogError("RendererVulkan: failed to create descriptor sets");
         return false;
     }
 
@@ -186,6 +187,17 @@ void ME::RendererVulkan::Draw() {
 
     vkResetFences(device, 1, &fence);
 
+    if (scene != nullptr) {
+        CBPerPass passData{};
+        passData.viewMatrix = scene->spriteCamera->GetViewMatrix().GetDataForShader();
+        passData.projectionMatrix = scene->spriteCamera->GetProjectionMatrix().GetDataForShader();
+        perPassBuffer.CopyElement(frameIndex, 0, &passData);
+    }
+
+    CBPerSprite spriteData{};
+    spriteData.modelMatrix = ME::Mat4::Scale(ME::Vec4{200.0f, 200.0f, 1.0f, 1.0f}).GetDataForShader();
+    perSpriteBuffer.CopyElement(frameIndex, 0, &spriteData);
+
     vkResetCommandPool(device, commandPools[frameIndex], 0);
 
     VkCommandBufferBeginInfo beginInfo = {};
@@ -206,15 +218,20 @@ void ME::RendererVulkan::Draw() {
     passInfo.pClearValues = &clearValue;
 
     vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
-    // draws go here
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
 
+    const VkDescriptorSet sets[2] = {perPassSet, perSpriteSet};
+    const uint32_t dynamicOffsets[2] = {perPassBuffer.GetOffset(frameIndex, 0),
+                                        perSpriteBuffer.GetOffset(frameIndex, 0)};
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 2, sets, 2, dynamicOffsets);
+
     VkViewport viewport = {};
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.y = static_cast<float>(swapchainExtent.height);
     viewport.width = static_cast<float>(swapchainExtent.width);
-    viewport.height = static_cast<float>(swapchainExtent.height);
+    viewport.height = -static_cast<float>(swapchainExtent.height);
+
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(cmd, 0, 1, &viewport);
@@ -279,6 +296,14 @@ void ME::RendererVulkan::Draw() {
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
+        if (descriptorPool != VK_NULL_HANDLE) {
+            vkDestroyDescriptorPool(device, descriptorPool, nullptr);  // frees the sets too
+            descriptorPool = VK_NULL_HANDLE;
+        }
+        perPassSet = VK_NULL_HANDLE;
+        perSpriteSet = VK_NULL_HANDLE;
+        perSpriteBuffer.End();
+        perPassBuffer.End();
         if (pso2DAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DAtl, nullptr);
             pso2DAtl = VK_NULL_HANDLE;
@@ -286,6 +311,14 @@ void ME::RendererVulkan::End() {
         if (layout2DAtl != VK_NULL_HANDLE) {
             vkDestroyPipelineLayout(device, layout2DAtl, nullptr);
             layout2DAtl = VK_NULL_HANDLE;
+        }
+        if (setLayoutPerSprite != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(device, setLayoutPerSprite, nullptr);
+            setLayoutPerSprite = VK_NULL_HANDLE;
+        }
+        if (setLayoutPerPass != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(device, setLayoutPerPass, nullptr);
+            setLayoutPerPass = VK_NULL_HANDLE;
         }
         quad.End();
         for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
@@ -802,6 +835,106 @@ bool ME::RendererVulkan::CreateSyncObjects() {
 
     ME::Log("RendererVulkan: sync objects created (", Constants::FramesInFlight, " frames, ", swapchainImageCount,
             " images)");
+    return true;
+}
+
+bool ME::RendererVulkan::CreatePSO() {
+    setLayoutPerPass = PipelineLayoutVulkan::CreateSetLayoutPerPass(device);
+    if (setLayoutPerPass == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the per-pass descriptor set layout");
+        return false;
+    }
+
+    setLayoutPerSprite = PipelineLayoutVulkan::CreateSetLayoutPerSprite(device);
+    if (setLayoutPerSprite == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the per-sprite descriptor set layout");
+        return false;
+    }
+
+    layout2DAtl = PipelineLayoutVulkan::CreateLayout2DAtlas(device, setLayoutPerPass, setLayoutPerSprite);
+    if (layout2DAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline layout");
+        return false;
+    }
+
+    pso2DAtl = PSOVulkan::CreatePSO2DAtlas(device, renderPass, layout2DAtl, "sprite_atlas");
+    if (pso2DAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
+        return false;
+    }
+
+    return true;
+}
+
+bool ME::RendererVulkan::CreateDescriptorSets() {
+    if (!perPassBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerPass))) {
+        ME::LogError("RendererVulkan: failed to create the per-pass constant buffer");
+        return false;
+    }
+    if (!perSpriteBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerSprite))) {
+        ME::LogError("RendererVulkan: failed to create the per-sprite constant buffer");
+        return false;
+    }
+
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    poolSize.descriptorCount = 2;
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.maxSets = 2;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    VkResult result = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkCreateDescriptorPool failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = 1;
+    allocInfo.pSetLayouts = &setLayoutPerPass;
+    result = vkAllocateDescriptorSets(device, &allocInfo, &perPassSet);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (per pass) failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    allocInfo.pSetLayouts = &setLayoutPerSprite;
+    result = vkAllocateDescriptorSets(device, &allocInfo, &perSpriteSet);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (per sprite) failed (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkDescriptorBufferInfo passInfo = {};
+    passInfo.buffer = perPassBuffer.GetBuffer();
+    passInfo.offset = 0;
+    passInfo.range = perPassBuffer.GetElementSize();
+
+    VkDescriptorBufferInfo spriteInfo = {};
+    spriteInfo.buffer = perSpriteBuffer.GetBuffer();
+    spriteInfo.offset = 0;
+    spriteInfo.range = perSpriteBuffer.GetElementSize();
+
+    VkWriteDescriptorSet writes[2] = {};
+    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writes[0].dstSet = perPassSet;
+    writes[0].dstBinding = 0;
+    writes[0].dstArrayElement = 0;
+    writes[0].descriptorCount = 1;
+    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    writes[0].pBufferInfo = &passInfo;
+    writes[1] = writes[0];
+    writes[1].dstSet = perSpriteSet;
+    writes[1].pBufferInfo = &spriteInfo;
+
+    // Written once: the descriptors cover every frame's copy, and each frame picks its copy with a dynamic offset.
+    vkUpdateDescriptorSets(device, 2, writes, 0, nullptr);
+
+    ME::Log("RendererVulkan: descriptor sets created");
     return true;
 }
 

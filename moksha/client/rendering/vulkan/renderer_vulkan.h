@@ -14,6 +14,7 @@
 #include "moksha/client/rendering/shared/renderer.h"
 #include "moksha/shared/misc/engine_limits.h"
 #include "quad_vulkan.h"
+#include "upload_buffer_vulkan.h"
 
 namespace ME {
 
@@ -75,9 +76,19 @@ class RendererVulkan : public PlatformRenderer {
 
     ME::QuadVulkan quad;
 
+    // Descriptor set layouts (set 0 per pass, set 1 per sprite), shared by the pipeline layouts and the sets.
+    VkDescriptorSetLayout setLayoutPerPass = VK_NULL_HANDLE;
+    VkDescriptorSetLayout setLayoutPerSprite = VK_NULL_HANDLE;
+
     // Pipelines and their layouts, as RendererDX's PSOs and root signatures.
     VkPipelineLayout layout2DAtl = VK_NULL_HANDLE;
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
+
+    UploadBufferVulkan perPassBuffer;    // one CBPerPass per frame
+    UploadBufferVulkan perSpriteBuffer;  // one CBPerSprite per frame (the test quad)
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+    VkDescriptorSet perPassSet = VK_NULL_HANDLE;
+    VkDescriptorSet perSpriteSet = VK_NULL_HANDLE;
 
     bool CreateInstance();
     bool SetupDebugMessenger();
@@ -91,6 +102,8 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateSwapchainFramebuffers();
     bool CreateCommandBuffers();
     bool CreateSyncObjects();
+    bool CreatePSO();
+    bool CreateDescriptorSets();
 };
 
 }  // namespace ME
