@@ -78,15 +78,26 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   sprite/mesh/text renderers, colliders, lights, cameras) filled by game subclasses through `Build*` virtuals.
   No graphics-API calls in them.
 - `PlatformRenderer` (`rendering/shared/renderer.h`) is what each backend implements. `ClientApp` holds its backend by
-  concrete type and creates it with the backend's own `InitDX`/`InitMetal`/`InitNull`; the rest goes through the interface.
+  concrete type and creates it with the backend's own `InitDX`/`InitMetal`/`InitWebGPU`/`InitVulkan`/`InitNull`; the
+  rest goes through the interface.
 - Backends read the scenes each frame: DX12 (`rendering/directx/`, `scene/scene_dx.*`, `scene/scene_ui_dx.*`),
   Metal (`rendering/metal/`, `scene/scene_metal.*`), WebGPU (`rendering/webgpu/`, `scene/scene_webgpu.*`,
-  `scene/scene_ui_webgpu.*`), Vulkan (`rendering/vulkan/`, Android; skeleton, see
+  `scene/scene_ui_webgpu.*`), Vulkan (`rendering/vulkan/`, Android; in progress, see
   [docs/android_port_plan.md](../../docs/android_port_plan.md)), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_WEBGPU` / `ME_VULKAN` / `ME_HEADLESS`, never on the OS define.
 - Vulkan reaches the window only through `VulkanView` (`rendering/vulkan/vulkan_view.h`: instance extensions,
   `CreateSurface`, pixel size), implemented per OS in `platform/<os>/`. On Windows (`win_vulkan_view.*`) it is a
   development-only build (`-DMOKSHA_RENDERER=VULKAN`, needs the Vulkan SDK); DX12 stays the Windows renderer.
+- `RendererVulkan` (in progress; the user writes it lesson by lesson, see the plan) targets Vulkan 1.1 core with only the
+  surface and swapchain extensions, and only what phones support. Its classes mirror the DX12 ones: `ShaderVulkan`
+  (`shaders/glsl/<name>.vert/.frag.spv` through `Vfs`), `QuadVulkan`, `PSOVulkan` and `PipelineLayoutVulkan` (static
+  factories like `PSODirectX` / `RootSigDx`; the renderer owns and destroys what they return), and `utils_vulkan.*`
+  (`FindMemoryType`, `CreateBuffer` / `DestroyBuffer`). One graphics + present queue family, `EXCLUSIVE` sharing.
+  Buffers use CPU-written memory, shared GPU-fast memory first (phones), plain host-visible memory as the fallback.
+  A `VkRenderPass` with one framebuffer per swapchain image clears through its load op; `FramesInFlight` command pools,
+  fences and image-available semaphores, render-finished semaphores per swapchain image; viewport and scissor are
+  dynamic. Not done yet: constants, textures, depth, the scenes (it draws a test quad), swapchain recreation.
+  `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources
   alive, and `queue.writeBuffer` copies, so there are no frames in flight, fences or `FlushCommandQueue`; never call

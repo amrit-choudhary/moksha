@@ -13,6 +13,7 @@
 
 #include "moksha/client/rendering/shared/renderer.h"
 #include "moksha/shared/misc/engine_limits.h"
+#include "quad_vulkan.h"
 
 namespace ME {
 
@@ -71,6 +72,12 @@ class RendererVulkan : public PlatformRenderer {
     VkSemaphore imageAvailableSemaphores[Constants::FramesInFlight] = {};
     VkFence inFlightFences[Constants::FramesInFlight] = {};
     VkSemaphore renderFinishedSemaphores[kMaxSwapchainImages] = {};
+
+    ME::QuadVulkan quad;
+
+    // Pipelines and their layouts, as RendererDX's PSOs and root signatures.
+    VkPipelineLayout layout2DAtl = VK_NULL_HANDLE;
+    VkPipeline pso2DAtl = VK_NULL_HANDLE;
 
     bool CreateInstance();
     bool SetupDebugMessenger();

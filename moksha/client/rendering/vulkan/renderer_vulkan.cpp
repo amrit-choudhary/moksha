@@ -6,7 +6,9 @@
 
 #include "moksha/logging/logging.h"
 #include "moksha/shared/math/math.h"
-#include "shader_vulkan.h"
+#include "pipeline_layout_vulkan.h"
+#include "pso_vulkan.h"
+#include "utils_vulkan.h"
 #include "vulkan_view.h"
 
 namespace {
@@ -54,22 +56,6 @@ VkDebugUtilsMessengerCreateInfoEXT MakeMessengerCreateInfo() {
                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     info.pfnUserCallback = OnVulkanMessage;
     return info;
-}
-
-// Readable name of a GPU type, for the log.
-const char* DeviceTypeName(VkPhysicalDeviceType type) {
-    switch (type) {
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-            return "discrete";
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-            return "integrated";
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-            return "virtual";
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-            return "cpu";
-        default:
-            return "other";
-    }
 }
 
 }  // namespace
@@ -139,12 +125,21 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
-    ShaderVulkan shader;
-    if (!shader.Init(device, "sprite_atlas")) {
-        ME::LogError("Can't load shader");
+    if (!quad.Init(physicalDevice, device)) {
+        ME::LogError("RendererVulkan: failed to create quad");
+        return false;
     }
-    ME::Log("RendererVulkan: sprite_atlas shader loaded");
-    shader.End();
+
+    layout2DAtl = PipelineLayoutVulkan::CreateLayout2DAtlas(device);
+    if (layout2DAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline layout");
+        return false;
+    }
+    pso2DAtl = PSOVulkan::CreatePSO2DAtlas(device, renderPass, layout2DAtl, "sprite_atlas");
+    if (pso2DAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
+        return false;
+    }
 
     return true;
 }
@@ -212,6 +207,30 @@ void ME::RendererVulkan::Draw() {
 
     vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
     // draws go here
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
+
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapchainExtent.width);
+    viewport.height = static_cast<float>(swapchainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = swapchainExtent;
+    vkCmdSetScissor(cmd, 0, 1, &scissor);
+
+    const VkBuffer vertexBuffer = quad.GetVertexBuffer();
+    const VkDeviceSize vertexOffset = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &vertexOffset);
+    vkCmdBindIndexBuffer(cmd, quad.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdDrawIndexed(cmd, quad.indexCount, 1, 0, 0, 0);
+
     vkCmdEndRenderPass(cmd);
 
     result = vkEndCommandBuffer(cmd);
@@ -260,6 +279,15 @@ void ME::RendererVulkan::Draw() {
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
+        if (pso2DAtl != VK_NULL_HANDLE) {
+            vkDestroyPipeline(device, pso2DAtl, nullptr);
+            pso2DAtl = VK_NULL_HANDLE;
+        }
+        if (layout2DAtl != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, layout2DAtl, nullptr);
+            layout2DAtl = VK_NULL_HANDLE;
+        }
+        quad.End();
         for (uint32_t i = 0; i < kMaxSwapchainImages; ++i) {
             if (renderFinishedSemaphores[i] != VK_NULL_HANDLE) {
                 vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
@@ -438,9 +466,9 @@ bool ME::RendererVulkan::PickPhysicalDevice() {
     for (uint32_t i = 0; i < gpuCount; ++i) {
         VkPhysicalDeviceProperties props = {};
         vkGetPhysicalDeviceProperties(gpus[i], &props);
-        ME::Log("RendererVulkan: GPU ", i, ": ", props.deviceName, " (", DeviceTypeName(props.deviceType), ", Vulkan ",
-                VK_API_VERSION_MAJOR(props.apiVersion), ".", VK_API_VERSION_MINOR(props.apiVersion), ".",
-                VK_API_VERSION_PATCH(props.apiVersion), ")");
+        ME::Log("RendererVulkan: GPU ", i, ": ", props.deviceName, " (",
+                ME::VulkanUtils::DeviceTypeName(props.deviceType), ", Vulkan ", VK_API_VERSION_MAJOR(props.apiVersion),
+                ".", VK_API_VERSION_MINOR(props.apiVersion), ".", VK_API_VERSION_PATCH(props.apiVersion), ")");
 
         if (props.apiVersion < VK_API_VERSION_1_1) {
             continue;  // too old for us
