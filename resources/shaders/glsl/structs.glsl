@@ -12,3 +12,16 @@ struct CBPerSprite {
     uint atlasIndex;
     uint flags;
 };
+
+// Texture Atlas Properties
+struct TextureAtlasProperties {
+    uint tileSizeX;
+    uint tileSizeY;
+    uint padding;
+    uint numTextures;
+    uint numTilesX;
+    uint numTilesY;
+    uint width;
+    uint height;
+    uint paddingType;
+};

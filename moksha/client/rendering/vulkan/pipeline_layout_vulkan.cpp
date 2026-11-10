@@ -4,9 +4,9 @@
 
 #include "moksha/logging/logging.h"
 
-VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateSetLayoutPerPass(VkDevice device) {
+VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateDescriptorSetLayoutPerPass(VkDevice device) {
     VkDescriptorSetLayoutBinding binding = {};
-    binding.binding = 0;
+    binding.binding = 0;  // CBPerPass
     binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     binding.descriptorCount = 1;
     binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -26,18 +26,21 @@ VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateSetLayoutPerPass(VkDevice 
     return setLayout;
 }
 
-VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateSetLayoutPerSprite(VkDevice device) {
-    VkDescriptorSetLayoutBinding binding = {};
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    binding.pImmutableSamplers = nullptr;
+VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateDescriptorSetLayoutPerSprite(VkDevice device) {
+    VkDescriptorSetLayoutBinding bindings[2] = {};
+    bindings[0].binding = 0;  // CBPerSprite
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    bindings[0].descriptorCount = 1;
+    bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    bindings[0].pImmutableSamplers = nullptr;
+
+    bindings[1] = bindings[0];
+    bindings[1].binding = 1;  // TextureAtlasProperties
 
     VkDescriptorSetLayoutCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    info.bindingCount = 1;
-    info.pBindings = &binding;
+    info.bindingCount = 2;
+    info.pBindings = bindings;
 
     VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
     const VkResult result = vkCreateDescriptorSetLayout(device, &info, nullptr, &setLayout);
@@ -48,7 +51,7 @@ VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateSetLayoutPerSprite(VkDevic
     return setLayout;
 }
 
-VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateSetLayoutTexture(VkDevice device, VkSampler sampler) {
+VkDescriptorSetLayout ME::PipelineLayoutVulkan::CreateDescriptorSetLayoutTexture(VkDevice device, VkSampler sampler) {
     VkDescriptorSetLayoutBinding binding = {};
     binding.binding = 0;
     binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

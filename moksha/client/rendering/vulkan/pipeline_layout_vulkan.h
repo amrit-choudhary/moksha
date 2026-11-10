@@ -15,14 +15,15 @@ class PipelineLayoutVulkan {
     PipelineLayoutVulkan() = delete;
 
     // Set 0: the per-pass constants (one dynamic uniform buffer, vertex stage). Null on failure (logged).
-    static VkDescriptorSetLayout CreateSetLayoutPerPass(VkDevice device);
+    static VkDescriptorSetLayout CreateDescriptorSetLayoutPerPass(VkDevice device);
 
-    // Set 1: the per-sprite constants (one dynamic uniform buffer, vertex stage). Null on failure (logged).
-    static VkDescriptorSetLayout CreateSetLayoutPerSprite(VkDevice device);
+    // Set 1: binding 0 the per-sprite constants, binding 1 their atlas properties (dynamic uniform buffers, vertex
+    // stage). Null on failure (logged).
+    static VkDescriptorSetLayout CreateDescriptorSetLayoutPerSprite(VkDevice device);
 
     // Set 2: one texture with sampler built in (an immutable sampler: the sets only supply the image). sampler must
     // outlive the layout and every set made with it. Null on failure (logged).
-    static VkDescriptorSetLayout CreateSetLayoutTexture(VkDevice device, VkSampler sampler);
+    static VkDescriptorSetLayout CreateDescriptorSetLayoutTexture(VkDevice device, VkSampler sampler);
 
     // Layout for 2D rendering without instancing, with texture atlases: set 0 per pass, set 1 per sprite, set 2
     // texture.

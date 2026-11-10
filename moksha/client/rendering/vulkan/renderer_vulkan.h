@@ -103,8 +103,11 @@ class RendererVulkan : public PlatformRenderer {
 
     VkCommandPool uploadCommandPool = VK_NULL_HANDLE;
 
-    // TODO: a test texture; textures move to the scene once the scenes are drawn.
+    // TODO: a test texture and its atlas properties; both move to the scene once the scenes are drawn.
     ME::TextureVulkan testTexture;
+    ME::TextureAtlasProperties testAtlasProps = {};
+    UploadBufferVulkan atlasBuffer;  // one TextureAtlasProperties per frame (the test texture's)
+    uint32_t testFrameCounter = 0;   // TODO: test only; steps the test quad through the atlas
 
     bool CreateInstance();
     bool SetupDebugMessenger();
