@@ -3,8 +3,8 @@
 
 /**
  * Renderer class for Vulkan (Android; on Windows a development-only build). Reaches the window only through
- * VulkanView, so the same code runs on every OS. In progress: each frame clears the swapchain image through the
- * render pass and presents it; the scenes are updated but not drawn yet.
+ * VulkanView, so the same code runs on every OS. In progress: draws the game scene's plain sprites (SceneVulkan owns
+ * their textures, buffers and sets); instanced sprites and the UI scenes are updated but not drawn yet.
  */
 
 #include <vulkan/vulkan.h>
@@ -14,12 +14,11 @@
 #include "moksha/client/rendering/shared/renderer.h"
 #include "moksha/shared/misc/engine_limits.h"
 #include "quad_vulkan.h"
-#include "texture_vulkan.h"
-#include "upload_buffer_vulkan.h"
 
 namespace ME {
 
 class Scene;
+class SceneVulkan;
 class SceneUI;
 class VulkanView;
 class WindowState;
@@ -45,6 +44,7 @@ class RendererVulkan : public PlatformRenderer {
 
    private:
     ME::Scene* scene = nullptr;
+    ME::SceneVulkan* sceneVulkan = nullptr;
     ME::SceneUI* uiScene = nullptr;
     ME::SceneUI* debugUiScene = nullptr;
 
@@ -94,20 +94,8 @@ class RendererVulkan : public PlatformRenderer {
     VkPipelineLayout layout2DAtl = VK_NULL_HANDLE;
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
 
-    UploadBufferVulkan perPassBuffer;    // one CBPerPass per frame
-    UploadBufferVulkan perSpriteBuffer;  // one CBPerSprite per frame (the test quad)
-    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
-    VkDescriptorSet perPassSet = VK_NULL_HANDLE;
-    VkDescriptorSet perSpriteSet = VK_NULL_HANDLE;
-    VkDescriptorSet textureSet = VK_NULL_HANDLE;
-
+    // One-time upload commands (the scenes' textures).
     VkCommandPool uploadCommandPool = VK_NULL_HANDLE;
-
-    // TODO: a test texture and its atlas properties; both move to the scene once the scenes are drawn.
-    ME::TextureVulkan testTexture;
-    ME::TextureAtlasProperties testAtlasProps = {};
-    UploadBufferVulkan atlasBuffer;  // one TextureAtlasProperties per frame (the test texture's)
-    uint32_t testFrameCounter = 0;   // TODO: test only; steps the test quad through the atlas
 
     bool CreateInstance();
     bool SetupDebugMessenger();
@@ -124,7 +112,9 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateCommandBuffers();
     bool CreateSyncObjects();
     bool CreatePSO();
-    bool CreateDescriptorSets();
+
+    // Draws the scene's plain sprites: set 0 once, then sets 1 and 2 per sprite.
+    void DrawSprites(VkCommandBuffer cmd);
 };
 
 }  // namespace ME

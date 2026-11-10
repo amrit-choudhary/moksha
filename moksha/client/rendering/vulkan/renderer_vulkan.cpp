@@ -4,9 +4,8 @@
 
 #include <cstring>
 
-#include "moksha/client/rendering/shared/shader_constants.h"
 #include "moksha/client/rendering/shared/sprite_renderer.h"
-#include "moksha/client/utils/json_utils.h"
+#include "moksha/client/scene/scene_vulkan.h"
 #include "moksha/logging/logging.h"
 #include "moksha/shared/math/math.h"
 #include "pipeline_layout_vulkan.h"
@@ -23,7 +22,8 @@ constexpr uint32_t kMaxPhysicalDevices = 8;
 constexpr uint32_t kMaxQueueFamilies = 16;
 constexpr uint32_t kMaxSurfaceFormats = 32;
 
-// True if the loader finds the validation layer. Used for debug.
+#ifndef NDEBUG
+// True if the loader finds the validation layer. Debug builds only, like the layer itself.
 bool HasValidationLayer() {
     VkLayerProperties layers[64] = {};
     uint32_t layerCount = 64;
@@ -37,6 +37,7 @@ bool HasValidationLayer() {
     }
     return false;
 }
+#endif
 
 // Sends validation messages to the engine log. VK_FALSE lets the call that caused the message carry on.
 VKAPI_ATTR VkBool32 VKAPI_CALL OnVulkanMessage(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -67,7 +68,7 @@ VkDebugUtilsMessengerCreateInfoEXT MakeMessengerCreateInfo() {
 bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState* inWindow) {
     view = inView;
     window = inWindow;
-    ME::Log("RendererVulkan::Init (skeleton: nothing is drawn yet)");
+    ME::Log("RendererVulkan::Init");
 
     if (!CreateInstance()) {
         ME::LogError("RendererVulkan: failed to create Vulkan instance");
@@ -156,27 +157,34 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
-    if (!testTexture.Init(physicalDevice, device, graphicsQueue, uploadCommandPool, "textures/ui/ui_atlas.dds")) {
-        ME::LogError("RendererVulkan: failed to initialize the test texture");
-        return false;
-    }
-
-    if (!ME::JsonUtils::LoadTextureAtlasProps("texture_data/atlas_ui.json", testAtlasProps)) {
-        ME::LogError("RendererVulkan: failed to load the test atlas properties");
-        return false;
-    }
-
-    if (!CreateDescriptorSets()) {
-        ME::LogError("RendererVulkan: failed to create descriptor sets");
-        return false;
-    }
-
     return true;
 }
 
 void ME::RendererVulkan::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene) {
     scene = gameScene;
     uiScene = inUiScene;
+    if (device == VK_NULL_HANDLE) {
+        return;  // InitVulkan failed
+    }
+
+    // Frames in flight may still read the old scene's buffers and sets.
+    vkDeviceWaitIdle(device);
+    if (sceneVulkan != nullptr) {
+        sceneVulkan->End();
+        delete sceneVulkan;
+        sceneVulkan = nullptr;
+    }
+
+    if (gameScene != nullptr) {
+        sceneVulkan = new ME::SceneVulkan();
+        if (!sceneVulkan->Init(physicalDevice, device, graphicsQueue, uploadCommandPool, setLayoutPerPass,
+                               setLayoutPerSprite, setLayoutTexture, gameScene)) {
+            ME::LogError("RendererVulkan: failed to create the scene's GPU resources");
+            sceneVulkan->End();
+            delete sceneVulkan;
+            sceneVulkan = nullptr;
+        }
+    }
 }
 
 void ME::RendererVulkan::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
@@ -216,22 +224,10 @@ void ME::RendererVulkan::Draw() {
 
     vkResetFences(device, 1, &fence);
 
-    if (scene != nullptr) {
-        CBPerPass passData{};
-        passData.viewMatrix = scene->spriteCamera->GetViewMatrix().GetDataForShader();
-        passData.projectionMatrix = scene->spriteCamera->GetProjectionMatrix().GetDataForShader();
-        perPassBuffer.CopyElement(frameIndex, 0, &passData);
+    // This slot's previous frame is done (the fence above), so its copies are free to write.
+    if (sceneVulkan != nullptr) {
+        sceneVulkan->UploadFrame(frameIndex);
     }
-
-    atlasBuffer.CopyElement(frameIndex, 0, &testAtlasProps);
-
-    CBPerSprite spriteData{};
-    spriteData.modelMatrix = ME::Mat4::Scale(ME::Vec4{200.0f, 200.0f, 1.0f, 1.0f}).GetDataForShader();
-    spriteData.color = ME::Color{1.0f, 1.0f, 1.0f, 1.0f};  // a visible tint
-    ++testFrameCounter;
-    spriteData.atlasIndex = (testFrameCounter / 10) % testAtlasProps.numTextures;
-    spriteData.flags = 0;
-    perSpriteBuffer.CopyElement(frameIndex, 0, &spriteData);
 
     vkResetCommandPool(device, commandPools[frameIndex], 0);
 
@@ -255,13 +251,7 @@ void ME::RendererVulkan::Draw() {
 
     vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
-
-    const VkDescriptorSet sets[3] = {perPassSet, perSpriteSet, textureSet};
-    const uint32_t dynamicOffsets[3] = {perPassBuffer.GetOffset(frameIndex, 0),
-                                        perSpriteBuffer.GetOffset(frameIndex, 0), atlasBuffer.GetOffset(frameIndex, 0)};
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 3, sets, 3, dynamicOffsets);
-
+    // Shared by every pass: dynamic in each pipeline, so binding a pipeline keeps them.
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = static_cast<float>(swapchainExtent.height);
@@ -282,7 +272,7 @@ void ME::RendererVulkan::Draw() {
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &vertexOffset);
     vkCmdBindIndexBuffer(cmd, quad.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdDrawIndexed(cmd, quad.indexCount, 1, 0, 0, 0);
+    DrawSprites(cmd);
 
     vkCmdEndRenderPass(cmd);
 
@@ -332,17 +322,12 @@ void ME::RendererVulkan::Draw() {
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
-        if (descriptorPool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(device, descriptorPool, nullptr);  // frees the sets too
-            descriptorPool = VK_NULL_HANDLE;
+        // First: the scene's sets were made from the set layouts destroyed below.
+        if (sceneVulkan != nullptr) {
+            sceneVulkan->End();
+            delete sceneVulkan;
+            sceneVulkan = nullptr;
         }
-        perPassSet = VK_NULL_HANDLE;
-        perSpriteSet = VK_NULL_HANDLE;
-        textureSet = VK_NULL_HANDLE;
-        perSpriteBuffer.End();
-        perPassBuffer.End();
-        atlasBuffer.End();
-        testTexture.End();
         if (pso2DAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DAtl, nullptr);
             pso2DAtl = VK_NULL_HANDLE;
@@ -971,112 +956,34 @@ bool ME::RendererVulkan::CreatePSO() {
     return true;
 }
 
-bool ME::RendererVulkan::CreateDescriptorSets() {
-    if (!perPassBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerPass))) {
-        ME::LogError("RendererVulkan: failed to create the per-pass constant buffer");
-        return false;
+void ME::RendererVulkan::DrawSprites(VkCommandBuffer cmd) {
+    if (sceneVulkan == nullptr || sceneVulkan->spriteCount == 0) {
+        return;
     }
-    if (!perSpriteBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerSprite))) {
-        ME::LogError("RendererVulkan: failed to create the per-sprite constant buffer");
-        return false;
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
+
+    // Set 0 once: binding sets 1 and 2 below leaves it bound.
+    const uint32_t passOffset = sceneVulkan->GetPerPassOffset(frameIndex);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 1, &sceneVulkan->perPassSet, 1,
+                            &passOffset);
+
+    for (uint32_t i = 0; i < sceneVulkan->spriteCount; ++i) {
+        const ME::SpriteRenderer& sprite = sceneVulkan->spriteRenderers[i];
+        // Skip sprites whose texture didn't load or whose ids are out of range.
+        if (sprite.textureId >= sceneVulkan->spriteTextureCount ||
+            sceneVulkan->textureSets[sprite.textureId] == VK_NULL_HANDLE ||
+            sprite.textureAtlasPropsId >= sceneVulkan->atlasCount) {
+            continue;
+        }
+
+        // Sets 1 and 2; the offsets are set 1's: binding 0 the sprite, binding 1 its atlas.
+        const VkDescriptorSet sets[2] = {sceneVulkan->perSpriteSet, sceneVulkan->textureSets[sprite.textureId]};
+        const uint32_t offsets[2] = {sceneVulkan->GetSpriteOffset(frameIndex, i),
+                                     sceneVulkan->GetAtlasOffset(frameIndex, sprite.textureAtlasPropsId)};
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 1, 2, sets, 2, offsets);
+
+        vkCmdDrawIndexed(cmd, quad.indexCount, 1, 0, 0, 0);
     }
-    if (!atlasBuffer.Init(physicalDevice, device, 1, sizeof(ME::TextureAtlasProperties))) {
-        ME::LogError("RendererVulkan: failed to create the atlas properties buffer");
-        return false;
-    }
-
-    VkDescriptorPoolSize poolSizes[2] = {};
-    poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    poolSizes[0].descriptorCount = 3;
-    poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = 1;
-
-    VkDescriptorPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = 3;
-    poolInfo.poolSizeCount = 2;
-    poolInfo.pPoolSizes = poolSizes;
-    VkResult result = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
-    if (result != VK_SUCCESS) {
-        ME::LogError("RendererVulkan: vkCreateDescriptorPool failed (", static_cast<int>(result), ")");
-        return false;
-    }
-
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &setLayoutPerPass;
-    result = vkAllocateDescriptorSets(device, &allocInfo, &perPassSet);
-    if (result != VK_SUCCESS) {
-        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (per pass) failed (", static_cast<int>(result), ")");
-        return false;
-    }
-
-    allocInfo.pSetLayouts = &setLayoutPerSprite;
-    result = vkAllocateDescriptorSets(device, &allocInfo, &perSpriteSet);
-    if (result != VK_SUCCESS) {
-        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (per sprite) failed (", static_cast<int>(result), ")");
-        return false;
-    }
-
-    allocInfo.pSetLayouts = &setLayoutTexture;
-    result = vkAllocateDescriptorSets(device, &allocInfo, &textureSet);
-    if (result != VK_SUCCESS) {
-        ME::LogError("RendererVulkan: vkAllocateDescriptorSets (texture) failed (", static_cast<int>(result), ")");
-        return false;
-    }
-
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.sampler = VK_NULL_HANDLE;  // ignored: the layout's immutable sampler is used
-    imageInfo.imageView = testTexture.GetImageView();
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkDescriptorBufferInfo passInfo = {};
-    passInfo.buffer = perPassBuffer.GetBuffer();
-    passInfo.offset = 0;
-    passInfo.range = perPassBuffer.GetElementSize();
-
-    VkDescriptorBufferInfo spriteInfo = {};
-    spriteInfo.buffer = perSpriteBuffer.GetBuffer();
-    spriteInfo.offset = 0;
-    spriteInfo.range = perSpriteBuffer.GetElementSize();
-
-    VkDescriptorBufferInfo atlasInfo = {};
-    atlasInfo.buffer = atlasBuffer.GetBuffer();
-    atlasInfo.offset = 0;
-    atlasInfo.range = atlasBuffer.GetElementSize();
-
-    VkWriteDescriptorSet writes[4] = {};
-    writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[0].dstSet = perPassSet;
-    writes[0].dstBinding = 0;
-    writes[0].dstArrayElement = 0;
-    writes[0].descriptorCount = 1;
-    writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    writes[0].pBufferInfo = &passInfo;
-
-    writes[1] = writes[0];
-    writes[1].dstSet = perSpriteSet;
-    writes[1].pBufferInfo = &spriteInfo;
-
-    writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writes[2].dstSet = textureSet;
-    writes[2].dstBinding = 0;
-    writes[2].dstArrayElement = 0;
-    writes[2].descriptorCount = 1;
-    writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    writes[2].pImageInfo = &imageInfo;
-
-    writes[3] = writes[1];
-    writes[3].dstBinding = 1;
-    writes[3].pBufferInfo = &atlasInfo;
-
-    // Written once: the descriptors cover every frame's copy, and each frame picks its copy with a dynamic offset.
-    vkUpdateDescriptorSets(device, 4, writes, 0, nullptr);
-
-    ME::Log("RendererVulkan: descriptor sets created");
-    return true;
 }
 
 bool ME::RendererVulkan::PickDepthFormat() {

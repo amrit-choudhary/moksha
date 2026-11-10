@@ -85,6 +85,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   `scene/scene_ui_webgpu.*`), Vulkan (`rendering/vulkan/`, Android; in progress, see
   [docs/android_port_plan.md](../../docs/android_port_plan.md)), null (`rendering/null/`, headless: updates scenes, draws
   nothing). They switch on `ME_DX12` / `ME_METAL` / `ME_WEBGPU` / `ME_VULKAN` / `ME_HEADLESS`, never on the OS define.
+- **Backends stay in step.** A structural improvement made in one backend (buffer layout, ownership, lifecycle, failure
+  handling; not an API-specific detail) belongs in every other backend too, but is never applied right away: Claude
+  adds it to the backport backlog (Android: the "Backport list" in
+  [docs/android_port_plan.md](../../docs/android_port_plan.md)), reminds the user of the open items at the end of each
+  step, and applies one only when the user asks.
 - Vulkan reaches the window only through `VulkanView` (`rendering/vulkan/vulkan_view.h`: instance extensions,
   `CreateSurface`, pixel size), implemented per OS in `platform/<os>/`. On Windows (`win_vulkan_view.*`) it is a
   development-only build (`-DMOKSHA_RENDERER=VULKAN`, needs the Vulkan SDK); DX12 stays the Windows renderer.
@@ -97,11 +102,16 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   `EXCLUSIVE` sharing. Buffers use CPU-written memory, shared GPU-fast memory first (phones), plain host-visible memory
   as the fallback; textures are device-local, filled through a staging copy. Descriptor sets: set 0 per pass, set 1
   per sprite (dynamic uniform buffers, one copy per frame picked by dynamic offset), set 2 texture (combined image
-  sampler; the sampler is immutable, built into the set layout, and destroyed after the layouts).
+  sampler; the sampler is immutable, built into the set layout, and destroyed after the layouts). Set 1 holds the
+  sprite constants (binding 0) and their atlas properties (binding 1); dynamic offsets go set by set, binding by binding.
+  Depth: one image shared by all frames, format queried (D32, X8_D24, then D16), a transient attachment in lazily
+  allocated memory when the GPU has it, cleared by the load op and never stored.
   A `VkRenderPass` with one framebuffer per swapchain image clears through its load op; `FramesInFlight` command pools,
   fences and image-available semaphores, render-finished semaphores per swapchain image; viewport and scissor are
-  dynamic, Y flipped by a negative viewport height. Not done yet: depth, blending, the scenes (it draws one test quad
-  with a test texture), swapchain recreation.
+  dynamic, Y flipped by a negative viewport height. `SceneVulkan` (`scene/scene_vulkan.*`, made by `SetScenes` after a
+  device wait) owns a scene's sprite textures, one buffer for all sprites, one for all atlases, and its own pool and
+  sets (set 2 per texture); `DrawSprites` binds set 0 once, then sets 1 and 2 per sprite, skipping out-of-range ids.
+  Not done yet: instanced sprites, the UI scenes, blending, swapchain recreation.
   `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources
