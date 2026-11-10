@@ -108,6 +108,16 @@ bool ME::RendererVulkan::InitVulkan(const VulkanView* inView, const WindowState*
         return false;
     }
 
+    if (!PickDepthFormat()) {
+        ME::LogError("RendererVulkan: failed to pick a depth format");
+        return false;
+    }
+
+    if (!CreateDepthResources()) {
+        ME::LogError("RendererVulkan: failed to create the depth buffer");
+        return false;
+    }
+
     if (!CreateRenderPass()) {
         ME::LogError("RendererVulkan: failed to create render pass");
         return false;
@@ -218,8 +228,9 @@ void ME::RendererVulkan::Draw() {
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkBeginCommandBuffer(cmd, &beginInfo);
 
-    VkClearValue clearValue = {};
-    clearValue.color = {{0.01f, 0.01f, 0.01f, 1.0f}};  // same as RendererDX
+    VkClearValue clearValues[2] = {};
+    clearValues[0].color = {{0.01f, 0.01f, 0.01f, 1.0f}};  // same as RendererDX
+    clearValues[1].depthStencil = {1.0f, 0};
 
     VkRenderPassBeginInfo passInfo = {};
     passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -227,8 +238,8 @@ void ME::RendererVulkan::Draw() {
     passInfo.framebuffer = swapchainFramebuffers[imageIndex];
     passInfo.renderArea.offset = {0, 0};
     passInfo.renderArea.extent = swapchainExtent;
-    passInfo.clearValueCount = 1;
-    passInfo.pClearValues = &clearValue;
+    passInfo.clearValueCount = 2;
+    passInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(cmd, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -380,6 +391,19 @@ void ME::RendererVulkan::End() {
                 swapchainFramebuffers[i] = VK_NULL_HANDLE;
             }
         }
+        // After the framebuffers, which reference the view; the view goes before its image.
+        if (depthImageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(device, depthImageView, nullptr);
+            depthImageView = VK_NULL_HANDLE;
+        }
+        if (depthImage != VK_NULL_HANDLE) {
+            vkDestroyImage(device, depthImage, nullptr);
+            depthImage = VK_NULL_HANDLE;
+        }
+        if (depthMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(device, depthMemory, nullptr);
+            depthMemory = VK_NULL_HANDLE;
+        }
         if (renderPass != VK_NULL_HANDLE) {
             vkDestroyRenderPass(device, renderPass, nullptr);
             renderPass = VK_NULL_HANDLE;
@@ -399,6 +423,7 @@ void ME::RendererVulkan::End() {
     }
     graphicsQueue = VK_NULL_HANDLE;
     swapchainFormat = VK_FORMAT_UNDEFINED;
+    depthFormat = VK_FORMAT_UNDEFINED;
     swapchainExtent = {};
     swapchainImageCount = 0;  // the images were owned by the swapchain
 
@@ -741,23 +766,41 @@ bool ME::RendererVulkan::CreateRenderPass() {
     colorRef.attachment = 0;
     colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription depth = {};
+    depth.format = depthFormat;
+    depth.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef = {};
+    depthRef.attachment = 1;  // index into pAttachments
+    depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
+    subpass.pDepthStencilAttachment = &depthRef;
 
     VkSubpassDependency dependency = {};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    VkAttachmentDescription attachments[2] = {color, depth};
 
     VkRenderPassCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    info.attachmentCount = 1;
-    info.pAttachments = &color;
+    info.attachmentCount = 2;
+    info.pAttachments = attachments;
     info.subpassCount = 1;
     info.pSubpasses = &subpass;
     info.dependencyCount = 1;
@@ -775,11 +818,13 @@ bool ME::RendererVulkan::CreateRenderPass() {
 
 bool ME::RendererVulkan::CreateSwapchainFramebuffers() {
     for (uint32_t i = 0; i < swapchainImageCount; ++i) {
+        const VkImageView attachments[2] = {swapchainImageViews[i], depthImageView};
+
         VkFramebufferCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         info.renderPass = renderPass;
-        info.attachmentCount = 1;
-        info.pAttachments = &swapchainImageViews[i];
+        info.attachmentCount = 2;
+        info.pAttachments = attachments;
         info.width = swapchainExtent.width;
         info.height = swapchainExtent.height;
         info.layers = 1;
@@ -1003,6 +1048,93 @@ bool ME::RendererVulkan::CreateDescriptorSets() {
     vkUpdateDescriptorSets(device, 3, writes, 0, nullptr);
 
     ME::Log("RendererVulkan: descriptor sets created");
+    return true;
+}
+
+bool ME::RendererVulkan::PickDepthFormat() {
+    // Most precise first; D16 is always supported as a depth attachment. No stencil formats: the engine uses none.
+    const VkFormat candidates[] = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D16_UNORM};
+    for (const VkFormat format : candidates) {
+        VkFormatProperties props = {};
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+        if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0) {
+            depthFormat = format;
+            ME::Log("RendererVulkan: depth format ", static_cast<int>(depthFormat));
+            return true;
+        }
+    }
+    ME::LogError("RendererVulkan: no depth format found");
+    return false;
+}
+
+bool ME::RendererVulkan::CreateDepthResources() {
+    VkImageCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    info.imageType = VK_IMAGE_TYPE_2D;
+    info.format = depthFormat;
+    info.extent = {swapchainExtent.width, swapchainExtent.height, 1};
+    info.mipLevels = 1;
+    info.arrayLayers = 1;
+    info.samples = VK_SAMPLE_COUNT_1_BIT;
+    info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkResult result = vkCreateImage(device, &info, nullptr, &depthImage);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkCreateImage failed for the depth buffer (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkMemoryRequirements req = {};
+    vkGetImageMemoryRequirements(device, depthImage, &req);
+
+    // Tiled (mobile) GPUs offer lazily allocated memory: a transient attachment may then never get real memory at all.
+    uint32_t memoryType =
+        ME::VulkanUtils::FindMemoryType(physicalDevice, req.memoryTypeBits, VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT);
+    const bool lazy = memoryType != UINT32_MAX;
+    if (!lazy) {
+        memoryType =
+            ME::VulkanUtils::FindMemoryType(physicalDevice, req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
+    if (memoryType == UINT32_MAX) {
+        ME::LogError("RendererVulkan: no memory type for the depth buffer");
+        return false;
+    }
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = req.size;
+    allocInfo.memoryTypeIndex = memoryType;
+    result = vkAllocateMemory(device, &allocInfo, nullptr, &depthMemory);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkAllocateMemory failed for the depth buffer (", static_cast<int>(result), ")");
+        return false;
+    }
+    result = vkBindImageMemory(device, depthImage, depthMemory, 0);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkBindImageMemory failed for the depth buffer (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = depthImage;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = depthFormat;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+    result = vkCreateImageView(device, &viewInfo, nullptr, &depthImageView);
+    if (result != VK_SUCCESS) {
+        ME::LogError("RendererVulkan: vkCreateImageView failed for the depth buffer (", static_cast<int>(result), ")");
+        return false;
+    }
+
+    ME::Log("RendererVulkan: depth buffer ", swapchainExtent.width, "x", swapchainExtent.height,
+            lazy ? " (lazily allocated)" : " (device local)");
     return true;
 }
 

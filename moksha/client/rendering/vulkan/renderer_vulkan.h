@@ -60,6 +60,10 @@ class RendererVulkan : public PlatformRenderer {
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     VkFormat swapchainFormat = VK_FORMAT_UNDEFINED;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+    VkImage depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory depthMemory = VK_NULL_HANDLE;
+    VkImageView depthImageView = VK_NULL_HANDLE;
     VkExtent2D swapchainExtent = {};
     // Drivers make minImageCount + 1 or more (often 3-4 on Android); 8 leaves room.
     static constexpr uint32_t kMaxSwapchainImages = 8;
@@ -110,6 +114,8 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateLogicalDevice();
     bool CreateSwapchain();
     bool CreateSwapchainImageViews();
+    bool PickDepthFormat();
+    bool CreateDepthResources();
     bool CreateRenderPass();
     bool CreateSwapchainFramebuffers();
     bool CreateCommandBuffers();

@@ -84,6 +84,14 @@ VkPipeline ME::PSOVulkan::CreatePSO2DAtlas(VkDevice device, VkRenderPass renderP
     dynamic.dynamicStateCount = 2;
     dynamic.pDynamicStates = dynamicStates;
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
     VkGraphicsPipelineCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     info.stageCount = 2;
@@ -98,6 +106,7 @@ VkPipeline ME::PSOVulkan::CreatePSO2DAtlas(VkDevice device, VkRenderPass renderP
     info.layout = layout;
     info.renderPass = renderPass;
     info.subpass = 0;
+    info.pDepthStencilState = &depthStencil;
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     const VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline);
