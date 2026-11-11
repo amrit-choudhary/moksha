@@ -18,6 +18,11 @@ class PSOVulkan {
     // it while the pipeline is used. Null on failure (logged).
     static VkPipeline CreatePSO2DAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
                                        const char* shaderName);
+
+    // Pipeline for 2D rendering with instancing, with texture atlases. layout comes from PipelineLayoutVulkan; keep
+    // it while the pipeline is used. Null on failure (logged).
+    static VkPipeline CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
+                                                const char* shaderName);
 };
 
 }  // namespace ME

@@ -28,7 +28,9 @@
         ],
         "glsl": [
             "shaders/glsl/sprite_atlas.vert",
-            "shaders/glsl/sprite_atlas.frag"
+            "shaders/glsl/sprite_atlas.frag",
+            "shaders/glsl/sprite_instanced_atlas.vert",
+            "shaders/glsl/sprite_instanced_atlas.frag"
         ]
     }
 }

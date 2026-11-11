@@ -1,15 +1,43 @@
 # Android port (Vulkan): plan
 
-Status (2026-11-07): planned on the Mac, no code yet. Work continues on Windows. To resume, start a fresh session with
-"Read docs/android_port_plan.md and continue from the status table". Claude updates the table at the end of each step.
+Status (2026-11-10): Part W done (a sample opens a blank window on Windows Vulkan). Lessons 0-5 done (instance,
+validation, messenger, GPU pick, surface, queue family, device, swapchain, render pass, framebuffers, command buffers,
+sync objects, a frame that clears and presents; GLSL shaders, `ShaderVulkan`, `QuadVulkan`, `PSOVulkan`, a gradient
+quad; `UploadBufferVulkan`, descriptor set layouts, pool and sets, dynamic offsets, the scene camera, Y-flip viewport);
+Vulkan 1.1 chosen; lesson 6 textures; lesson 7a depth buffer; 7b sprite_atlas shaders; 7c `SceneVulkan` and plain sprites; 7d steps 1-3 (instanced shaders, storage upload buffers, instanced layouts and pipeline). Next: 7d step 4. After the lessons: write the porting guides (see below). To resume, start a fresh session
+with "Read docs/android_port_plan.md and continue from the status table". Claude updates the table at the end of each
+step.
 
 | Step | Who | Where | State |
 |---|---|---|---|
 | Plan | Claude | Mac | done 2026-11-07 |
-| Part W: Vulkan on Windows (dev-only) | Claude | Windows | next |
-| Lessons 0-8 | user | Windows | — |
+| W1: `ME_VULKAN` build config, `VulkanView`, `WinVulkanView`, `RendererVulkan` skeleton, `ClientApp`/`win_main` | Claude | Windows | done 2026-11-07 |
+| W2: `win-vulkan` cook, `moksha_add_game` mapping, `win-vulkan-dev` preset (sample opens a blank window) | Claude | Windows | done 2026-11-07 |
+| Lessons 0-8 | user | Windows | lessons 0-6 done 2026-11-10 (lesson 6: the UI atlas drawn on the test quad, crisp and right way up; `TextureVulkan`, `SamplerVulkan` with immutable samplers, set 2). Lesson 7 split into 7a depth buffer, 7b finish `sprite_atlas` shaders (atlas UVs, color, discard), 7c `SceneVulkan` + plain sprites, 7d instanced sets via storage buffers. 7a done 2026-11-11 (format queried D32/X8_D24/D16, transient attachment in lazily allocated memory when the GPU has it, `storeOp` DONT_CARE, one depth image ordered by the subpass dependency). Sets for 7b-7d: 0 per pass, 1 per draw (sprite UBO or instance SSBO + atlas properties, dynamic offsets), 2 texture; set 3 free. 7b done 2026-11-11 (`helpers.glsl` `GetAtlasUV`, color tint, alpha discard; set 1 binding 1 atlas properties; test quad shows one tinted tile). Lesson learned: dynamic offsets are one per dynamic descriptor across all bound sets, in set-then-binding order; a mismatch shows as a validation error and then `VK_ERROR_DEVICE_LOST`. 7c done 2026-11-11 (`SceneVulkan`: sprite textures, one buffer for all sprites and one for all atlases, its own pool and sets with a set 2 per texture, made by `SetScenes` after a device wait; `DrawSprites` binds set 0 once, then sets 1 and 2 per sprite with `firstSet` 1, skipping out-of-range ids; the test quad is gone; samples' plain sprites match DX12). 7d in progress 2026-11-11, split into 5 steps: 1 shaders (`sprite_instanced_atlas.vert/.frag`, `SpriteInstanceData` in `structs.glsl`, std430 storage block read by `gl_InstanceIndex`) done; 2 `UploadBufferVulkan::Kind` (uniform or storage: usage flag, offset alignment, range check; an instance array is one element so it stays packed) done; 3 `CreateDescriptorSetLayoutInstanced` (set 1: dynamic SSBO + atlas UBO), `CreateLayout2DInstancedAtlas`, `CreatePSO2DInstancedAtlas` (DX12 names), renderer members and `End` done, checkpoint pending; next 4 `SceneVulkan` instance buffers and sets (arrays per set, each set made independently, pool sizes without zero counts), then 5 `DrawInstancedSprites` (texture and atlas slots 1 and 2, set 0 stays bound across the compatible layouts) |
 | Part A: Android platform | Claude | Windows (later also Mac) | — |
 | Lesson 9 | user | phone | — |
+| Porting guides (`docs/porting/`, stubs today) | Claude | any | **after the lessons: remind the user and write them** |
+| Backport list (below) to DX12, Metal, WebGPU | user + Claude | each backend's machine | backlog: **Claude reminds the user of open items at the end of each step**; applied only when the user asks |
+
+**Backport list.** A backlog of structural improvements found during the Vulkan port that belong in the other backends
+too (rule: [moksha/client/CLAUDE.md](../moksha/client/CLAUDE.md), "Backends stay in step"). Claude adds each one when
+it is found, reminds the user of the open items at the end of each step, and changes nothing until the user asks.
+
+| # | Improvement | DX12 | Metal | WebGPU |
+|---|---|---|---|---|
+| 1 | The backend scene doesn't own the game scene's lights and cameras: `~SceneDX` deletes the ones `~Scene` also deletes (a double free on scene change); read them through the `Scene` pointer instead of copying them | fix | ok (no delete) | ok |
+| 2 | One buffer for all per-sprite constants and one for all atlas properties, each draw picking its element by offset, instead of one upload buffer per sprite and per atlas | to do | to do | ok (already) |
+| 3 | The backend scene has `Init`/`End` returning failure, instead of a constructor that can't report it | to do | to do | to do |
+| 4 | A sprite whose `textureId` is out of range is skipped, not read past the texture array | to do | check | ok (already) |
+| 5 | Free a texture's CPU pixel copy (`Texture::data`) once its upload is done, e.g. a `Texture::ReleaseCpuData()` each backend calls after uploading; today every loaded texture keeps its decoded pixels in RAM for life (~1.3 MB for the UI atlas). Shared `Texture` code, so Vulkan too | to do | to do | to do (+ Vulkan) |
+
+**Long-term workflow (decided 2026-11-10):** the user's primary backends are DX12 and Metal. New rendering features are
+built and tested on DX12 first; once they work, they are ported (by AI) to Metal, Vulkan and WebGPU. Ports are checked
+by behavior: zero validation (Vulkan) or `WebGPU:` errors, a screenshot matching DX12, and the phone last. To make ports
+smooth, once the lessons are done Claude writes `docs/porting/` (a README with the workflow, verification and a feature
+parity list, plus one DX12 → API guide per backend: the mapping and the hard rules). Lessons 5-7 continue as planned
+so the user can judge ports; after them, the rest of the Vulkan backend may be written as a port. Open question to
+revisit: compiling the HLSL shaders to SPIR-V with DXC, so GLSL disappears.
 
 ## Goal
 The samples run on an Android phone, drawn by Vulkan. The work is split in two:
@@ -152,15 +180,20 @@ lessons 0-8 then builds for the phone unchanged.
 ## Part B: Vulkan lessons (the user writes the code)
 Each lesson: the concept explained in chat with a short example → the exact task (which class, which methods, what
 success looks like) → the user writes it → Claude reads and reviews it (correctness, validation, house style) → the user
-builds and checks the checkpoint (on Windows for lessons 0-8, on the phone for lesson 9). One lesson per session is fine;
-nothing moves on until the checkpoint passes. Classes mirror `RendererWebGPU`/`RendererMetal`.
+builds and checks the checkpoint (on Windows for lessons 0-8, on the phone for lesson 9). **Teaching style (the user's
+preference since lesson 1):** one function at a time, split into numbered steps; each step names the exact Vulkan
+calls and structs with a snippet and explains every field, then the user types it and asks for a review before the next
+function. Explain any new term (layer, surface, ...) in plain words when it first appears. Code comments never name a lesson
+(they would outlive the lessons); unfinished work is marked `TODO:` with what is missing. One lesson per session is fine;
+nothing moves on until the checkpoint passes. Lessons are taught against `RendererDX` (the user wrote it by hand, and
+DX12 shares Vulkan's explicit model); classes mirror the DX12 ones. What it draws matches `RendererWebGPU`/`RendererMetal`.
 
 | # | Topic | Writes | Checkpoint |
 |---|---|---|---|
-| 0 | Vulkan's model mapped onto the engine's existing `RendererWebGPU` classes; handles, `VkResult`, struct chains | — | — |
+| 0 | Vulkan's model mapped onto the engine's existing `RendererDX` classes; handles, `VkResult`, struct chains | — | — |
 | 1 | Instance, validation layer, debug messenger; enumerate GPUs; compare with the phone's caps (Vulkan Caps Viewer app) | `RendererVulkan::InitVulkan` (part) | log shows GPU name and Vulkan version |
 | 2 | Surface through `VulkanView`, queue family, logical device, queue | renderer | log: device created, no validation errors |
-| 3 | Swapchain, image views, command pools and buffers, fences and semaphores, `FramesInFlight`; clear via dynamic rendering; first RenderDoc capture | renderer | window cleared to a color |
+| 3 | Swapchain, image views, render pass and framebuffers, command pools and buffers, fences and semaphores, `FramesInFlight`; clear via the render pass's load op; first RenderDoc capture | renderer | window cleared to a color |
 | 4 | GLSL → SPIR-V, shader modules, pipeline layout, graphics pipeline; vertex/index buffers and memory types | `ShaderVulkan`, `PSOVulkan`, `QuadVulkan` | one colored quad |
 | 5 | Descriptor sets and pools, uniform buffers per frame in flight, dynamic offsets (as WebGPU); Y-flip viewport | `UploadBufferVulkan` | quad moves with the camera |
 | 6 | Images, staging copies, layout transitions and barriers, samplers; load cooked `.dds` | `TextureVulkan` | a textured sprite |
@@ -169,9 +202,12 @@ nothing moves on until the checkpoint passes. Classes mirror `RendererWebGPU`/`R
 | 9 | **On the phone:** pause, surface lost and recreated, swapchain out of date, pre-rotation, `End`, vsync via present modes | renderer | background/foreground works; clean shutdown |
 
 - Window resize on Windows is out of scope (the engine has none); lesson 9 covers swapchain recreation.
-- Vulkan version: chosen in lesson 1 from the **phone's** caps, not the desktop GPU's. Default is Vulkan 1.3 (dynamic
-  rendering and synchronization2: no render pass or framebuffer objects, much simpler); if the phone only has 1.1,
-  lesson 3 teaches render passes instead.
+- Vulkan version: **1.1 core, no extensions beyond the surface and swapchain** (decided 2026-11-07). It reaches
+  nearly every Vulkan phone, Play filters the rest through the manifest, and the test phone reports 1.1.128. So:
+  `VkRenderPass` + one `VkFramebuffer` per swapchain image (no dynamic rendering), `vkCmdPipelineBarrier` (no
+  synchronization2), shaders cooked with `--target-env=vulkan1.1`. The instance and device ask for 1.1 on Windows too.
+- Test phone limits that shape the design: `maxBoundDescriptorSets` = 4 (the spec minimum; desktops report 32). A
+  pass may bind at most 4 sets, so lesson 5 groups bindings by how often they change rather than one set per DX12 table.
 - On Android the validation layer is Khronos's prebuilt `.so`, packed into the APK only when
   `MOKSHA_VULKAN_VALIDATION_DIR` is set.
 

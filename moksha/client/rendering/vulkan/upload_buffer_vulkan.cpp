@@ -10,19 +10,28 @@
 #include "utils_vulkan.h"
 
 bool ME::UploadBufferVulkan::Init(VkPhysicalDevice physicalDevice, VkDevice inDevice, uint32_t inElementCount,
-                                  uint32_t inElementSize) {
+                                  uint32_t inElementSize, Kind kind) {
     device = inDevice;
     elementCount = inElementCount;
     elementSize = inElementSize;
 
     VkPhysicalDeviceProperties props = {};
     vkGetPhysicalDeviceProperties(physicalDevice, &props);
-    const uint32_t align = static_cast<uint32_t>(props.limits.minUniformBufferOffsetAlignment);
+    const bool storage = kind == Kind::Storage;
+    const uint32_t align = static_cast<uint32_t>(storage ? props.limits.minStorageBufferOffsetAlignment
+                                                         : props.limits.minUniformBufferOffsetAlignment);
+    const uint32_t maxRange = storage ? props.limits.maxStorageBufferRange : props.limits.maxUniformBufferRange;
+    const VkBufferUsageFlags usage = storage ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     stride = (elementSize + align - 1) / align * align;
-
     const VkDeviceSize size = static_cast<VkDeviceSize>(stride) * elementCount * Constants::FramesInFlight;
-    if (!ME::VulkanUtils::CreateBuffer(physicalDevice, device, size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, nullptr,
-                                       &buffer, &memory)) {
+
+    if (elementSize > maxRange) {
+        ME::LogError("UploadBufferVulkan: element of ", elementSize, " bytes exceeds the device's range limit of ",
+                     maxRange);
+        return false;
+    }
+
+    if (!ME::VulkanUtils::CreateBuffer(physicalDevice, device, size, usage, nullptr, &buffer, &memory)) {
         return false;
     }
 

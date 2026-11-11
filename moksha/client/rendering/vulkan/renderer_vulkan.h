@@ -84,15 +84,18 @@ class RendererVulkan : public PlatformRenderer {
     // Shared samplers, built into the set layouts as DX12's static samplers are; destroyed after the layouts.
     VkSampler samplerPointClamp = VK_NULL_HANDLE;
 
-    // Descriptor set layouts (set 0 per pass, set 1 per sprite, set 2 texture), shared by the pipeline layouts and the
-    // sets.
+    // Descriptor set layouts (set 0 per pass, set 1 per sprite or instanced, set 2 texture), shared by the pipeline
+    // layouts and the sets.
     VkDescriptorSetLayout setLayoutPerPass = VK_NULL_HANDLE;
     VkDescriptorSetLayout setLayoutPerSprite = VK_NULL_HANDLE;
+    VkDescriptorSetLayout setLayoutInstanced = VK_NULL_HANDLE;
     VkDescriptorSetLayout setLayoutTexture = VK_NULL_HANDLE;
 
     // Pipelines and their layouts, as RendererDX's PSOs and root signatures.
     VkPipelineLayout layout2DAtl = VK_NULL_HANDLE;
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
+    VkPipelineLayout layout2DInsAtl = VK_NULL_HANDLE;
+    VkPipeline pso2DInsAtl = VK_NULL_HANDLE;
 
     // One-time upload commands (the scenes' textures).
     VkCommandPool uploadCommandPool = VK_NULL_HANDLE;

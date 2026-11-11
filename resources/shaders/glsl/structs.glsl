@@ -25,3 +25,12 @@ struct TextureAtlasProperties {
     uint height;
     uint paddingType;
 };
+
+// Per-instance data for instanced sprites; 96 bytes, matching SpriteRendererInstanceData.
+struct SpriteInstanceData {
+    mat4 modelMatrix;
+    vec4 color;
+    uint atlasIndex;
+    uint flags;
+    uvec2 padding;
+};

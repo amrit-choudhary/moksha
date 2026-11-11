@@ -2,9 +2,10 @@
 #ifdef ME_VULKAN
 
 /**
- * Vulkan's upload buffer, the counterpart of UploadBufferDX: constant data the CPU writes every frame and the GPU
- * reads directly. Holds one copy per frame in flight, each element on the device's uniform offset alignment, so an
- * element is selected with a dynamic offset. Stays mapped for its whole life.
+ * Vulkan's upload buffer, the counterpart of UploadBufferDX: data the CPU writes every frame and the GPU reads
+ * directly, as a uniform or storage buffer. Holds one copy per frame in flight, each element on the device's offset
+ * alignment for that kind, so an element is selected with a dynamic offset. An instance array is one element, so its
+ * entries stay packed. Stays mapped for its whole life.
  */
 
 #include <vulkan/vulkan.h>
@@ -15,6 +16,12 @@ namespace ME {
 
 class UploadBufferVulkan {
    public:
+    // What the buffer backs: picks the usage flag, the offset alignment and the range limit.
+    enum class Kind : uint8_t {
+        Uniform,  // uniform buffer: small constants (per pass, per sprite, atlas)
+        Storage   // storage buffer: large arrays (instance data)
+    };
+
     UploadBufferVulkan() = default;
     ~UploadBufferVulkan() = default;
 
@@ -23,7 +30,8 @@ class UploadBufferVulkan {
 
     // Room for elementCount elements of elementSize bytes, per frame in flight. False (logged) on failure; call
     // End() either way.
-    bool Init(VkPhysicalDevice physicalDevice, VkDevice inDevice, uint32_t inElementCount, uint32_t inElementSize);
+    bool Init(VkPhysicalDevice physicalDevice, VkDevice inDevice, uint32_t inElementCount, uint32_t inElementSize,
+              Kind kind);
     // The GPU must be done with the buffer (call after vkDeviceWaitIdle).
     void End();
 

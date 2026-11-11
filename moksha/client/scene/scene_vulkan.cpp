@@ -117,7 +117,7 @@ bool ME::SceneVulkan::MakeSpriteTextures(VkPhysicalDevice physicalDevice, VkQueu
 }
 
 bool ME::SceneVulkan::MakeBuffers(VkPhysicalDevice physicalDevice) {
-    if (!perPassBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerPass))) {
+    if (!perPassBuffer.Init(physicalDevice, device, 1, sizeof(ME::CBPerPass), UploadBufferVulkan::Kind::Uniform)) {
         ME::LogError("SceneVulkan: failed to create the per-pass buffer");
         return false;
     }
@@ -133,7 +133,8 @@ bool ME::SceneVulkan::MakeBuffers(VkPhysicalDevice physicalDevice) {
         spriteCount = static_cast<uint32_t>(scene->spriteTransforms.count);
     }
     // At least one element: set 1 always points at a buffer, even in a scene without sprites.
-    if (!perSpriteBuffer.Init(physicalDevice, device, spriteCount > 0 ? spriteCount : 1, sizeof(ME::CBPerSprite))) {
+    if (!perSpriteBuffer.Init(physicalDevice, device, spriteCount > 0 ? spriteCount : 1, sizeof(ME::CBPerSprite),
+                              UploadBufferVulkan::Kind::Uniform)) {
         ME::LogError("SceneVulkan: failed to create the per-sprite buffer");
         return false;
     }
@@ -143,8 +144,8 @@ bool ME::SceneVulkan::MakeBuffers(VkPhysicalDevice physicalDevice) {
         ME::LogError("SceneVulkan: more atlases than MaxTextureAtlasPropertiesCount; the extra ones are not used");
         atlasCount = static_cast<uint32_t>(Constants::MaxTextureAtlasPropertiesCount);
     }
-    if (!atlasBuffer.Init(physicalDevice, device, atlasCount > 0 ? atlasCount : 1,
-                          sizeof(ME::TextureAtlasProperties))) {
+    if (!atlasBuffer.Init(physicalDevice, device, atlasCount > 0 ? atlasCount : 1, sizeof(ME::TextureAtlasProperties),
+                          UploadBufferVulkan::Kind::Uniform)) {
         ME::LogError("SceneVulkan: failed to create the atlas properties buffer");
         return false;
     }

@@ -21,6 +21,10 @@ class PipelineLayoutVulkan {
     // stage). Null on failure (logged).
     static VkDescriptorSetLayout CreateDescriptorSetLayoutPerSprite(VkDevice device);
 
+    // Set 1 for instanced sprites: binding 0 the instance array (dynamic storage buffer), binding 1 their atlas
+    // properties (dynamic uniform buffer); vertex stage. Null on failure (logged).
+    static VkDescriptorSetLayout CreateDescriptorSetLayoutInstanced(VkDevice device);
+
     // Set 2: one texture with sampler built in (an immutable sampler: the sets only supply the image). sampler must
     // outlive the layout and every set made with it. Null on failure (logged).
     static VkDescriptorSetLayout CreateDescriptorSetLayoutTexture(VkDevice device, VkSampler sampler);
@@ -29,6 +33,11 @@ class PipelineLayoutVulkan {
     // texture.
     static VkPipelineLayout CreateLayout2DAtlas(VkDevice device, VkDescriptorSetLayout perPass,
                                                 VkDescriptorSetLayout perSprite, VkDescriptorSetLayout texture);
+
+    // Layout for 2D rendering with instancing, with texture atlases: set 0 per pass, set 1 is instance data, set 2
+    // texture.
+    static VkPipelineLayout CreateLayout2DInstancedAtlas(VkDevice device, VkDescriptorSetLayout perPass,
+                                                         VkDescriptorSetLayout perDraw, VkDescriptorSetLayout texture);
 };
 
 }  // namespace ME

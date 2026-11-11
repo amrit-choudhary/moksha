@@ -328,6 +328,14 @@ void ME::RendererVulkan::End() {
             delete sceneVulkan;
             sceneVulkan = nullptr;
         }
+        if (pso2DInsAtl != VK_NULL_HANDLE) {
+            vkDestroyPipeline(device, pso2DInsAtl, nullptr);
+            pso2DInsAtl = VK_NULL_HANDLE;
+        }
+        if (layout2DInsAtl != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, layout2DInsAtl, nullptr);
+            layout2DInsAtl = VK_NULL_HANDLE;
+        }
         if (pso2DAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DAtl, nullptr);
             pso2DAtl = VK_NULL_HANDLE;
@@ -339,6 +347,10 @@ void ME::RendererVulkan::End() {
         if (setLayoutTexture != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, setLayoutTexture, nullptr);
             setLayoutTexture = VK_NULL_HANDLE;
+        }
+        if (setLayoutInstanced != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(device, setLayoutInstanced, nullptr);
+            setLayoutInstanced = VK_NULL_HANDLE;
         }
         if (setLayoutPerSprite != VK_NULL_HANDLE) {
             vkDestroyDescriptorSetLayout(device, setLayoutPerSprite, nullptr);
@@ -934,6 +946,12 @@ bool ME::RendererVulkan::CreatePSO() {
         return false;
     }
 
+    setLayoutInstanced = PipelineLayoutVulkan::CreateDescriptorSetLayoutInstanced(device);
+    if (setLayoutInstanced == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the instanced descriptor set layout");
+        return false;
+    }
+
     setLayoutTexture = PipelineLayoutVulkan::CreateDescriptorSetLayoutTexture(device, samplerPointClamp);
     if (setLayoutTexture == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the texture descriptor set layout");
@@ -950,6 +968,20 @@ bool ME::RendererVulkan::CreatePSO() {
     pso2DAtl = PSOVulkan::CreatePSO2DAtlas(device, renderPass, layout2DAtl, "sprite_atlas");
     if (pso2DAtl == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the 2D atlas pipeline");
+        return false;
+    }
+
+    // Set 0 has the same layout as in layout2DAtl, so a set 0 bound for the plain sprites stays bound here.
+    layout2DInsAtl = PipelineLayoutVulkan::CreateLayout2DInstancedAtlas(device, setLayoutPerPass, setLayoutInstanced,
+                                                                        setLayoutTexture);
+    if (layout2DInsAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D instanced atlas pipeline layout");
+        return false;
+    }
+
+    pso2DInsAtl = PSOVulkan::CreatePSO2DInstancedAtlas(device, renderPass, layout2DInsAtl, "sprite_instanced_atlas");
+    if (pso2DInsAtl == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D instanced atlas pipeline");
         return false;
     }
 
