@@ -382,9 +382,17 @@ void ME::RendererVulkan::End() {
             vkDestroyPipeline(device, pso2DUIText, nullptr);
             pso2DUIText = VK_NULL_HANDLE;
         }
+        if (layout2DUIText != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, layout2DUIText, nullptr);
+            layout2DUIText = VK_NULL_HANDLE;
+        }
         if (pso2DUISprite != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DUISprite, nullptr);
             pso2DUISprite = VK_NULL_HANDLE;
+        }
+        if (layout2DUISprite != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(device, layout2DUISprite, nullptr);
+            layout2DUISprite = VK_NULL_HANDLE;
         }
         if (pso2DInsAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DInsAtl, nullptr);
@@ -1043,13 +1051,27 @@ bool ME::RendererVulkan::CreatePSO() {
         return false;
     }
 
-    pso2DUISprite = PSOVulkan::CreatePSO2DUISprite(device, renderPass, layout2DInsAtl, "ui_sprite");
+    layout2DUISprite =
+        PipelineLayoutVulkan::CreateLayout2DUISprite(device, setLayoutPerPass, setLayoutInstanced, setLayoutTexture);
+    if (layout2DUISprite == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the UI sprite pipeline layout");
+        return false;
+    }
+
+    pso2DUISprite = PSOVulkan::CreatePSO2DUISprite(device, renderPass, layout2DUISprite, "ui_sprite");
     if (pso2DUISprite == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the UI sprite pipeline");
         return false;
     }
 
-    pso2DUIText = PSOVulkan::CreatePSO2DUIText(device, renderPass, layout2DInsAtl, "ui_text");
+    layout2DUIText =
+        PipelineLayoutVulkan::CreateLayout2DUIText(device, setLayoutPerPass, setLayoutInstanced, setLayoutTexture);
+    if (layout2DUIText == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the UI text pipeline layout");
+        return false;
+    }
+
+    pso2DUIText = PSOVulkan::CreatePSO2DUIText(device, renderPass, layout2DUIText, "ui_text");
     if (pso2DUIText == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the UI text pipeline");
         return false;
@@ -1124,39 +1146,39 @@ void ME::RendererVulkan::DrawUIScene(VkCommandBuffer cmd, const ME::SceneUIVulka
         return;
     }
 
-    // Fixed slots, as in every backend: the UI atlas at texture and atlas 0, the font at 1.
-    class UIPass {
-       public:
-        VkPipeline pipeline;
-        VkDescriptorSet passSet;
-        uint32_t passOffset;
-        VkDescriptorSet instanceSet;
-        uint32_t instanceOffset;
-        uint32_t instanceCount;
-        uint32_t slot;
-    };
-    const UIPass passes[2] = {
-        {pso2DUISprite, uiSceneGPU->uiSpritePassSet, uiSceneGPU->GetUISpritePassOffset(frameIndex),
-         uiSceneGPU->uiSpriteInstanceSet, uiSceneGPU->GetUISpriteInstanceOffset(frameIndex),
-         uiSceneGPU->uiSpriteInstanceCount, 0},
-        {pso2DUIText, uiSceneGPU->textPassSet, uiSceneGPU->GetTextPassOffset(frameIndex), uiSceneGPU->textInstanceSet,
-         uiSceneGPU->GetTextInstanceOffset(frameIndex), uiSceneGPU->textInstanceCount, 1},
-    };
-
-    for (const UIPass& pass : passes) {
-        if (pass.instanceCount == 0 || pass.slot >= uiSceneGPU->spriteTextureCount ||
-            uiSceneGPU->textureSets[pass.slot] == VK_NULL_HANDLE || pass.slot >= uiSceneGPU->atlasCount) {
-            continue;
-        }
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass.pipeline);
+    ///////////////////////////
+    // UI Sprite Drawing (the UI atlas at texture and atlas slot 0).
+    const uint32_t spriteSlot = 0;
+    if (uiSceneGPU->uiSpriteInstanceCount != 0 && spriteSlot < uiSceneGPU->spriteTextureCount &&
+        uiSceneGPU->textureSets[spriteSlot] != VK_NULL_HANDLE && spriteSlot < uiSceneGPU->atlasCount) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DUISprite);
 
         // Sets 0-2; offsets in set-then-binding order: the pass constants, then set 1's instances and atlas.
-        const VkDescriptorSet sets[3] = {pass.passSet, pass.instanceSet, uiSceneGPU->textureSets[pass.slot]};
-        const uint32_t offsets[3] = {pass.passOffset, pass.instanceOffset,
-                                     uiSceneGPU->GetAtlasOffset(frameIndex, pass.slot)};
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DInsAtl, 0, 3, sets, 3, offsets);
+        const VkDescriptorSet sets[3] = {uiSceneGPU->uiSpritePassSet, uiSceneGPU->uiSpriteInstanceSet,
+                                         uiSceneGPU->textureSets[spriteSlot]};
+        const uint32_t offsets[3] = {uiSceneGPU->GetUISpritePassOffset(frameIndex),
+                                     uiSceneGPU->GetUISpriteInstanceOffset(frameIndex),
+                                     uiSceneGPU->GetAtlasOffset(frameIndex, spriteSlot)};
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DUISprite, 0, 3, sets, 3, offsets);
 
-        vkCmdDrawIndexed(cmd, quad.indexCount, pass.instanceCount, 0, 0, 0);
+        vkCmdDrawIndexed(cmd, quad.indexCount, uiSceneGPU->uiSpriteInstanceCount, 0, 0, 0);
+    }
+
+    ///////////////////////////
+    // Text Drawing (the font at texture and atlas slot 1).
+    const uint32_t textSlot = 1;
+    if (uiSceneGPU->textInstanceCount != 0 && textSlot < uiSceneGPU->spriteTextureCount &&
+        uiSceneGPU->textureSets[textSlot] != VK_NULL_HANDLE && textSlot < uiSceneGPU->atlasCount) {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DUIText);
+
+        const VkDescriptorSet sets[3] = {uiSceneGPU->textPassSet, uiSceneGPU->textInstanceSet,
+                                         uiSceneGPU->textureSets[textSlot]};
+        const uint32_t offsets[3] = {uiSceneGPU->GetTextPassOffset(frameIndex),
+                                     uiSceneGPU->GetTextInstanceOffset(frameIndex),
+                                     uiSceneGPU->GetAtlasOffset(frameIndex, textSlot)};
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DUIText, 0, 3, sets, 3, offsets);
+
+        vkCmdDrawIndexed(cmd, quad.indexCount, uiSceneGPU->textInstanceCount, 0, 0, 0);
     }
 }
 

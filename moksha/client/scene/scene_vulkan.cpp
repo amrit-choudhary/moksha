@@ -106,12 +106,12 @@ void ME::SceneVulkan::UploadFrame(uint32_t frameIndex) {
         perSpriteBuffer.CopyElement(frameIndex, i, &spriteData);
     }
 
-    // The whole array in one copy (it is the buffer's one element), as DX12's CopyData in Draw.
+    // The whole array in one copy, as DX12's CopyData in Draw.
     if (instanceCount0 != 0) {
-        spriteInstanceBuffer0.CopyElement(frameIndex, 0, spriteInstanceData0);
+        spriteInstanceBuffer0.CopyElements(frameIndex, spriteInstanceData0, instanceCount0);
     }
     if (instanceCount1 != 0) {
-        spriteInstanceBuffer1.CopyElement(frameIndex, 0, spriteInstanceData1);
+        spriteInstanceBuffer1.CopyElements(frameIndex, spriteInstanceData1, instanceCount1);
     }
 }
 
@@ -247,9 +247,9 @@ bool ME::SceneVulkan::MakeDescriptorSets(VkDescriptorSetLayout perPassLayout, Vk
     }
 
     // One element each: the dynamic offset picks the frame's copy and the sprite or atlas.
-    VkDescriptorBufferInfo passInfo = {perPassBuffer.GetBuffer(), 0, perPassBuffer.GetElementSize()};
-    VkDescriptorBufferInfo spriteInfo = {perSpriteBuffer.GetBuffer(), 0, perSpriteBuffer.GetElementSize()};
-    VkDescriptorBufferInfo atlasInfo = {atlasBuffer.GetBuffer(), 0, atlasBuffer.GetElementSize()};
+    VkDescriptorBufferInfo passInfo = {perPassBuffer.GetBuffer(), 0, perPassBuffer.GetDescriptorRange()};
+    VkDescriptorBufferInfo spriteInfo = {perSpriteBuffer.GetBuffer(), 0, perSpriteBuffer.GetDescriptorRange()};
+    VkDescriptorBufferInfo atlasInfo = {atlasBuffer.GetBuffer(), 0, atlasBuffer.GetDescriptorRange()};
 
     VkWriteDescriptorSet writes[3] = {};
     writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -321,7 +321,7 @@ bool ME::SceneVulkan::WriteInstanceSet(const VkDescriptorSetAllocateInfo& allocI
     }
 
     // Range: the whole array, which the shader sees as the length of instances[].
-    const VkDescriptorBufferInfo instanceInfo = {instanceBuffer.GetBuffer(), 0, instanceBuffer.GetElementSize()};
+    const VkDescriptorBufferInfo instanceInfo = {instanceBuffer.GetBuffer(), 0, instanceBuffer.GetDescriptorRange()};
 
     VkWriteDescriptorSet writes[2] = {};
     writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -347,8 +347,7 @@ bool ME::SceneVulkan::MakeSpriteInstanceBuffer(VkPhysicalDevice physicalDevice) 
         instanceCount0 = static_cast<uint32_t>(Constants::MaxInstancedSpriteRendererCount);
     }
     if (instanceCount0 != 0 && spriteInstanceData0 != nullptr) {
-        if (!spriteInstanceBuffer0.Init(physicalDevice, device, 1,
-                                        instanceCount0 * sizeof(ME::SpriteRendererInstanceData),
+        if (!spriteInstanceBuffer0.Init(physicalDevice, device, instanceCount0, sizeof(ME::SpriteRendererInstanceData),
                                         UploadBufferVulkan::Kind::Storage)) {
             ME::LogError("SceneVulkan: failed to create instance buffer 0");
             return false;
@@ -365,8 +364,7 @@ bool ME::SceneVulkan::MakeSpriteInstanceBuffer(VkPhysicalDevice physicalDevice) 
         instanceCount1 = static_cast<uint32_t>(Constants::MaxInstancedSpriteRendererCount);
     }
     if (instanceCount1 != 0 && spriteInstanceData1 != nullptr) {
-        if (!spriteInstanceBuffer1.Init(physicalDevice, device, 1,
-                                        instanceCount1 * sizeof(ME::SpriteRendererInstanceData),
+        if (!spriteInstanceBuffer1.Init(physicalDevice, device, instanceCount1, sizeof(ME::SpriteRendererInstanceData),
                                         UploadBufferVulkan::Kind::Storage)) {
             ME::LogError("SceneVulkan: failed to create instance buffer 1");
             return false;

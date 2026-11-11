@@ -112,16 +112,18 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   device wait) owns a scene's sprite textures, one buffer for all sprites, one for all atlases, and its own pool and
   sets (set 2 per texture, a set 1 per non-empty instanced set). `Draw` binds set 0 once, kept across both atlas
   pipeline layouts (same set 0 layout); `DrawSprites` binds sets 1 and 2 per sprite, skipping out-of-range ids.
-  Instanced sets read a storage buffer (`UploadBufferVulkan::Kind::Storage`, the whole std430 array as one element,
-  set 1 binding 0) by `gl_InstanceIndex`, texture and atlas slots 1 and 2 as in every backend, each set made on its own.
+  Instanced sets read a storage buffer (`UploadBufferVulkan::Kind::Storage`: elements packed at the std430 stride,
+  only each frame's copy aligned, the descriptor range the whole array; set 1 binding 0) by `gl_InstanceIndex`,
+  texture and atlas slots 1 and 2 as in every backend, each set made on its own.
   The scene pipelines blend straight alpha (`SRC_ALPHA`/`ONE_MINUS_SRC_ALPHA`, alpha `ONE`/`ZERO`) with depth on,
   as DX12. `SceneUIVulkan` (`scene/scene_ui_vulkan.*`, one for the game's UI and one for the debug overlay, each
   rebuilt after a device wait by `SetScenes` / `SetDebugUIScene`) owns a UI scene's textures (atlas slot 0, font
   slot 1), two pass buffers (packed window size; the GLSL block declares the `uint` directly, as a std140 struct
   would round up past the 4-byte C++ constants), the atlases, and the UI sprite and text instance buffers at
-  capacity, of which each frame copies (`CopyElementBytes`) and draws only the live counts. The UI pipelines
-  (`CreatePSO2DUISprite` / `CreatePSO2DUIText`) have depth off and share `layout2DInsAtl`; `DrawUIScene` binds sets
-  0-2 per pass after the scene. Not done yet: swapchain recreation.
+  capacity, of which each frame copies (`CopyElements`) and draws only the live counts. The UI pipelines
+  (`CreatePSO2DUISprite` / `CreatePSO2DUIText`, with their own `CreateLayout2DUISprite` / `CreateLayout2DUIText`,
+  as DX12's UI PSOs and root signatures) have depth off; `DrawUIScene` draws the sprite and text passes after the
+  scene, each binding sets 0-2. Not done yet: swapchain recreation.
   `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources

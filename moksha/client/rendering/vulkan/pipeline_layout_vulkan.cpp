@@ -137,4 +137,40 @@ VkPipelineLayout ME::PipelineLayoutVulkan::CreateLayout2DInstancedAtlas(VkDevice
     return layout;
 }
 
+VkPipelineLayout ME::PipelineLayoutVulkan::CreateLayout2DUISprite(VkDevice device, VkDescriptorSetLayout perPass,
+                                                                  VkDescriptorSetLayout perDraw,
+                                                                  VkDescriptorSetLayout texture) {
+    VkPipelineLayoutCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 3;
+    VkDescriptorSetLayout setLayouts[3] = {perPass, perDraw, texture};
+    info.pSetLayouts = setLayouts;
+
+    VkPipelineLayout layout = VK_NULL_HANDLE;
+    const VkResult result = vkCreatePipelineLayout(device, &info, nullptr, &layout);
+    if (result != VK_SUCCESS) {
+        ME::LogError("PipelineLayoutVulkan: vkCreatePipelineLayout failed (", static_cast<int>(result), ")");
+        return VK_NULL_HANDLE;
+    }
+    return layout;
+}
+
+VkPipelineLayout ME::PipelineLayoutVulkan::CreateLayout2DUIText(VkDevice device, VkDescriptorSetLayout perPass,
+                                                                VkDescriptorSetLayout perDraw,
+                                                                VkDescriptorSetLayout texture) {
+    VkPipelineLayoutCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 3;
+    VkDescriptorSetLayout setLayouts[3] = {perPass, perDraw, texture};
+    info.pSetLayouts = setLayouts;
+
+    VkPipelineLayout layout = VK_NULL_HANDLE;
+    const VkResult result = vkCreatePipelineLayout(device, &info, nullptr, &layout);
+    if (result != VK_SUCCESS) {
+        ME::LogError("PipelineLayoutVulkan: vkCreatePipelineLayout failed (", static_cast<int>(result), ")");
+        return VK_NULL_HANDLE;
+    }
+    return layout;
+}
+
 #endif  // ME_VULKAN

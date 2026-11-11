@@ -103,12 +103,10 @@ void ME::SceneUIVulkan::UploadFrame(uint32_t frameIndex, uint32_t screenDimensio
 
     // Only the live instances: the buffers are sized at capacity, as DX12's CopyElements.
     if (uiSpriteInstanceCount != 0) {
-        uiSpriteInstanceBuffer.CopyElementBytes(frameIndex, 0, scene->uiSpriteInstanceData.data,
-                                                uiSpriteInstanceCount * sizeof(ME::UISpriteRendererInstanceData));
+        uiSpriteInstanceBuffer.CopyElements(frameIndex, scene->uiSpriteInstanceData.data, uiSpriteInstanceCount);
     }
     if (textInstanceCount != 0) {
-        textInstanceBuffer.CopyElementBytes(frameIndex, 0, scene->textInstanceData.data,
-                                            textInstanceCount * sizeof(ME::TextRendererInstanceData));
+        textInstanceBuffer.CopyElements(frameIndex, scene->textInstanceData.data, textInstanceCount);
     }
 }
 
@@ -170,18 +168,15 @@ bool ME::SceneUIVulkan::MakeBuffers(VkPhysicalDevice physicalDevice) {
         return false;
     }
 
-    // At capacity, so UI elements added after Init fit; one element each, so the instances stay packed.
-    if (!uiSpriteInstanceBuffer.Init(
-            physicalDevice, device, 1,
-            static_cast<uint32_t>(Constants::MaxUISpriteInstanceDataCount * sizeof(ME::UISpriteRendererInstanceData)),
-            UploadBufferVulkan::Kind::Storage)) {
+    // At capacity, so UI elements added after Init fit, as SceneUIDX.
+    if (!uiSpriteInstanceBuffer.Init(physicalDevice, device,
+                                     static_cast<uint32_t>(Constants::MaxUISpriteInstanceDataCount),
+                                     sizeof(ME::UISpriteRendererInstanceData), UploadBufferVulkan::Kind::Storage)) {
         ME::LogError("SceneUIVulkan: failed to create the UI sprite instance buffer");
         return false;
     }
-    if (!textInstanceBuffer.Init(
-            physicalDevice, device, 1,
-            static_cast<uint32_t>(Constants::MaxTextInstanceDataCount * sizeof(ME::TextRendererInstanceData)),
-            UploadBufferVulkan::Kind::Storage)) {
+    if (!textInstanceBuffer.Init(physicalDevice, device, static_cast<uint32_t>(Constants::MaxTextInstanceDataCount),
+                                 sizeof(ME::TextRendererInstanceData), UploadBufferVulkan::Kind::Storage)) {
         ME::LogError("SceneUIVulkan: failed to create the text instance buffer");
         return false;
     }
@@ -245,13 +240,13 @@ bool ME::SceneUIVulkan::MakeDescriptorSets(VkDescriptorSetLayout perPassLayout, 
 
     // Instance ranges cover the whole capacity: the shader indexes only the drawn instances.
     const VkDescriptorBufferInfo spritePassInfo = {uiSpritePassBuffer.GetBuffer(), 0,
-                                                   uiSpritePassBuffer.GetElementSize()};
-    const VkDescriptorBufferInfo textPassInfo = {textPassBuffer.GetBuffer(), 0, textPassBuffer.GetElementSize()};
-    const VkDescriptorBufferInfo atlasInfo = {atlasBuffer.GetBuffer(), 0, atlasBuffer.GetElementSize()};
+                                                   uiSpritePassBuffer.GetDescriptorRange()};
+    const VkDescriptorBufferInfo textPassInfo = {textPassBuffer.GetBuffer(), 0, textPassBuffer.GetDescriptorRange()};
+    const VkDescriptorBufferInfo atlasInfo = {atlasBuffer.GetBuffer(), 0, atlasBuffer.GetDescriptorRange()};
     const VkDescriptorBufferInfo spriteInstanceInfo = {uiSpriteInstanceBuffer.GetBuffer(), 0,
-                                                       uiSpriteInstanceBuffer.GetElementSize()};
+                                                       uiSpriteInstanceBuffer.GetDescriptorRange()};
     const VkDescriptorBufferInfo textInstanceInfo = {textInstanceBuffer.GetBuffer(), 0,
-                                                     textInstanceBuffer.GetElementSize()};
+                                                     textInstanceBuffer.GetDescriptorRange()};
 
     VkWriteDescriptorSet writes[6] = {};
     for (VkWriteDescriptorSet& write : writes) {

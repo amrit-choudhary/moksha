@@ -100,9 +100,9 @@ class RendererVulkan : public PlatformRenderer {
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
     VkPipelineLayout layout2DInsAtl = VK_NULL_HANDLE;
     VkPipeline pso2DInsAtl = VK_NULL_HANDLE;
-    // The UI pipelines read the same sets as the instanced one (pass, instances + atlas, texture), so they share
-    // layout2DInsAtl, as WebGPU shares one instance pipeline layout.
+    VkPipelineLayout layout2DUISprite = VK_NULL_HANDLE;
     VkPipeline pso2DUISprite = VK_NULL_HANDLE;
+    VkPipelineLayout layout2DUIText = VK_NULL_HANDLE;
     VkPipeline pso2DUIText = VK_NULL_HANDLE;
 
     // One-time upload commands (the scenes' textures).

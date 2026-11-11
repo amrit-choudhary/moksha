@@ -10,8 +10,9 @@
 #include "utils_vulkan.h"
 
 bool ME::UploadBufferVulkan::Init(VkPhysicalDevice physicalDevice, VkDevice inDevice, uint32_t inElementCount,
-                                  uint32_t inElementSize, Kind kind) {
+                                  uint32_t inElementSize, Kind inKind) {
     device = inDevice;
+    kind = inKind;
     elementCount = inElementCount;
     elementSize = inElementSize;
 
@@ -22,11 +23,17 @@ bool ME::UploadBufferVulkan::Init(VkPhysicalDevice physicalDevice, VkDevice inDe
                                                          : props.limits.minUniformBufferOffsetAlignment);
     const uint32_t maxRange = storage ? props.limits.maxStorageBufferRange : props.limits.maxUniformBufferRange;
     const VkBufferUsageFlags usage = storage ? VK_BUFFER_USAGE_STORAGE_BUFFER_BIT : VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    stride = (elementSize + align - 1) / align * align;
-    const VkDeviceSize size = static_cast<VkDeviceSize>(stride) * elementCount * Constants::FramesInFlight;
 
-    if (elementSize > maxRange) {
-        ME::LogError("UploadBufferVulkan: element of ", elementSize, " bytes exceeds the device's range limit of ",
+    // A uniform element starts on the alignment, as each is a descriptor's target. Storage elements stay packed at
+    // the shader's array stride; only each frame's copy starts on the alignment.
+    stride = storage ? elementSize : (elementSize + align - 1) / align * align;
+    const uint32_t usedFrameSize = stride * elementCount;
+    frameSize = (usedFrameSize + align - 1) / align * align;
+    const VkDeviceSize size = static_cast<VkDeviceSize>(frameSize) * Constants::FramesInFlight;
+
+    const uint32_t range = GetDescriptorRange();
+    if (range > maxRange) {
+        ME::LogError("UploadBufferVulkan: a descriptor range of ", range, " bytes exceeds the device's limit of ",
                      maxRange);
         return false;
     }
@@ -61,26 +68,32 @@ void ME::UploadBufferVulkan::CopyElement(uint32_t frameIndex, uint32_t elementIn
     std::memcpy(mapped + GetOffset(frameIndex, elementIndex), data, elementSize);
 }
 
-void ME::UploadBufferVulkan::CopyElementBytes(uint32_t frameIndex, uint32_t elementIndex, const void* data,
-                                              uint32_t byteCount) {
-    if (mapped == nullptr || data == nullptr || frameIndex >= Constants::FramesInFlight ||
-        elementIndex >= elementCount || byteCount == 0) {
+void ME::UploadBufferVulkan::CopyElements(uint32_t frameIndex, const void* data, uint32_t count) {
+    if (mapped == nullptr || data == nullptr || frameIndex >= Constants::FramesInFlight || count == 0) {
         return;
     }
-    const uint32_t size = byteCount < elementSize ? byteCount : elementSize;
-    std::memcpy(mapped + GetOffset(frameIndex, elementIndex), data, size);
+    const uint32_t copyCount = count < elementCount ? count : elementCount;
+    const uint8_t* source = static_cast<const uint8_t*>(data);
+    if (stride == elementSize) {
+        std::memcpy(mapped + GetOffset(frameIndex, 0), source, static_cast<size_t>(elementSize) * copyCount);
+        return;
+    }
+    // Padded uniform elements: one at a time.
+    for (uint32_t i = 0; i < copyCount; ++i) {
+        std::memcpy(mapped + GetOffset(frameIndex, i), source + static_cast<size_t>(i) * elementSize, elementSize);
+    }
 }
 
 VkBuffer ME::UploadBufferVulkan::GetBuffer() const {
     return buffer;
 }
 
-uint32_t ME::UploadBufferVulkan::GetElementSize() const {
-    return elementSize;
+uint32_t ME::UploadBufferVulkan::GetDescriptorRange() const {
+    return kind == Kind::Storage ? elementSize * elementCount : elementSize;
 }
 
 uint32_t ME::UploadBufferVulkan::GetOffset(uint32_t frameIndex, uint32_t elementIndex) const {
-    return (frameIndex * elementCount + elementIndex) * stride;
+    return frameIndex * frameSize + elementIndex * stride;
 }
 
 #endif  // ME_VULKAN

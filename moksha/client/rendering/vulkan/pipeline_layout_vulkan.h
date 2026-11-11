@@ -38,6 +38,13 @@ class PipelineLayoutVulkan {
     // texture.
     static VkPipelineLayout CreateLayout2DInstancedAtlas(VkDevice device, VkDescriptorSetLayout perPass,
                                                          VkDescriptorSetLayout perDraw, VkDescriptorSetLayout texture);
+
+    // Layouts for the UI sprite and UI text passes: set 0 the pass constants, set 1 the instance data and atlas
+    // properties, set 2 texture.
+    static VkPipelineLayout CreateLayout2DUISprite(VkDevice device, VkDescriptorSetLayout perPass,
+                                                   VkDescriptorSetLayout perDraw, VkDescriptorSetLayout texture);
+    static VkPipelineLayout CreateLayout2DUIText(VkDevice device, VkDescriptorSetLayout perPass,
+                                                 VkDescriptorSetLayout perDraw, VkDescriptorSetLayout texture);
 };
 
 }  // namespace ME
