@@ -55,8 +55,10 @@ base class stores in `engine`; never put engine systems in globals.
   Override only what you use and **call the base first**: base `CreateResources` allocates every array.
 - Arrays have fixed capacities (`moksha/shared/misc/engine_limits.h`); you set `.count`. `Span::operator[]`
   does not bounds-check, so check against the capacity yourself.
-- Drawable today (DX12): sprites (`spriteTransforms`/`spriteRenderers`), the two instanced sprite sets, UI
-  sprites and text. `meshRenderers` (3D) are not drawn yet.
+- Drawable today (every backend: DX12, Metal, Vulkan, WebGPU): sprites (`spriteTransforms`/`spriteRenderers`), the
+  two instanced sprite sets, UI sprites and text. `meshRenderers` (3D) are not drawn yet.
+- Mirror a sprite with `ToggleFlipHorizontal` / `ToggleFlipVertical` (flips its atlas tile) or with a negative
+  transform scale: 2D passes cull no faces, so both draw on every backend.
 - `ME::SceneUI` holds the UI tree (`Panel`, `Label`, `Image`, `Button`), built in `BuildUIElements()`.
 
 ## Traps

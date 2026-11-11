@@ -137,10 +137,11 @@ WGPURenderPipeline ME::PSOWebGPU::CreatePSO2D(WGPUDevice device, WGPUPipelineLay
     descriptor.vertex.entryPoint = {"VS", WGPU_STRLEN};
     descriptor.vertex.bufferCount = 1;
     descriptor.vertex.buffers = &vertexBuffer;
-    // Counter-clockwise front faces, back faces culled: the DX rasterizer state.
+    // Counter-clockwise front faces, nothing culled: the DX 2D rasterizer state (a sprite mirrored by a negative
+    // scale still draws).
     descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     descriptor.primitive.frontFace = WGPUFrontFace_CCW;
-    descriptor.primitive.cullMode = WGPUCullMode_Back;
+    descriptor.primitive.cullMode = WGPUCullMode_None;
     descriptor.depthStencil = &depth;
     descriptor.fragment = &fragment;
     return wgpuDeviceCreateRenderPipeline(device, &descriptor);

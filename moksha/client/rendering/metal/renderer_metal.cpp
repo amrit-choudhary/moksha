@@ -248,9 +248,10 @@ void ME::RendererMetal::Draw() {
 
     MTL4::RenderCommandEncoder* encoder = commandBuffer->renderCommandEncoder(renderPass);
     encoder->setViewport(MTL::Viewport{0.0, 0.0, static_cast<double>(width), static_cast<double>(height), 0.0, 1.0});
-    // Counter-clockwise front faces, back faces culled: the DX rasterizer state.
+    // Counter-clockwise front faces, nothing culled: the DX 2D rasterizer state (a sprite mirrored by a negative
+    // scale still draws).
     encoder->setFrontFacingWinding(MTL::WindingCounterClockwise);
-    encoder->setCullMode(MTL::CullModeBack);
+    encoder->setCullMode(MTL::CullModeNone);
     encoder->setArgumentTable(argumentTable, MTL::RenderStageVertex | MTL::RenderStageFragment);
     argumentTable->setAddress(quad->vertexBuffer->gpuAddress(), MetalBindings::VertexBuffer);
 

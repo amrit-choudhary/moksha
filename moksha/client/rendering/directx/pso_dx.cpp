@@ -53,6 +53,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2D(ID3D12Device* device, const cha
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
     ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -86,6 +88,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstanced(ID3D12Device* device, 
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
     ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
@@ -119,7 +123,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstancedAtlas(ID3D12Device* dev
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
@@ -165,7 +170,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DAtlas(ID3D12Device* device, cons
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
@@ -211,7 +217,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DUIText(ID3D12Device* device, con
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
@@ -263,7 +270,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DUISprite(ID3D12Device* device, c
 
     CD3DX12_RASTERIZER_DESC rasterizerDesc(D3D12_DEFAULT);
     rasterizerDesc.FrontCounterClockwise = true;
-    rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+    // No culling for 2D: a sprite mirrored by a negative scale still draws.
+    rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
     D3D12_BLEND_DESC blendDesc = {};
     blendDesc.AlphaToCoverageEnable = FALSE;
