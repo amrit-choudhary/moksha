@@ -90,6 +90,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   adds it to the backport backlog (Android: the "Backport list" in
   [docs/android_port_plan.md](../../docs/android_port_plan.md)), reminds the user of the open items at the end of each
   step, and applies one only when the user asks.
+- **2D pipelines cull no faces** on every backend (counter-clockwise stays the front face), so a sprite mirrored by a
+  negative scale still draws; only DX12's unused 3D pipeline culls back faces.
+- **Porting a rendering feature** (DX12 first, then the others): [docs/porting/](../../docs/porting/README.md) has
+  the workflow, verification, the feature parity table (update it with each feature) and one DX12 → API guide per
+  backend. Read the backend's guide before porting to it.
 - Vulkan reaches the window only through `VulkanView` (`rendering/vulkan/vulkan_view.h`: instance extensions,
   `CreateSurface`, pixel size), implemented per OS in `platform/<os>/`. On Windows (`win_vulkan_view.*`) it is a
   development-only build (`-DMOKSHA_RENDERER=VULKAN`, needs the Vulkan SDK); DX12 stays the Windows renderer.
