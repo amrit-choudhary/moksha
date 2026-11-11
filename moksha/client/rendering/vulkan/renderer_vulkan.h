@@ -3,8 +3,9 @@
 
 /**
  * Renderer class for Vulkan (Android; on Windows a development-only build). Reaches the window only through
- * VulkanView, so the same code runs on every OS. In progress: draws the game scene's plain and instanced sprites
- * (SceneVulkan owns their textures, buffers and sets); the UI scenes are updated but not drawn yet.
+ * VulkanView, so the same code runs on every OS. Draws what RendererDX draws: the game scene's plain and instanced
+ * sprites (SceneVulkan), then the game's UI and the debug overlay (SceneUIVulkan each). Swapchain recreation is
+ * still missing.
  */
 
 #include <vulkan/vulkan.h>
@@ -20,6 +21,7 @@ namespace ME {
 class Scene;
 class SceneVulkan;
 class SceneUI;
+class SceneUIVulkan;
 class VulkanView;
 class WindowState;
 
@@ -46,7 +48,9 @@ class RendererVulkan : public PlatformRenderer {
     ME::Scene* scene = nullptr;
     ME::SceneVulkan* sceneVulkan = nullptr;
     ME::SceneUI* uiScene = nullptr;
+    ME::SceneUIVulkan* uiSceneVulkan = nullptr;
     ME::SceneUI* debugUiScene = nullptr;
+    ME::SceneUIVulkan* debugUiSceneVulkan = nullptr;
 
     const VulkanView* view = nullptr;
     const WindowState* window = nullptr;
@@ -96,6 +100,10 @@ class RendererVulkan : public PlatformRenderer {
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
     VkPipelineLayout layout2DInsAtl = VK_NULL_HANDLE;
     VkPipeline pso2DInsAtl = VK_NULL_HANDLE;
+    // The UI pipelines read the same sets as the instanced one (pass, instances + atlas, texture), so they share
+    // layout2DInsAtl, as WebGPU shares one instance pipeline layout.
+    VkPipeline pso2DUISprite = VK_NULL_HANDLE;
+    VkPipeline pso2DUIText = VK_NULL_HANDLE;
 
     // One-time upload commands (the scenes' textures).
     VkCommandPool uploadCommandPool = VK_NULL_HANDLE;
@@ -123,6 +131,15 @@ class RendererVulkan : public PlatformRenderer {
     // is out of range or failed to load. Set 0 must already be bound.
     void DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorSet instanceSet, uint32_t instanceOffset,
                               uint32_t instanceCount, uint32_t slot);
+
+    // Creates a UI scene's GPU resources; null (logged) on failure. The device must be idle if one is replaced.
+    ME::SceneUIVulkan* CreateUIScene(ME::SceneUI* sceneUI);
+    // Ends and deletes *uiSceneGPU, then nulls it. The GPU must be done with it.
+    void DestroyUIScene(ME::SceneUIVulkan** uiSceneGPU);
+
+    // Draws a UI scene over the frame: UI sprites with texture and atlas slot 0, then text with slot 1, each pass
+    // skipped if it is empty or its slot is missing. Binds its own set 0.
+    void DrawUIScene(VkCommandBuffer cmd, const ME::SceneUIVulkan* uiSceneGPU);
 };
 
 }  // namespace ME

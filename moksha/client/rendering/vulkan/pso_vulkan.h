@@ -23,6 +23,13 @@ class PSOVulkan {
     // comes from PipelineLayoutVulkan; keep it while the pipeline is used. Null on failure (logged).
     static VkPipeline CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
                                                 const char* shaderName);
+
+    // Pipelines for the UI sprite and UI text passes: instanced, texture atlases, straight alpha blending, no depth
+    // test or writes, so UI draws over the scene in order. layout as above. Null on failure (logged).
+    static VkPipeline CreatePSO2DUISprite(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
+                                          const char* shaderName);
+    static VkPipeline CreatePSO2DUIText(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
+                                        const char* shaderName);
 };
 
 }  // namespace ME

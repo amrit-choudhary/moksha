@@ -115,7 +115,13 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   Instanced sets read a storage buffer (`UploadBufferVulkan::Kind::Storage`, the whole std430 array as one element,
   set 1 binding 0) by `gl_InstanceIndex`, texture and atlas slots 1 and 2 as in every backend, each set made on its own.
   The scene pipelines blend straight alpha (`SRC_ALPHA`/`ONE_MINUS_SRC_ALPHA`, alpha `ONE`/`ZERO`) with depth on,
-  as DX12. Not done yet: the UI scenes, swapchain recreation.
+  as DX12. `SceneUIVulkan` (`scene/scene_ui_vulkan.*`, one for the game's UI and one for the debug overlay, each
+  rebuilt after a device wait by `SetScenes` / `SetDebugUIScene`) owns a UI scene's textures (atlas slot 0, font
+  slot 1), two pass buffers (packed window size; the GLSL block declares the `uint` directly, as a std140 struct
+  would round up past the 4-byte C++ constants), the atlases, and the UI sprite and text instance buffers at
+  capacity, of which each frame copies (`CopyElementBytes`) and draws only the live counts. The UI pipelines
+  (`CreatePSO2DUISprite` / `CreatePSO2DUIText`) have depth off and share `layout2DInsAtl`; `DrawUIScene` binds sets
+  0-2 per pass after the scene. Not done yet: swapchain recreation.
   `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources

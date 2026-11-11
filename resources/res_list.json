@@ -30,7 +30,11 @@
             "shaders/glsl/sprite_atlas.vert",
             "shaders/glsl/sprite_atlas.frag",
             "shaders/glsl/sprite_instanced_atlas.vert",
-            "shaders/glsl/sprite_instanced_atlas.frag"
+            "shaders/glsl/sprite_instanced_atlas.frag",
+            "shaders/glsl/ui_sprite.vert",
+            "shaders/glsl/ui_sprite.frag",
+            "shaders/glsl/ui_text.vert",
+            "shaders/glsl/ui_text.frag"
         ]
     }
 }

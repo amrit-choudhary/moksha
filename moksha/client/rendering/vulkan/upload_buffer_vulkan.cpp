@@ -61,6 +61,16 @@ void ME::UploadBufferVulkan::CopyElement(uint32_t frameIndex, uint32_t elementIn
     std::memcpy(mapped + GetOffset(frameIndex, elementIndex), data, elementSize);
 }
 
+void ME::UploadBufferVulkan::CopyElementBytes(uint32_t frameIndex, uint32_t elementIndex, const void* data,
+                                              uint32_t byteCount) {
+    if (mapped == nullptr || data == nullptr || frameIndex >= Constants::FramesInFlight ||
+        elementIndex >= elementCount || byteCount == 0) {
+        return;
+    }
+    const uint32_t size = byteCount < elementSize ? byteCount : elementSize;
+    std::memcpy(mapped + GetOffset(frameIndex, elementIndex), data, size);
+}
+
 VkBuffer ME::UploadBufferVulkan::GetBuffer() const {
     return buffer;
 }

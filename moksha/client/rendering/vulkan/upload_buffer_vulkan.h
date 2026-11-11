@@ -38,6 +38,10 @@ class UploadBufferVulkan {
     // Copies one element (elementSize bytes) into a frame's copy.
     void CopyElement(uint32_t frameIndex, uint32_t elementIndex, const void* data);
 
+    // Copies the first byteCount bytes of one element (clamped to elementSize), e.g. the used part of an instance
+    // array sized at capacity; the counterpart of UploadBufferDX::CopyElements.
+    void CopyElementBytes(uint32_t frameIndex, uint32_t elementIndex, const void* data, uint32_t byteCount);
+
     VkBuffer GetBuffer() const;
 
     // Size of one element, for the descriptor's range.

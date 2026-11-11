@@ -34,3 +34,20 @@ struct SpriteInstanceData {
     uint flags;
     uvec2 padding;
 };
+
+// Per-instance data for UI sprites and text; the same 96-byte layout as SpriteInstanceData.
+struct UISpriteInstanceData {
+    mat4 modelMatrix;
+    vec4 color;
+    uint atlasIndex;
+    uint flags;
+    uvec2 padding;
+};
+
+struct TextInstanceData {
+    mat4 modelMatrix;
+    vec4 color;
+    uint atlasIndex;
+    uint flags;
+    uvec2 padding;
+};

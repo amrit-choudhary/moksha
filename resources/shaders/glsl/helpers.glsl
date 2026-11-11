@@ -29,3 +29,11 @@ vec2 GetAtlasUV(vec2 uv, uint atlasIndex, TextureAtlasProperties atlasProps, uin
 
     return (origin + localPx) / vec2(float(atlasProps.width), float(atlasProps.height));
 }
+
+// Maps a UI position (window units, origin at the centre) to clip space. screenDimension is packed: high 16 bits
+// width, low 16 bits height.
+vec4 GetUIPosition(vec4 position, uint screenDimension) {
+    float screenWidth = float((screenDimension >> 16) & 0xFFFFu);
+    float screenHeight = float(screenDimension & 0xFFFFu);
+    return vec4((position.x / screenWidth) * 2.0, (position.y / screenHeight) * 2.0, position.z, position.w);
+}

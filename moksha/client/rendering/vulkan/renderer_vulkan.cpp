@@ -4,10 +4,13 @@
 
 #include <cstring>
 
+#include "moksha/client/app/app_config.h"
 #include "moksha/client/rendering/shared/sprite_renderer.h"
+#include "moksha/client/scene/scene_ui_vulkan.h"
 #include "moksha/client/scene/scene_vulkan.h"
 #include "moksha/logging/logging.h"
 #include "moksha/shared/math/math.h"
+#include "moksha/shared/misc/utils.h"
 #include "pipeline_layout_vulkan.h"
 #include "pso_vulkan.h"
 #include "sampler_vulkan.h"
@@ -185,10 +188,25 @@ void ME::RendererVulkan::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene)
             sceneVulkan = nullptr;
         }
     }
+
+    DestroyUIScene(&uiSceneVulkan);
+    if (inUiScene != nullptr) {
+        uiSceneVulkan = CreateUIScene(inUiScene);
+    }
 }
 
 void ME::RendererVulkan::SetDebugUIScene(ME::SceneUI* inDebugUiScene) {
     debugUiScene = inDebugUiScene;
+    if (device == VK_NULL_HANDLE) {
+        return;  // InitVulkan failed
+    }
+
+    // Set apart from SetScenes, so it waits for the frames in flight on its own.
+    vkDeviceWaitIdle(device);
+    DestroyUIScene(&debugUiSceneVulkan);
+    if (inDebugUiScene != nullptr) {
+        debugUiSceneVulkan = CreateUIScene(inDebugUiScene);
+    }
 }
 
 void ME::RendererVulkan::Update() {
@@ -198,8 +216,14 @@ void ME::RendererVulkan::Update() {
     if (uiScene != nullptr) {
         uiScene->Update();
     }
+    if (uiSceneVulkan != nullptr) {
+        uiSceneVulkan->Update();
+    }
     if (debugUiScene != nullptr) {
         debugUiScene->Update();
+    }
+    if (debugUiSceneVulkan != nullptr) {
+        debugUiSceneVulkan->Update();
     }
 }
 
@@ -227,6 +251,14 @@ void ME::RendererVulkan::Draw() {
     // This slot's previous frame is done (the fence above), so its copies are free to write.
     if (sceneVulkan != nullptr) {
         sceneVulkan->UploadFrame(frameIndex);
+    }
+    // UI is laid out in window units, mapped to the screen by the window's size.
+    const uint32_t screenDimension = ME::Utils::Pack16To32(window->width, window->height);
+    if (uiSceneVulkan != nullptr) {
+        uiSceneVulkan->UploadFrame(frameIndex, screenDimension);
+    }
+    if (debugUiSceneVulkan != nullptr) {
+        debugUiSceneVulkan->UploadFrame(frameIndex, screenDimension);
     }
 
     vkResetCommandPool(device, commandPools[frameIndex], 0);
@@ -286,6 +318,10 @@ void ME::RendererVulkan::Draw() {
                              sceneVulkan->instanceCount1, 2);
     }
 
+    // UI over the scene: the game UI first, then the debug overlay on top of it.
+    DrawUIScene(cmd, uiSceneVulkan);
+    DrawUIScene(cmd, debugUiSceneVulkan);
+
     vkCmdEndRenderPass(cmd);
 
     result = vkEndCommandBuffer(cmd);
@@ -334,11 +370,21 @@ void ME::RendererVulkan::Draw() {
 void ME::RendererVulkan::End() {
     if (device != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device);
-        // First: the scene's sets were made from the set layouts destroyed below.
+        // First: the scenes' sets were made from the set layouts destroyed below.
         if (sceneVulkan != nullptr) {
             sceneVulkan->End();
             delete sceneVulkan;
             sceneVulkan = nullptr;
+        }
+        DestroyUIScene(&debugUiSceneVulkan);
+        DestroyUIScene(&uiSceneVulkan);
+        if (pso2DUIText != VK_NULL_HANDLE) {
+            vkDestroyPipeline(device, pso2DUIText, nullptr);
+            pso2DUIText = VK_NULL_HANDLE;
+        }
+        if (pso2DUISprite != VK_NULL_HANDLE) {
+            vkDestroyPipeline(device, pso2DUISprite, nullptr);
+            pso2DUISprite = VK_NULL_HANDLE;
         }
         if (pso2DInsAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DInsAtl, nullptr);
@@ -997,6 +1043,18 @@ bool ME::RendererVulkan::CreatePSO() {
         return false;
     }
 
+    pso2DUISprite = PSOVulkan::CreatePSO2DUISprite(device, renderPass, layout2DInsAtl, "ui_sprite");
+    if (pso2DUISprite == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the UI sprite pipeline");
+        return false;
+    }
+
+    pso2DUIText = PSOVulkan::CreatePSO2DUIText(device, renderPass, layout2DInsAtl, "ui_text");
+    if (pso2DUIText == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the UI text pipeline");
+        return false;
+    }
+
     return true;
 }
 
@@ -1040,6 +1098,66 @@ void ME::RendererVulkan::DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorS
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DInsAtl, 1, 2, sets, 2, offsets);
 
     vkCmdDrawIndexed(cmd, quad.indexCount, instanceCount, 0, 0, 0);
+}
+
+ME::SceneUIVulkan* ME::RendererVulkan::CreateUIScene(ME::SceneUI* sceneUI) {
+    ME::SceneUIVulkan* uiSceneGPU = new ME::SceneUIVulkan();
+    if (!uiSceneGPU->Init(physicalDevice, device, graphicsQueue, uploadCommandPool, setLayoutPerPass,
+                          setLayoutInstanced, setLayoutTexture, sceneUI)) {
+        ME::LogError("RendererVulkan: failed to create a UI scene's GPU resources");
+        DestroyUIScene(&uiSceneGPU);
+    }
+    return uiSceneGPU;
+}
+
+void ME::RendererVulkan::DestroyUIScene(ME::SceneUIVulkan** uiSceneGPU) {
+    if (*uiSceneGPU == nullptr) {
+        return;
+    }
+    (*uiSceneGPU)->End();
+    delete *uiSceneGPU;
+    *uiSceneGPU = nullptr;
+}
+
+void ME::RendererVulkan::DrawUIScene(VkCommandBuffer cmd, const ME::SceneUIVulkan* uiSceneGPU) {
+    if (uiSceneGPU == nullptr) {
+        return;
+    }
+
+    // Fixed slots, as in every backend: the UI atlas at texture and atlas 0, the font at 1.
+    class UIPass {
+       public:
+        VkPipeline pipeline;
+        VkDescriptorSet passSet;
+        uint32_t passOffset;
+        VkDescriptorSet instanceSet;
+        uint32_t instanceOffset;
+        uint32_t instanceCount;
+        uint32_t slot;
+    };
+    const UIPass passes[2] = {
+        {pso2DUISprite, uiSceneGPU->uiSpritePassSet, uiSceneGPU->GetUISpritePassOffset(frameIndex),
+         uiSceneGPU->uiSpriteInstanceSet, uiSceneGPU->GetUISpriteInstanceOffset(frameIndex),
+         uiSceneGPU->uiSpriteInstanceCount, 0},
+        {pso2DUIText, uiSceneGPU->textPassSet, uiSceneGPU->GetTextPassOffset(frameIndex), uiSceneGPU->textInstanceSet,
+         uiSceneGPU->GetTextInstanceOffset(frameIndex), uiSceneGPU->textInstanceCount, 1},
+    };
+
+    for (const UIPass& pass : passes) {
+        if (pass.instanceCount == 0 || pass.slot >= uiSceneGPU->spriteTextureCount ||
+            uiSceneGPU->textureSets[pass.slot] == VK_NULL_HANDLE || pass.slot >= uiSceneGPU->atlasCount) {
+            continue;
+        }
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pass.pipeline);
+
+        // Sets 0-2; offsets in set-then-binding order: the pass constants, then set 1's instances and atlas.
+        const VkDescriptorSet sets[3] = {pass.passSet, pass.instanceSet, uiSceneGPU->textureSets[pass.slot]};
+        const uint32_t offsets[3] = {pass.passOffset, pass.instanceOffset,
+                                     uiSceneGPU->GetAtlasOffset(frameIndex, pass.slot)};
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DInsAtl, 0, 3, sets, 3, offsets);
+
+        vkCmdDrawIndexed(cmd, quad.indexCount, pass.instanceCount, 0, 0, 0);
+    }
 }
 
 bool ME::RendererVulkan::PickDepthFormat() {
