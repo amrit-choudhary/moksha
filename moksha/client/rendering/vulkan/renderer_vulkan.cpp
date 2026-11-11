@@ -178,7 +178,7 @@ void ME::RendererVulkan::SetScenes(ME::Scene* gameScene, ME::SceneUI* inUiScene)
     if (gameScene != nullptr) {
         sceneVulkan = new ME::SceneVulkan();
         if (!sceneVulkan->Init(physicalDevice, device, graphicsQueue, uploadCommandPool, setLayoutPerPass,
-                               setLayoutPerSprite, setLayoutTexture, gameScene)) {
+                               setLayoutPerSprite, setLayoutInstanced, setLayoutTexture, gameScene)) {
             ME::LogError("RendererVulkan: failed to create the scene's GPU resources");
             sceneVulkan->End();
             delete sceneVulkan;
@@ -272,7 +272,19 @@ void ME::RendererVulkan::Draw() {
     vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, &vertexOffset);
     vkCmdBindIndexBuffer(cmd, quad.GetIndexBuffer(), 0, VK_INDEX_TYPE_UINT16);
 
-    DrawSprites(cmd);
+    if (sceneVulkan != nullptr) {
+        // Set 0 once for every scene pass: both atlas layouts share its set layout, so it stays bound across pipelines.
+        const uint32_t passOffset = sceneVulkan->GetPerPassOffset(frameIndex);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 1, &sceneVulkan->perPassSet, 1,
+                                &passOffset);
+
+        DrawSprites(cmd);
+        // Fixed texture and atlas slots, as in every backend: set 0 uses slot 1, set 1 slot 2.
+        DrawInstancedSprites(cmd, sceneVulkan->spriteInstanceSet0, sceneVulkan->GetInstanceOffset0(frameIndex),
+                             sceneVulkan->instanceCount0, 1);
+        DrawInstancedSprites(cmd, sceneVulkan->spriteInstanceSet1, sceneVulkan->GetInstanceOffset1(frameIndex),
+                             sceneVulkan->instanceCount1, 2);
+    }
 
     vkCmdEndRenderPass(cmd);
 
@@ -994,11 +1006,6 @@ void ME::RendererVulkan::DrawSprites(VkCommandBuffer cmd) {
     }
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DAtl);
 
-    // Set 0 once: binding sets 1 and 2 below leaves it bound.
-    const uint32_t passOffset = sceneVulkan->GetPerPassOffset(frameIndex);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DAtl, 0, 1, &sceneVulkan->perPassSet, 1,
-                            &passOffset);
-
     for (uint32_t i = 0; i < sceneVulkan->spriteCount; ++i) {
         const ME::SpriteRenderer& sprite = sceneVulkan->spriteRenderers[i];
         // Skip sprites whose texture didn't load or whose ids are out of range.
@@ -1016,6 +1023,23 @@ void ME::RendererVulkan::DrawSprites(VkCommandBuffer cmd) {
 
         vkCmdDrawIndexed(cmd, quad.indexCount, 1, 0, 0, 0);
     }
+}
+
+void ME::RendererVulkan::DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorSet instanceSet, uint32_t instanceOffset,
+                                              uint32_t instanceCount, uint32_t slot) {
+    if (sceneVulkan == nullptr || instanceCount == 0 || instanceSet == VK_NULL_HANDLE ||
+        slot >= sceneVulkan->spriteTextureCount || sceneVulkan->textureSets[slot] == VK_NULL_HANDLE ||
+        slot >= sceneVulkan->atlasCount) {
+        return;
+    }
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DInsAtl);
+
+    // Sets 1 and 2; the offsets are set 1's: binding 0 the instance array's frame copy, binding 1 the atlas.
+    const VkDescriptorSet sets[2] = {instanceSet, sceneVulkan->textureSets[slot]};
+    const uint32_t offsets[2] = {instanceOffset, sceneVulkan->GetAtlasOffset(frameIndex, slot)};
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, layout2DInsAtl, 1, 2, sets, 2, offsets);
+
+    vkCmdDrawIndexed(cmd, quad.indexCount, instanceCount, 0, 0, 0);
 }
 
 bool ME::RendererVulkan::PickDepthFormat() {

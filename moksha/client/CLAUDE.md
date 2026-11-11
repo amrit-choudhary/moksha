@@ -110,8 +110,11 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   fences and image-available semaphores, render-finished semaphores per swapchain image; viewport and scissor are
   dynamic, Y flipped by a negative viewport height. `SceneVulkan` (`scene/scene_vulkan.*`, made by `SetScenes` after a
   device wait) owns a scene's sprite textures, one buffer for all sprites, one for all atlases, and its own pool and
-  sets (set 2 per texture); `DrawSprites` binds set 0 once, then sets 1 and 2 per sprite, skipping out-of-range ids.
-  Not done yet: instanced sprites, the UI scenes, blending, swapchain recreation.
+  sets (set 2 per texture, a set 1 per non-empty instanced set). `Draw` binds set 0 once, kept across both atlas
+  pipeline layouts (same set 0 layout); `DrawSprites` binds sets 1 and 2 per sprite, skipping out-of-range ids.
+  Instanced sets read a storage buffer (`UploadBufferVulkan::Kind::Storage`, the whole std430 array as one element,
+  set 1 binding 0) by `gl_InstanceIndex`, texture and atlas slots 1 and 2 as in every backend, each set made on its own.
+  Not done yet: blending, the UI scenes, swapchain recreation.
   `End()` waits for the device, then destroys in reverse creation order.
 - WebGPU (through Emscripten's `emdawnwebgpu` port): `RendererWebGPU` mirrors `RendererMetal` pass for pass, and reaches
   the canvas through `WebGPUView`, which the driver fills in once it has a device. The browser presents and keeps resources

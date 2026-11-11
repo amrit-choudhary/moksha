@@ -3,8 +3,8 @@
 
 /**
  * Renderer class for Vulkan (Android; on Windows a development-only build). Reaches the window only through
- * VulkanView, so the same code runs on every OS. In progress: draws the game scene's plain sprites (SceneVulkan owns
- * their textures, buffers and sets); instanced sprites and the UI scenes are updated but not drawn yet.
+ * VulkanView, so the same code runs on every OS. In progress: draws the game scene's plain and instanced sprites
+ * (SceneVulkan owns their textures, buffers and sets); the UI scenes are updated but not drawn yet.
  */
 
 #include <vulkan/vulkan.h>
@@ -116,8 +116,13 @@ class RendererVulkan : public PlatformRenderer {
     bool CreateSyncObjects();
     bool CreatePSO();
 
-    // Draws the scene's plain sprites: set 0 once, then sets 1 and 2 per sprite.
+    // Draws the scene's plain sprites: sets 1 and 2 per sprite. Set 0 must already be bound.
     void DrawSprites(VkCommandBuffer cmd);
+
+    // Draws one instanced set in a single call with texture and atlas `slot`; skipped if the set is empty or the slot
+    // is out of range or failed to load. Set 0 must already be bound.
+    void DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorSet instanceSet, uint32_t instanceOffset,
+                              uint32_t instanceCount, uint32_t slot);
 };
 
 }  // namespace ME
