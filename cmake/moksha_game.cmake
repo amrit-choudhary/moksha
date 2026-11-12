@@ -320,7 +320,8 @@ function(_moksha_android_apk target appId displayName orientation)
         COMMAND "${MOKSHA_APKSIGNER}" sign --ks "${keystore}" --ks-pass pass:android --key-pass pass:android
                 --out "${apk}" "${apkDir}/aligned.apk"
         COMMENT "Packaging ${target}.apk"
-        VERBATIM)
+        VERBATIM
+        COMMAND_EXPAND_LISTS) # outside Debug, the --debug-mode genex is empty; without this it would pass "" to aapt2
 
     add_custom_target(${target}_install
         COMMAND "${MOKSHA_ADB}" install -r "${apk}"
