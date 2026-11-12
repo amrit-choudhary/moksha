@@ -112,8 +112,8 @@ class Scene {
     void UpdateSpriteRenderers();
 
     /**
-     * Updates instanced sprite renderers that are marked as dirty.
-     * After update, the dirty flag is cleared.
+     * Rebuilds the matrix of each drawn instance whose transform is dirty, and copies colour, atlas index and flags of
+     * each drawn instance whose renderer is dirty. Both flags are then cleared for the drawn instances.
      */
     void UpdateInstancedSpriteRenderers();
 };

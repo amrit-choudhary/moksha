@@ -42,6 +42,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   only set 1 gets no buffer for it and set 1 isn't drawn (`SceneMetal` creates each set independently).
 - Instanced sets: each backend has a second instanced pipeline, `pso2DInsAtlAdditive`, chosen per set by
   `Scene::instancedSpriteBlend0/1`, and copies and draws only `Scene::GetInstancedDrawCount0/1()` instances.
+  `Scene::Update` rebuilds a drawn instance's matrix only when its `Transform` is dirty, and copies colour, atlas
+  index and flags only when its renderer's `bDirty` is set; both clear once drawn.
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
   with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
   (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus.

@@ -190,13 +190,13 @@ void ME::Scene::UpdateSpriteRenderers() {
 }
 
 void ME::Scene::UpdateInstancedSpriteRenderers() {
-    // Updating transforms and atlas indices for dirty instances, only those drawn this frame; the rest stay dirty
-    // until they are drawn. In separate loops to avoid cache misses.
+    // Matrices for dirty transforms, appearance for dirty renderers, only for instances drawn this frame; the rest stay
+    // dirty until they are drawn. In separate loops to avoid cache misses.
     const size_t drawCount0 = GetInstancedDrawCount0();
     const size_t drawCount1 = GetInstancedDrawCount1();
 
     for (size_t i = 0; i < drawCount0; ++i) {
-        if (!instancedSpriteRenderers0[i].bDirty) {
+        if (!instancedSpriteTransforms0[i].IsDirty()) {
             continue;
         }
         spriteInstanceData0[i].modelMatrixData = instancedSpriteTransforms0[i].GetModelMatrix().GetDataForShader();
@@ -212,13 +212,12 @@ void ME::Scene::UpdateInstancedSpriteRenderers() {
     }
 
     for (size_t i = 0; i < drawCount0; ++i) {
-        if (instancedSpriteRenderers0[i].bDirty) {
-            instancedSpriteRenderers0[i].bDirty = false;
-        }
+        instancedSpriteTransforms0[i].ClearDirty();
+        instancedSpriteRenderers0[i].bDirty = false;
     }
 
     for (size_t i = 0; i < drawCount1; ++i) {
-        if (!instancedSpriteRenderers1[i].bDirty) {
+        if (!instancedSpriteTransforms1[i].IsDirty()) {
             continue;
         }
         spriteInstanceData1[i].modelMatrixData = instancedSpriteTransforms1[i].GetModelMatrix().GetDataForShader();
@@ -234,8 +233,7 @@ void ME::Scene::UpdateInstancedSpriteRenderers() {
     }
 
     for (size_t i = 0; i < drawCount1; ++i) {
-        if (instancedSpriteRenderers1[i].bDirty) {
-            instancedSpriteRenderers1[i].bDirty = false;
-        }
+        instancedSpriteTransforms1[i].ClearDirty();
+        instancedSpriteRenderers1[i].bDirty = false;
     }
 }

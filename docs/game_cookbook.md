@@ -191,9 +191,9 @@ for (size_t i = 0; i < maxTiles; ++i) {
     instancedSpriteRenderers0[i] = ME::SpriteRenderer(0, 0, 1, 1, tileIndex);
 }
 
-// Later, after moving instance i or changing its atlasIndex:
+// Later, after changing instance i's atlasIndex, color or flags (moving it through the transform setters needs nothing):
 instancedSpriteRenderers0[i].bDirty = true;
-// "Removing" an instance: move it far off-screen and mark it dirty.
+// "Removing" an instance: move it far off-screen (or scale it to 0).
 
 // Only the first N instances are updated, uploaded and drawn (any time; default all). Keep the live ones at the front.
 instancedSpriteDrawCount0 = liveCount;

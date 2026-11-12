@@ -30,7 +30,8 @@ Project rules: [root CLAUDE.md](../../CLAUDE.md).
 
 ## Math, data, random
 - `math/`: vectors, `Mat4` (row- or column-major per graphics API, set on this library from the windowed
-  client's API), `Transform`, `Vec16`, and `fp_24_8.h` — 24.8 fixed point for anything that must stay
+  client's API), `Transform` (every setter sets its dirty flag, `IsDirty`/`ClearDirty`; `GetModelMatrix` fills
+  z-only rotations in closed form, the general `T * R * S` only for x or y rotation), `Vec16`, and `fp_24_8.h` — 24.8 fixed point for anything that must stay
   deterministic across machines (sent raw on the wire).
 - `datastructure/`: `Grid<T>`, `RingBuffer<T>`, `Pool<T>`, `Span<T>`. Owning containers delete copy/move.
 - `random/`: `Random` (xoshiro128**), `RandomWt` (weighted table), Perlin noise (`stb_perlin`, vendored).

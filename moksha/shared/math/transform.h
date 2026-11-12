@@ -46,18 +46,24 @@ class Transform {
     void SetScale(float scale);
     void SetScale(const ME::Vec3& scale);
 
-    ME::Mat4 GetModelMatrix() const {
-        // Create the model matrix using position, rotation, and scale.
-        ME::Mat4 translationMat = ME::Mat4::Translation(ME::Vec4{position.x, position.y, position.z, 1.0f});
-        ME::Mat4 rotationMat = ME::Mat4::Rotation(rotation);
-        ME::Mat4 scaleMat = ME::Mat4::Scale(ME::Vec4{scale.x, scale.y, scale.z, 1.0f});
-        return translationMat * rotationMat * scaleMat;
+    // Translation * Rotation * Scale. With rotation only about z (x and y are 0) it is filled in closed form, with no
+    // trig at angle 0; the result equals the general product.
+    ME::Mat4 GetModelMatrix() const;
+
+    // True after any setter since the last ClearDirty(); a new transform starts dirty. Renderers rebuild the model
+    // matrix only for dirty transforms.
+    bool IsDirty() const {
+        return bDirty;
+    }
+    void ClearDirty() {
+        bDirty = false;
     }
 
    private:
     ME::Vec3 position;
     ME::Vec4 rotation;
     ME::Vec3 scale;
+    bool bDirty = true;
 };
 
 }  // namespace ME
