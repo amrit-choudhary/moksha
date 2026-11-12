@@ -11,6 +11,8 @@
 
 #include <webgpu/webgpu.h>
 
+#include "moksha/client/rendering/shared/sprite_renderer.h"
+
 namespace ME {
 
 class UploadBufferWebGPU;
@@ -42,11 +44,12 @@ class PSOWebGPU {
     static WGPUPipelineLayout CreatePipelineLayout(WGPUDevice device, WGPUBindGroupLayout passLayout,
                                                    WGPUBindGroupLayout textureLayout, WGPUBindGroupLayout objectLayout);
 
-    // A 2D atlas pipeline from shaderName's VS and PS, alpha blended into colorFormat. depthTest is the sprite passes'
-    // Less with writes; without it, as in the UI passes, everything draws and writes no depth. Null if the shader file
-    // can't be read; errors in the shader or pipeline arrive through the device's error callback.
+    // A 2D atlas pipeline from shaderName's VS and PS, blended into colorFormat as blend says. depthTest is the sprite
+    // passes' Less with writes (Additive tests without writing); without it, as in the UI passes, everything draws and
+    // writes no depth. Null if the shader file can't be read; errors in the shader or pipeline arrive through the
+    // device's error callback.
     static WGPURenderPipeline CreatePSO2D(WGPUDevice device, WGPUPipelineLayout layout, const char* shaderName,
-                                          WGPUTextureFormat colorFormat, bool depthTest);
+                                          WGPUTextureFormat colorFormat, bool depthTest, ME::SpriteBlend blend);
 
     // Bind groups for the layouts above. The texture one is null when view is, so a failed texture isn't drawn.
     static WGPUBindGroup CreatePassBindGroup(const WebGPUContext& context, const UploadBufferWebGPU* perPassBuffer,

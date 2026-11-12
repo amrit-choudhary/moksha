@@ -109,13 +109,16 @@ class RendererMetal : public PlatformRenderer {
     MTL::RenderPipelineState* pso2DAtl = nullptr;
     // Pipeline for 2D rendering with instancing and texture atlases.
     MTL::RenderPipelineState* pso2DInsAtl = nullptr;
+    // The same, blended additively, for instanced sets set to SpriteBlend::Additive.
+    MTL::RenderPipelineState* pso2DInsAtlAdditive = nullptr;
     // Pipeline for UI Text rendering.
     MTL::RenderPipelineState* pso2DUIText = nullptr;
     // Pipeline for UI Sprite rendering.
     MTL::RenderPipelineState* pso2DUISprite = nullptr;
 
-    // Depth test and writes for the sprite passes; none for the UI passes.
+    // Depth test and writes for the sprite passes; test only for additive instanced sets; none for the UI passes.
     MTL::DepthStencilState* depthStateDefault = nullptr;
+    MTL::DepthStencilState* depthStateTestOnly = nullptr;
     MTL::DepthStencilState* depthStateDisabled = nullptr;
 
     // Memoryless depth buffer, sized to the drawable; recreated when the drawable's size changes.
@@ -132,10 +135,10 @@ class RendererMetal : public PlatformRenderer {
     // Blocks until the queue has signalled value. False, with an error logged, if the timeout passes first.
     bool WaitForFence(uint64_t value, uint64_t timeoutMilliseconds);
 
-    // Issues one instanced sprite set: its texture and atlas slot, instance data and count. Shared by both sets.
+    // Issues one instanced sprite set: its texture and atlas slot, instance data, count and blend. Shared by both sets.
     void DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
                                 const ME::SpriteRendererInstanceData* instanceData,
-                                ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount);
+                                ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount, ME::SpriteBlend blend);
 
     // Issues the UI Sprite + UI Text draw passes for one SceneUIMetal. Shared by the main UI scene and the debug
     // system's UI scene: same pipelines, different data. No-op if uiSceneMetal is nullptr.

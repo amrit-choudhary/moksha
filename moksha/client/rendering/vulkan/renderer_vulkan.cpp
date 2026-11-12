@@ -313,9 +313,9 @@ void ME::RendererVulkan::Draw() {
         DrawSprites(cmd);
         // Fixed texture and atlas slots, as in every backend: set 0 uses slot 1, set 1 slot 2.
         DrawInstancedSprites(cmd, sceneVulkan->spriteInstanceSet0, sceneVulkan->GetInstanceOffset0(frameIndex),
-                             sceneVulkan->instanceCount0, 1);
+                             sceneVulkan->GetDrawCount0(), 1, scene->instancedSpriteBlend0);
         DrawInstancedSprites(cmd, sceneVulkan->spriteInstanceSet1, sceneVulkan->GetInstanceOffset1(frameIndex),
-                             sceneVulkan->instanceCount1, 2);
+                             sceneVulkan->GetDrawCount1(), 2, scene->instancedSpriteBlend1);
     }
 
     // UI over the scene: the game UI first, then the debug overlay on top of it.
@@ -393,6 +393,10 @@ void ME::RendererVulkan::End() {
         if (layout2DUISprite != VK_NULL_HANDLE) {
             vkDestroyPipelineLayout(device, layout2DUISprite, nullptr);
             layout2DUISprite = VK_NULL_HANDLE;
+        }
+        if (pso2DInsAtlAdditive != VK_NULL_HANDLE) {
+            vkDestroyPipeline(device, pso2DInsAtlAdditive, nullptr);
+            pso2DInsAtlAdditive = VK_NULL_HANDLE;
         }
         if (pso2DInsAtl != VK_NULL_HANDLE) {
             vkDestroyPipeline(device, pso2DInsAtl, nullptr);
@@ -1045,9 +1049,17 @@ bool ME::RendererVulkan::CreatePSO() {
         return false;
     }
 
-    pso2DInsAtl = PSOVulkan::CreatePSO2DInstancedAtlas(device, renderPass, layout2DInsAtl, "sprite_instanced_atlas");
+    pso2DInsAtl = PSOVulkan::CreatePSO2DInstancedAtlas(device, renderPass, layout2DInsAtl, "sprite_instanced_atlas",
+                                                       ME::SpriteBlend::Alpha);
     if (pso2DInsAtl == VK_NULL_HANDLE) {
         ME::LogError("RendererVulkan: failed to create the 2D instanced atlas pipeline");
+        return false;
+    }
+
+    pso2DInsAtlAdditive = PSOVulkan::CreatePSO2DInstancedAtlas(device, renderPass, layout2DInsAtl,
+                                                               "sprite_instanced_atlas", ME::SpriteBlend::Additive);
+    if (pso2DInsAtlAdditive == VK_NULL_HANDLE) {
+        ME::LogError("RendererVulkan: failed to create the 2D instanced atlas additive pipeline");
         return false;
     }
 
@@ -1106,13 +1118,14 @@ void ME::RendererVulkan::DrawSprites(VkCommandBuffer cmd) {
 }
 
 void ME::RendererVulkan::DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorSet instanceSet, uint32_t instanceOffset,
-                                              uint32_t instanceCount, uint32_t slot) {
+                                              uint32_t instanceCount, uint32_t slot, ME::SpriteBlend blend) {
     if (sceneVulkan == nullptr || instanceCount == 0 || instanceSet == VK_NULL_HANDLE ||
         slot >= sceneVulkan->spriteTextureCount || sceneVulkan->textureSets[slot] == VK_NULL_HANDLE ||
         slot >= sceneVulkan->atlasCount) {
         return;
     }
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pso2DInsAtl);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      blend == ME::SpriteBlend::Additive ? pso2DInsAtlAdditive : pso2DInsAtl);
 
     // Sets 1 and 2; the offsets are set 1's: binding 0 the instance array's frame copy, binding 1 the atlas.
     const VkDescriptorSet sets[2] = {instanceSet, sceneVulkan->textureSets[slot]};

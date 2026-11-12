@@ -117,9 +117,22 @@ void ME::RendererMetal::End() {
         }
     }
 
-    NS::Object* objects[] = {
-        depthTexture, depthStateDisabled, depthStateDefault, pso2DAtl,      pso2DInsAtl, pso2DUIText,  pso2DUISprite,
-        residencySet, argumentTable,      compiler,          commandBuffer, fence,       commandQueue, device};
+    NS::Object* objects[] = {depthTexture,
+                             depthStateDisabled,
+                             depthStateTestOnly,
+                             depthStateDefault,
+                             pso2DAtl,
+                             pso2DInsAtl,
+                             pso2DInsAtlAdditive,
+                             pso2DUIText,
+                             pso2DUISprite,
+                             residencySet,
+                             argumentTable,
+                             compiler,
+                             commandBuffer,
+                             fence,
+                             commandQueue,
+                             device};
     for (NS::Object* object : objects) {
         if (object != nullptr) {
             object->release();
@@ -128,8 +141,10 @@ void ME::RendererMetal::End() {
     depthTexture = nullptr;
     depthStateDisabled = nullptr;
     depthStateDefault = nullptr;
+    depthStateTestOnly = nullptr;
     pso2DAtl = nullptr;
     pso2DInsAtl = nullptr;
+    pso2DInsAtlAdditive = nullptr;
     pso2DUIText = nullptr;
     pso2DUISprite = nullptr;
     residencySet = nullptr;
@@ -187,10 +202,13 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
 
     // Create PSOs and depth states.
     pso2DAtl = PSOMetal::CreatePSO2DAtlas(compiler, "sprite_atlas.metal");
-    pso2DInsAtl = PSOMetal::CreatePSO2DInstancedAtlas(compiler, "sprite_instanced_atlas.metal");
+    pso2DInsAtl = PSOMetal::CreatePSO2DInstancedAtlas(compiler, "sprite_instanced_atlas.metal", ME::SpriteBlend::Alpha);
+    pso2DInsAtlAdditive =
+        PSOMetal::CreatePSO2DInstancedAtlas(compiler, "sprite_instanced_atlas.metal", ME::SpriteBlend::Additive);
     pso2DUIText = PSOMetal::CreatePSO2DUIText(compiler, "ui_text.metal");
     pso2DUISprite = PSOMetal::CreatePSO2DUISprite(compiler, "ui_sprite.metal");
     depthStateDefault = PSOMetal::CreateDepthStateDefault(device);
+    depthStateTestOnly = PSOMetal::CreateDepthStateTestOnly(device);
     depthStateDisabled = PSOMetal::CreateDepthStateDisabled(device);
 
     quad = new QuadMetal();
@@ -213,7 +231,8 @@ bool ME::RendererMetal::InitMetal(const MetalView* inView, const WindowState* in
 
 void ME::RendererMetal::Draw() {
     if (commandQueue == nullptr || fence == nullptr || sceneMetal == nullptr || pso2DAtl == nullptr ||
-        pso2DInsAtl == nullptr || pso2DUIText == nullptr || pso2DUISprite == nullptr) {
+        pso2DInsAtl == nullptr || pso2DInsAtlAdditive == nullptr || pso2DUIText == nullptr ||
+        pso2DUISprite == nullptr || depthStateTestOnly == nullptr) {
         return;
     }
 
@@ -299,17 +318,19 @@ void ME::RendererMetal::Draw() {
     //////////////////////////////////
     // First Instanced Sprite Drawing (texture and atlas slot 1).
 
-    if (sceneMetal->instancedSpriteRenderers0.count != 0) {
+    const uint32_t drawCount0 = scene->GetInstancedDrawCount0();
+    if (drawCount0 != 0 && sceneMetal->spriteInstanceBuffer0 != nullptr) {
         DrawInstancedSpriteSet(encoder, 1, sceneMetal->spriteInstanceData0, sceneMetal->spriteInstanceBuffer0,
-                               static_cast<uint32_t>(sceneMetal->instancedSpriteRenderers0.count));
+                               drawCount0, scene->instancedSpriteBlend0);
     }
 
     //////////////////////////////////
     // Second Instanced Sprite Drawing (texture and atlas slot 2).
 
-    if (sceneMetal->instancedSpriteRenderers1.count != 0) {
+    const uint32_t drawCount1 = scene->GetInstancedDrawCount1();
+    if (drawCount1 != 0 && sceneMetal->spriteInstanceBuffer1 != nullptr) {
         DrawInstancedSpriteSet(encoder, 2, sceneMetal->spriteInstanceData1, sceneMetal->spriteInstanceBuffer1,
-                               static_cast<uint32_t>(sceneMetal->instancedSpriteRenderers1.count));
+                               drawCount1, scene->instancedSpriteBlend1);
     }
     // End Sprite Drawing.
 
@@ -342,9 +363,11 @@ void ME::RendererMetal::Draw() {
 
 void ME::RendererMetal::DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encoder, uint32_t textureIndex,
                                                const ME::SpriteRendererInstanceData* instanceData,
-                                               ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount) {
-    encoder->setRenderPipelineState(pso2DInsAtl);
-    encoder->setDepthStencilState(depthStateDefault);
+                                               ME::UploadBufferMetal* instanceBuffer, uint32_t instanceCount,
+                                               ME::SpriteBlend blend) {
+    const bool bAdditive = blend == ME::SpriteBlend::Additive;
+    encoder->setRenderPipelineState(bAdditive ? pso2DInsAtlAdditive : pso2DInsAtl);
+    encoder->setDepthStencilState(bAdditive ? depthStateTestOnly : depthStateDefault);
 
     // The texture and its atlas properties share the slot index, as in RendererDX.
     const uint32_t atlasPropsIndex = textureIndex;
@@ -365,7 +388,7 @@ void ME::RendererMetal::DrawInstancedSpriteSet(MTL4::RenderCommandEncoder* encod
     argumentTable->setTexture(sceneMetal->spriteTextures[textureIndex]->GetTexture()->gpuResourceID(),
                               MetalBindings::Texture);
 
-    instanceBuffer->CopyData(frameIndex, instanceData);
+    instanceBuffer->CopyElements(frameIndex, instanceData, instanceCount);
     argumentTable->setAddress(instanceBuffer->GetGPUAddress(frameIndex), MetalBindings::InstanceBuffer);
 
     encoder->drawIndexedPrimitives(MTL::PrimitiveTypeTriangle, quad->indexCount, MTL::IndexTypeUInt16,

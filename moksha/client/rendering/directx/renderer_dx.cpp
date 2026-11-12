@@ -258,7 +258,10 @@ bool ME::RendererDX::InitDX(HWND currenthWnd, const WindowState* inWindow) {
     rootSig2DAtl = RootSigDx::CreateRootSignature2DAtlas(device.Get());
     pso2DAtl = PSODirectX::CreatePSO2DAtlas(device.Get(), "sprite_atlas.hlsl", rootSig2DAtl);
     rootSig2DInsAtl = RootSigDx::CreateRootSignature2DInstancedAtlas(device.Get());
-    pso2DInsAtl = PSODirectX::CreatePSO2DInstancedAtlas(device.Get(), "sprite_instanced_atlas.hlsl", rootSig2DInsAtl);
+    pso2DInsAtl = PSODirectX::CreatePSO2DInstancedAtlas(device.Get(), "sprite_instanced_atlas.hlsl", rootSig2DInsAtl,
+                                                        ME::SpriteBlend::Alpha);
+    pso2DInsAtlAdditive = PSODirectX::CreatePSO2DInstancedAtlas(device.Get(), "sprite_instanced_atlas.hlsl",
+                                                                rootSig2DInsAtl, ME::SpriteBlend::Additive);
     rootSig2DUIText = RootSigDx::CreateRootSignature2DUIText(device.Get());
     pso2DUIText = PSODirectX::CreatePSO2DUIText(device.Get(), "ui_text.hlsl", rootSig2DUIText);
     rootSig2DUISprite = RootSigDx::CreateRootSignature2DUISprite(device.Get());
@@ -374,9 +377,11 @@ void ME::RendererDX::Draw() {
     //////////////////////////////////
     // First Instanced Sprite Drawing.
 
-    if (sceneDX->instancedSpriteRenderers0.count != 0) {
+    const uint32_t drawCount0 = scene->GetInstancedDrawCount0();
+    if (drawCount0 != 0 && sceneDX->spriteInstanceBuffer0 != nullptr) {
         // Set PSO and Root Signature for instanced sprites.
-        commandList->SetPipelineState(pso2DInsAtl);
+        commandList->SetPipelineState(scene->instancedSpriteBlend0 == ME::SpriteBlend::Additive ? pso2DInsAtlAdditive
+                                                                                                : pso2DInsAtl);
         commandList->SetGraphicsRootSignature(rootSig2DInsAtl);
 
         const uint32_t textureIndex = 1;
@@ -407,7 +412,7 @@ void ME::RendererDX::Draw() {
 
         commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
 
-        sceneDX->spriteInstanceBuffer0->CopyData(frameIndex, sceneDX->spriteInstanceData0);
+        sceneDX->spriteInstanceBuffer0->CopyElements(frameIndex, sceneDX->spriteInstanceData0, drawCount0);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceData =
             descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex0 + frameIndex);
@@ -419,15 +424,17 @@ void ME::RendererDX::Draw() {
         commandList->IASetIndexBuffer(&ibView);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        commandList->DrawIndexedInstanced(quad->indexCount, sceneDX->instancedSpriteRenderers0.count, 0, 0, 0);
+        commandList->DrawIndexedInstanced(quad->indexCount, drawCount0, 0, 0, 0);
     }
 
     //////////////////////////////////
     // Second Instanced Sprite Drawing.
 
-    if (sceneDX->instancedSpriteRenderers1.count != 0) {
+    const uint32_t drawCount1 = scene->GetInstancedDrawCount1();
+    if (drawCount1 != 0 && sceneDX->spriteInstanceBuffer1 != nullptr) {
         // Set PSO and Root Signature for instanced sprites.
-        commandList->SetPipelineState(pso2DInsAtl);
+        commandList->SetPipelineState(scene->instancedSpriteBlend1 == ME::SpriteBlend::Additive ? pso2DInsAtlAdditive
+                                                                                                : pso2DInsAtl);
         commandList->SetGraphicsRootSignature(rootSig2DInsAtl);
 
         const uint32_t textureIndex = 2;
@@ -458,7 +465,7 @@ void ME::RendererDX::Draw() {
 
         commandList->SetGraphicsRootDescriptorTable(2, textureHandle);
 
-        sceneDX->spriteInstanceBuffer1->CopyData(frameIndex, sceneDX->spriteInstanceData1);
+        sceneDX->spriteInstanceBuffer1->CopyElements(frameIndex, sceneDX->spriteInstanceData1, drawCount1);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srvInstanceData =
             descHeapManager->GetGPUDescriptorHandleForIndex(sceneDX->spriteInstanceBufferHeapIndex1 + frameIndex);
@@ -470,7 +477,7 @@ void ME::RendererDX::Draw() {
         commandList->IASetIndexBuffer(&ibView);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        commandList->DrawIndexedInstanced(quad->indexCount, sceneDX->instancedSpriteRenderers1.count, 0, 0, 0);
+        commandList->DrawIndexedInstanced(quad->indexCount, drawCount1, 0, 0, 0);
     }
     // End Sprite Drawing.
 

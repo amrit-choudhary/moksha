@@ -112,7 +112,8 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstanced(ID3D12Device* device, 
 }
 
 ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstancedAtlas(ID3D12Device* device, const char* shaderName,
-                                                               ID3D12RootSignature* rootSignature) {
+                                                               ID3D12RootSignature* rootSignature,
+                                                               ME::SpriteBlend blend) {
     ID3D12PipelineState* pso = nullptr;
     Shader shader(shaderName);
 
@@ -138,6 +139,15 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstancedAtlas(ID3D12Device* dev
     blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
+    CD3DX12_DEPTH_STENCIL_DESC depthDesc(D3D12_DEFAULT);
+    if (blend == ME::SpriteBlend::Additive) {
+        // Colour adds up and the target's alpha is kept; depth is tested but not written.
+        blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+        blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+        blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+        depthDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    }
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc;
     ZeroMemory(&psoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
     psoDesc.InputLayout = {inputLayout, _countof(inputLayout)};
@@ -146,7 +156,7 @@ ID3D12PipelineState* ME::PSODirectX::CreatePSO2DInstancedAtlas(ID3D12Device* dev
     psoDesc.PS = {shader.GetPSBlob()->GetBufferPointer(), shader.GetPSBlob()->GetBufferSize()};
     psoDesc.RasterizerState = rasterizerDesc;
     psoDesc.BlendState = blendDesc;
-    psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState = depthDesc;
     psoDesc.SampleMask = UINT_MAX;
     psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     psoDesc.NumRenderTargets = 1;

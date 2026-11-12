@@ -14,6 +14,13 @@
 
 namespace ME {
 
+// How an instanced sprite set is blended. Additive adds colour × alpha to what is behind it and tests depth without
+// writing it, so overlapping sprites brighten each other in any order.
+enum class SpriteBlend : uint8_t {
+    Alpha,     // Straight alpha, depth tested and written (default)
+    Additive,  // src × alpha + dst, depth tested only
+};
+
 /**
  * Data to hold the sprite renderer instance data.
  * Used for instanced rendering.

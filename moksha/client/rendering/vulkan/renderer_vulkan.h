@@ -100,6 +100,7 @@ class RendererVulkan : public PlatformRenderer {
     VkPipeline pso2DAtl = VK_NULL_HANDLE;
     VkPipelineLayout layout2DInsAtl = VK_NULL_HANDLE;
     VkPipeline pso2DInsAtl = VK_NULL_HANDLE;
+    VkPipeline pso2DInsAtlAdditive = VK_NULL_HANDLE;  // pso2DInsAtl for sets set to SpriteBlend::Additive
     VkPipelineLayout layout2DUISprite = VK_NULL_HANDLE;
     VkPipeline pso2DUISprite = VK_NULL_HANDLE;
     VkPipelineLayout layout2DUIText = VK_NULL_HANDLE;
@@ -127,10 +128,10 @@ class RendererVulkan : public PlatformRenderer {
     // Draws the scene's plain sprites: sets 1 and 2 per sprite. Set 0 must already be bound.
     void DrawSprites(VkCommandBuffer cmd);
 
-    // Draws one instanced set in a single call with texture and atlas `slot`; skipped if the set is empty or the slot
-    // is out of range or failed to load. Set 0 must already be bound.
+    // Draws one instanced set in a single call with texture and atlas `slot`, blended as blend says; skipped if the set
+    // is empty or the slot is out of range or failed to load. Set 0 must already be bound.
     void DrawInstancedSprites(VkCommandBuffer cmd, VkDescriptorSet instanceSet, uint32_t instanceOffset,
-                              uint32_t instanceCount, uint32_t slot);
+                              uint32_t instanceCount, uint32_t slot, ME::SpriteBlend blend);
 
     // Creates a UI scene's GPU resources; null (logged) on failure. The device must be idle if one is replaced.
     ME::SceneUIVulkan* CreateUIScene(ME::SceneUI* sceneUI);

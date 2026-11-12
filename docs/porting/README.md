@@ -35,7 +35,11 @@ Windows) and WebGPU (web). This folder says how a rendering feature moves from o
 - **No face culling in 2D pipelines** (counter-clockwise is still the front face): a sprite mirrored by a negative
   scale must still draw. 3D pipelines, when they come, may cull back faces.
 - **Blending:** every 2D pass blends straight alpha: color `SRC_ALPHA` / `ONE_MINUS_SRC_ALPHA`, alpha `ONE` / `ZERO`,
-  both `ADD`. Fragments with alpha below 0.1 are discarded.
+  both `ADD`. Fragments with alpha below 0.1 are discarded. The one exception is an instanced set whose
+  `instancedSpriteBlend` is `SpriteBlend::Additive`: it draws with a second instanced pipeline (`pso2DInsAtlAdditive`,
+  same shader and layout), color `SRC_ALPHA` / `ONE`, alpha `ZERO` / `ONE`, depth tested (`LESS`) but not written.
+- **Instance counts:** each instanced pass copies and draws `Scene::GetInstancedDrawCount0/1()` instances (the first N
+  of the set), never the set's whole capacity.
 - **Frames in flight:** `Constants::FramesInFlight` on DX12, Metal and Vulkan: one copy of each upload buffer per
   frame, textures shared, and the GPU drained (`FlushCommandQueue`, `vkDeviceWaitIdle`) before anything a frame used
   is freed or a scene is replaced. WebGPU has no frames in flight (the browser presents and the queue copies writes).
@@ -62,6 +66,8 @@ What each backend draws today. Update this table in the same change that adds a 
 | Instanced sprite sets 0 and 1 | yes (set 1 skipped when set 0 is empty: known issue) | yes | yes | yes |
 | Texture atlases (`GetAtlasUV`, flips) | yes | yes | yes | yes |
 | Straight alpha blending | yes | yes | yes | yes |
+| Additive instanced sets (`SpriteBlend::Additive`) | yes | yes (untested) | yes (Windows dev build; not yet on a phone) | yes (Chrome on Windows) |
+| Instanced draw count (copy and draw the first N) | yes | yes (untested) | yes (Windows dev build; not yet on a phone) | yes (Chrome on Windows) |
 | Depth buffer for the scene | yes | yes (memoryless) | yes (transient, lazily allocated when available) | yes |
 | UI sprite pass | yes | yes | yes | yes |
 | UI text pass | yes | yes | yes | yes |

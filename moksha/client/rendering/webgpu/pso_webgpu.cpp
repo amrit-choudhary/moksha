@@ -84,7 +84,8 @@ WGPUPipelineLayout ME::PSOWebGPU::CreatePipelineLayout(WGPUDevice device, WGPUBi
 }
 
 WGPURenderPipeline ME::PSOWebGPU::CreatePSO2D(WGPUDevice device, WGPUPipelineLayout layout, const char* shaderName,
-                                              WGPUTextureFormat colorFormat, bool depthTest) {
+                                              WGPUTextureFormat colorFormat, bool depthTest,
+                                              ME::SpriteBlend blendMode) {
     ME::ShaderWebGPU shader(device, shaderName);
     if (shader.GetModule() == nullptr) {
         return nullptr;
@@ -113,6 +114,13 @@ WGPURenderPipeline ME::PSOWebGPU::CreatePSO2D(WGPUDevice device, WGPUPipelineLay
     blend.alpha.operation = WGPUBlendOperation_Add;
     blend.alpha.srcFactor = WGPUBlendFactor_One;
     blend.alpha.dstFactor = WGPUBlendFactor_Zero;
+    const bool bAdditive = blendMode == ME::SpriteBlend::Additive;
+    if (bAdditive) {
+        // Colour adds up and the target's alpha is kept.
+        blend.color.dstFactor = WGPUBlendFactor_One;
+        blend.alpha.srcFactor = WGPUBlendFactor_Zero;
+        blend.alpha.dstFactor = WGPUBlendFactor_One;
+    }
 
     WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
     colorTarget.format = colorFormat;
@@ -127,7 +135,7 @@ WGPURenderPipeline ME::PSOWebGPU::CreatePSO2D(WGPUDevice device, WGPUPipelineLay
 
     WGPUDepthStencilState depth = WGPU_DEPTH_STENCIL_STATE_INIT;
     depth.format = DepthFormat;
-    depth.depthWriteEnabled = depthTest ? WGPUOptionalBool_True : WGPUOptionalBool_False;
+    depth.depthWriteEnabled = depthTest && !bAdditive ? WGPUOptionalBool_True : WGPUOptionalBool_False;
     depth.depthCompare = depthTest ? WGPUCompareFunction_Less : WGPUCompareFunction_Always;
 
     WGPURenderPipelineDescriptor descriptor = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;

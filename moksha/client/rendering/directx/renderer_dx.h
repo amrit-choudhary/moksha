@@ -103,6 +103,8 @@ class RendererDX : public PlatformRenderer {
     ID3D12RootSignature* rootSig2DAtl = nullptr;
     // PSO for 2D rendering with instancing and texture atlases.
     ID3D12PipelineState* pso2DInsAtl = nullptr;
+    // The same, blended additively, for instanced sets set to SpriteBlend::Additive.
+    ID3D12PipelineState* pso2DInsAtlAdditive = nullptr;
     // Root signature for 2D rendering with instancing and texture atlases.
     ID3D12RootSignature* rootSig2DInsAtl = nullptr;
     // PSO for UI Text rendering.

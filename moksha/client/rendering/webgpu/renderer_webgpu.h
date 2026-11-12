@@ -71,6 +71,8 @@ class RendererWebGPU : public PlatformRenderer {
     WGPURenderPipeline pso2DAtl = nullptr;
     // Pipeline for 2D rendering with instancing and texture atlases.
     WGPURenderPipeline pso2DInsAtl = nullptr;
+    // The same, blended additively, for instanced sets set to SpriteBlend::Additive.
+    WGPURenderPipeline pso2DInsAtlAdditive = nullptr;
     // Pipeline for UI Text rendering.
     WGPURenderPipeline pso2DUIText = nullptr;
     // Pipeline for UI Sprite rendering.
@@ -89,9 +91,9 @@ class RendererWebGPU : public PlatformRenderer {
     // Issues the plain sprites, one draw each.
     void DrawSprites(WGPURenderPassEncoder encoder);
 
-    // Issues one instanced sprite set: its texture and atlas slot, instance data and count. Shared by both sets.
+    // Issues one instanced sprite set: its texture and atlas slot, instance data, count and blend. Shared by both sets.
     void DrawInstancedSpriteSet(WGPURenderPassEncoder encoder, uint32_t textureIndex, WGPUBindGroup instanceBindGroup,
-                                uint32_t instanceCount);
+                                uint32_t instanceCount, ME::SpriteBlend blend);
 
     // Issues the UI Sprite + UI Text draw passes for one SceneUIWebGPU. Shared by the main UI scene and the debug
     // system's UI scene: same pipelines, different data. No-op if uiSceneGPU is nullptr.

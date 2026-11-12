@@ -9,6 +9,8 @@
 
 #include <cstdint>
 
+#include "moksha/client/rendering/shared/sprite_renderer.h"
+
 namespace MTL {
 class DepthStencilState;
 class Device;
@@ -38,8 +40,10 @@ class PSOMetal {
     // Sprites with texture atlases, no instancing (shaders/metal/sprite_atlas.metal). Null on failure (logged).
     static MTL::RenderPipelineState* CreatePSO2DAtlas(MTL4::Compiler* compiler, const char* shaderName);
 
-    // Instanced sprites with texture atlases (shaders/metal/sprite_instanced_atlas.metal). Null on failure (logged).
-    static MTL::RenderPipelineState* CreatePSO2DInstancedAtlas(MTL4::Compiler* compiler, const char* shaderName);
+    // Instanced sprites with texture atlases (shaders/metal/sprite_instanced_atlas.metal), blended as blend says.
+    // Additive also needs CreateDepthStateTestOnly on the encoder. Null on failure (logged).
+    static MTL::RenderPipelineState* CreatePSO2DInstancedAtlas(MTL4::Compiler* compiler, const char* shaderName,
+                                                               ME::SpriteBlend blend);
 
     // UI sprites, instanced (shaders/metal/ui_sprite.metal). Null on failure (logged).
     static MTL::RenderPipelineState* CreatePSO2DUISprite(MTL4::Compiler* compiler, const char* shaderName);
@@ -49,6 +53,9 @@ class PSOMetal {
 
     // Depth test less with writes: the DX default, used by the sprite passes.
     static MTL::DepthStencilState* CreateDepthStateDefault(MTL::Device* device);
+
+    // Depth test less without writes: additive instanced sets.
+    static MTL::DepthStencilState* CreateDepthStateTestOnly(MTL::Device* device);
 
     // No depth test or writes: the UI passes.
     static MTL::DepthStencilState* CreateDepthStateDisabled(MTL::Device* device);

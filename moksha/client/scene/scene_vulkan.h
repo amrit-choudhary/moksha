@@ -69,6 +69,10 @@ class SceneVulkan {
     uint32_t instanceCount1 = 0;
     VkDescriptorSet spriteInstanceSet1 = VK_NULL_HANDLE;
 
+    // The Scene's draw count for each set, clamped to the instances the buffer holds: what is copied and drawn.
+    uint32_t GetDrawCount0() const;
+    uint32_t GetDrawCount1() const;
+
    private:
     VkDevice device = VK_NULL_HANDLE;
     ME::Scene* scene = nullptr;

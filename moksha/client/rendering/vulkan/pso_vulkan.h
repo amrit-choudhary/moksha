@@ -8,6 +8,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "moksha/client/rendering/shared/sprite_renderer.h"
+
 namespace ME {
 
 class PSOVulkan {
@@ -19,10 +21,11 @@ class PSOVulkan {
     static VkPipeline CreatePSO2DAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
                                        const char* shaderName);
 
-    // Pipeline for 2D rendering with instancing, with texture atlases, straight alpha blending and depth. layout
-    // comes from PipelineLayoutVulkan; keep it while the pipeline is used. Null on failure (logged).
+    // Pipeline for 2D rendering with instancing, with texture atlases, blended as blend says (straight alpha with
+    // depth test and writes, or additive with the depth test only). layout comes from PipelineLayoutVulkan; keep it
+    // while the pipeline is used. Null on failure (logged).
     static VkPipeline CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
-                                                const char* shaderName);
+                                                const char* shaderName, ME::SpriteBlend blend);
 
     // Pipelines for the UI sprite and UI text passes: instanced, texture atlases, straight alpha blending, no depth
     // test or writes, so UI draws over the scene in order. layout as above. Null on failure (logged).

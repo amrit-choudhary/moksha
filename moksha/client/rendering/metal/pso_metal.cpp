@@ -48,8 +48,17 @@ void SetAlphaBlend(MTL4::RenderPipelineColorAttachmentDescriptor* target) {
     target->setAlphaBlendOperation(MTL::BlendOperationAdd);
 }
 
-// A 2D atlas pipeline from shaderName's VS and PS, alpha blended.
-MTL::RenderPipelineState* CreatePSO2DBlended(MTL4::Compiler* compiler, const char* shaderName) {
+// Additive blending as in the DX additive instanced PSO: src alpha / one for colour, the target's alpha kept.
+void SetAdditiveBlend(MTL4::RenderPipelineColorAttachmentDescriptor* target) {
+    SetAlphaBlend(target);
+    target->setDestinationRGBBlendFactor(MTL::BlendFactorOne);
+    target->setSourceAlphaBlendFactor(MTL::BlendFactorZero);
+    target->setDestinationAlphaBlendFactor(MTL::BlendFactorOne);
+}
+
+// A 2D atlas pipeline from shaderName's VS and PS, blended as blend says.
+MTL::RenderPipelineState* CreatePSO2DBlended(MTL4::Compiler* compiler, const char* shaderName,
+                                             ME::SpriteBlend blend = ME::SpriteBlend::Alpha) {
     ME::ShaderMetal shader(compiler, shaderName);
     if (shader.GetLibrary() == nullptr) {
         return nullptr;
@@ -64,7 +73,11 @@ MTL::RenderPipelineState* CreatePSO2DBlended(MTL4::Compiler* compiler, const cha
     descriptor->setFragmentFunctionDescriptor(fragmentFunction);
     descriptor->setVertexDescriptor(vertexDescriptor);
     descriptor->setInputPrimitiveTopology(MTL::PrimitiveTopologyClassTriangle);
-    SetAlphaBlend(descriptor->colorAttachments()->object(0));
+    if (blend == ME::SpriteBlend::Additive) {
+        SetAdditiveBlend(descriptor->colorAttachments()->object(0));
+    } else {
+        SetAlphaBlend(descriptor->colorAttachments()->object(0));
+    }
 
     NS::Error* error = nullptr;
     MTL::RenderPipelineState* pso = compiler->newRenderPipelineState(descriptor, nullptr, &error);
@@ -86,8 +99,9 @@ MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DAtlas(MTL4::Compiler* compile
     return CreatePSO2DBlended(compiler, shaderName);
 }
 
-MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DInstancedAtlas(MTL4::Compiler* compiler, const char* shaderName) {
-    return CreatePSO2DBlended(compiler, shaderName);
+MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DInstancedAtlas(MTL4::Compiler* compiler, const char* shaderName,
+                                                                  ME::SpriteBlend blend) {
+    return CreatePSO2DBlended(compiler, shaderName, blend);
 }
 
 MTL::RenderPipelineState* ME::PSOMetal::CreatePSO2DUISprite(MTL4::Compiler* compiler, const char* shaderName) {
@@ -102,6 +116,15 @@ MTL::DepthStencilState* ME::PSOMetal::CreateDepthStateDefault(MTL::Device* devic
     MTL::DepthStencilDescriptor* descriptor = MTL::DepthStencilDescriptor::alloc()->init();
     descriptor->setDepthCompareFunction(MTL::CompareFunctionLess);
     descriptor->setDepthWriteEnabled(true);
+    MTL::DepthStencilState* state = device->newDepthStencilState(descriptor);
+    descriptor->release();
+    return state;
+}
+
+MTL::DepthStencilState* ME::PSOMetal::CreateDepthStateTestOnly(MTL::Device* device) {
+    MTL::DepthStencilDescriptor* descriptor = MTL::DepthStencilDescriptor::alloc()->init();
+    descriptor->setDepthCompareFunction(MTL::CompareFunctionLess);
+    descriptor->setDepthWriteEnabled(false);
     MTL::DepthStencilState* state = device->newDepthStencilState(descriptor);
     descriptor->release();
     return state;

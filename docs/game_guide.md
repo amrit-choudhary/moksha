@@ -66,8 +66,9 @@ base class stores in `engine`; never put engine systems in globals.
   use their own `textureId`/`textureAtlasPropsId`; instanced set 0 always draws slot 1 and set 1 always
   slot 2, so fill those slots when you use the sets. A `SceneUI` needs the UI atlas at slot 0 and the font at
   slot 1 (copy the cookbook's UI recipe).
-- **Instanced sets are sized once**, from `.count` at startup. Allocate the maximum you will need and park
-  unused instances off-screen. After changing an instance's transform or atlas index, set its renderer's
+- **Instanced sets are sized once**, from `.count` at startup. Allocate the maximum you will need, then either
+  park unused instances off-screen or set `instancedSpriteDrawCount0/1` to draw (and upload) only the first N.
+  `instancedSpriteBlend0/1 = ME::SpriteBlend::Additive` makes a set glow; it tests depth but doesn't write it. After changing an instance's transform or atlas index, set its renderer's
   `bDirty = true`, or the change isn't uploaded. Plain sprites are re-read every frame.
 - **Collision results are yours to delete**: in a `CollisionCallback` override, `delete result` (or call
   `Game::CollisionCallback`, which does). Physics only reports overlaps; it never moves anything, so update

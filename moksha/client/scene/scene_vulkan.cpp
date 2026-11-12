@@ -106,13 +106,25 @@ void ME::SceneVulkan::UploadFrame(uint32_t frameIndex) {
         perSpriteBuffer.CopyElement(frameIndex, i, &spriteData);
     }
 
-    // The whole array in one copy, as DX12's CopyData in Draw.
-    if (instanceCount0 != 0) {
-        spriteInstanceBuffer0.CopyElements(frameIndex, spriteInstanceData0, instanceCount0);
+    // The drawn instances in one copy, as DX12's CopyElements in Draw.
+    const uint32_t drawCount0 = GetDrawCount0();
+    if (drawCount0 != 0) {
+        spriteInstanceBuffer0.CopyElements(frameIndex, spriteInstanceData0, drawCount0);
     }
-    if (instanceCount1 != 0) {
-        spriteInstanceBuffer1.CopyElements(frameIndex, spriteInstanceData1, instanceCount1);
+    const uint32_t drawCount1 = GetDrawCount1();
+    if (drawCount1 != 0) {
+        spriteInstanceBuffer1.CopyElements(frameIndex, spriteInstanceData1, drawCount1);
     }
+}
+
+uint32_t ME::SceneVulkan::GetDrawCount0() const {
+    const uint32_t drawCount = scene->GetInstancedDrawCount0();
+    return drawCount < instanceCount0 ? drawCount : instanceCount0;
+}
+
+uint32_t ME::SceneVulkan::GetDrawCount1() const {
+    const uint32_t drawCount = scene->GetInstancedDrawCount1();
+    return drawCount < instanceCount1 ? drawCount : instanceCount1;
 }
 
 uint32_t ME::SceneVulkan::GetPerPassOffset(uint32_t frameIndex) const {

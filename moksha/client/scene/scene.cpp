@@ -155,6 +155,18 @@ const char* ME::Scene::GetDisplayName() const {
     return "Scene";
 }
 
+uint32_t ME::Scene::GetInstancedDrawCount0() const {
+    return instancedSpriteDrawCount0 < instancedSpriteRenderers0.count
+               ? instancedSpriteDrawCount0
+               : static_cast<uint32_t>(instancedSpriteRenderers0.count);
+}
+
+uint32_t ME::Scene::GetInstancedDrawCount1() const {
+    return instancedSpriteDrawCount1 < instancedSpriteRenderers1.count
+               ? instancedSpriteDrawCount1
+               : static_cast<uint32_t>(instancedSpriteRenderers1.count);
+}
+
 void ME::Scene::Update() {
     UpdateSpriteRenderers();
     UpdateInstancedSpriteRenderers();
@@ -178,17 +190,19 @@ void ME::Scene::UpdateSpriteRenderers() {
 }
 
 void ME::Scene::UpdateInstancedSpriteRenderers() {
-    // Updating transforms and atlas indicesfor dirty instances.
-    // In separate loops to avoid cache misses.
+    // Updating transforms and atlas indices for dirty instances, only those drawn this frame; the rest stay dirty
+    // until they are drawn. In separate loops to avoid cache misses.
+    const size_t drawCount0 = GetInstancedDrawCount0();
+    const size_t drawCount1 = GetInstancedDrawCount1();
 
-    for (size_t i = 0; i < instancedSpriteRenderers0.count; ++i) {
+    for (size_t i = 0; i < drawCount0; ++i) {
         if (!instancedSpriteRenderers0[i].bDirty) {
             continue;
         }
         spriteInstanceData0[i].modelMatrixData = instancedSpriteTransforms0[i].GetModelMatrix().GetDataForShader();
     }
 
-    for (size_t i = 0; i < instancedSpriteRenderers0.count; ++i) {
+    for (size_t i = 0; i < drawCount0; ++i) {
         if (!instancedSpriteRenderers0[i].bDirty) {
             continue;
         }
@@ -197,20 +211,20 @@ void ME::Scene::UpdateInstancedSpriteRenderers() {
         spriteInstanceData0[i].flags = instancedSpriteRenderers0[i].flags;
     }
 
-    for (size_t i = 0; i < instancedSpriteRenderers0.count; ++i) {
+    for (size_t i = 0; i < drawCount0; ++i) {
         if (instancedSpriteRenderers0[i].bDirty) {
             instancedSpriteRenderers0[i].bDirty = false;
         }
     }
 
-    for (size_t i = 0; i < instancedSpriteRenderers1.count; ++i) {
+    for (size_t i = 0; i < drawCount1; ++i) {
         if (!instancedSpriteRenderers1[i].bDirty) {
             continue;
         }
         spriteInstanceData1[i].modelMatrixData = instancedSpriteTransforms1[i].GetModelMatrix().GetDataForShader();
     }
 
-    for (size_t i = 0; i < instancedSpriteRenderers1.count; ++i) {
+    for (size_t i = 0; i < drawCount1; ++i) {
         if (!instancedSpriteRenderers1[i].bDirty) {
             continue;
         }
@@ -219,7 +233,7 @@ void ME::Scene::UpdateInstancedSpriteRenderers() {
         spriteInstanceData1[i].flags = instancedSpriteRenderers1[i].flags;
     }
 
-    for (size_t i = 0; i < instancedSpriteRenderers1.count; ++i) {
+    for (size_t i = 0; i < drawCount1; ++i) {
         if (instancedSpriteRenderers1[i].bDirty) {
             instancedSpriteRenderers1[i].bDirty = false;
         }

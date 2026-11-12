@@ -83,13 +83,19 @@ bool ME::RendererWebGPU::InitWebGPU(const WebGPUView* inView, const WindowState*
     instancePipelineLayout = PSOWebGPU::CreatePipelineLayout(context.device, context.passLayout, context.textureLayout,
                                                              context.instanceLayout);
 
-    pso2DAtl = PSOWebGPU::CreatePSO2D(context.device, perSpritePipelineLayout, "sprite_atlas.wgsl", renderFormat, true);
+    const ME::SpriteBlend alpha = ME::SpriteBlend::Alpha;
+    pso2DAtl =
+        PSOWebGPU::CreatePSO2D(context.device, perSpritePipelineLayout, "sprite_atlas.wgsl", renderFormat, true, alpha);
     pso2DInsAtl = PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "sprite_instanced_atlas.wgsl",
-                                         renderFormat, true);
-    pso2DUIText = PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "ui_text.wgsl", renderFormat, false);
+                                         renderFormat, true, alpha);
+    pso2DInsAtlAdditive = PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "sprite_instanced_atlas.wgsl",
+                                                 renderFormat, true, ME::SpriteBlend::Additive);
+    pso2DUIText =
+        PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "ui_text.wgsl", renderFormat, false, alpha);
     pso2DUISprite =
-        PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "ui_sprite.wgsl", renderFormat, false);
-    if (pso2DAtl == nullptr || pso2DInsAtl == nullptr || pso2DUIText == nullptr || pso2DUISprite == nullptr) {
+        PSOWebGPU::CreatePSO2D(context.device, instancePipelineLayout, "ui_sprite.wgsl", renderFormat, false, alpha);
+    if (pso2DAtl == nullptr || pso2DInsAtl == nullptr || pso2DInsAtlAdditive == nullptr || pso2DUIText == nullptr ||
+        pso2DUISprite == nullptr) {
         ME::LogError("RendererWebGPU: couldn't create the pipelines");
         return false;
     }
@@ -164,8 +170,9 @@ void ME::RendererWebGPU::UploadSceneData() {
     }
     sceneWebGPU->textureAtlasBuffer->Upload();
 
-    const bool hasInstances =
-        sceneWebGPU->instancedSpriteRenderers0.count != 0 || sceneWebGPU->instancedSpriteRenderers1.count != 0;
+    const uint32_t drawCount0 = scene->GetInstancedDrawCount0();
+    const uint32_t drawCount1 = scene->GetInstancedDrawCount1();
+    const bool hasInstances = drawCount0 != 0 || drawCount1 != 0;
     if (sceneWebGPU->perSpriteCount != 0 || hasInstances) {
         CBPerPass perPassData{};
         perPassData.viewMatrix = sceneWebGPU->spriteCamera->GetViewMatrix().GetDataForShader();
@@ -188,13 +195,11 @@ void ME::RendererWebGPU::UploadSceneData() {
         sceneWebGPU->perSpriteBuffer->Upload();
     }
 
-    if (sceneWebGPU->spriteInstanceBuffer0 != nullptr) {
-        sceneWebGPU->spriteInstanceBuffer0->WriteElements(
-            sceneWebGPU->spriteInstanceData0, static_cast<uint32_t>(sceneWebGPU->instancedSpriteRenderers0.count));
+    if (sceneWebGPU->spriteInstanceBuffer0 != nullptr && drawCount0 != 0) {
+        sceneWebGPU->spriteInstanceBuffer0->WriteElements(sceneWebGPU->spriteInstanceData0, drawCount0);
     }
-    if (sceneWebGPU->spriteInstanceBuffer1 != nullptr) {
-        sceneWebGPU->spriteInstanceBuffer1->WriteElements(
-            sceneWebGPU->spriteInstanceData1, static_cast<uint32_t>(sceneWebGPU->instancedSpriteRenderers1.count));
+    if (sceneWebGPU->spriteInstanceBuffer1 != nullptr && drawCount1 != 0) {
+        sceneWebGPU->spriteInstanceBuffer1->WriteElements(sceneWebGPU->spriteInstanceData1, drawCount1);
     }
 }
 
@@ -270,12 +275,12 @@ void ME::RendererWebGPU::Draw() {
     DrawSprites(encoder);
 
     // First Instanced Sprite Drawing (texture and atlas slot 1).
-    DrawInstancedSpriteSet(encoder, 1, sceneWebGPU->spriteInstanceBindGroup0,
-                           static_cast<uint32_t>(sceneWebGPU->instancedSpriteRenderers0.count));
+    DrawInstancedSpriteSet(encoder, 1, sceneWebGPU->spriteInstanceBindGroup0, scene->GetInstancedDrawCount0(),
+                           scene->instancedSpriteBlend0);
 
     // Second Instanced Sprite Drawing (texture and atlas slot 2).
-    DrawInstancedSpriteSet(encoder, 2, sceneWebGPU->spriteInstanceBindGroup1,
-                           static_cast<uint32_t>(sceneWebGPU->instancedSpriteRenderers1.count));
+    DrawInstancedSpriteSet(encoder, 2, sceneWebGPU->spriteInstanceBindGroup1, scene->GetInstancedDrawCount1(),
+                           scene->instancedSpriteBlend1);
 
     // UI Drawing (game's own UI, then the debug system on top of it).
     DrawUIScene(encoder, uiSceneWebGPU);
@@ -317,12 +322,13 @@ void ME::RendererWebGPU::DrawSprites(WGPURenderPassEncoder encoder) {
 }
 
 void ME::RendererWebGPU::DrawInstancedSpriteSet(WGPURenderPassEncoder encoder, uint32_t textureIndex,
-                                                WGPUBindGroup instanceBindGroup, uint32_t instanceCount) {
-    if (instanceCount == 0 || textureIndex >= sceneWebGPU->spriteTextureCount ||
+                                                WGPUBindGroup instanceBindGroup, uint32_t instanceCount,
+                                                ME::SpriteBlend blend) {
+    if (instanceCount == 0 || instanceBindGroup == nullptr || textureIndex >= sceneWebGPU->spriteTextureCount ||
         sceneWebGPU->textureBindGroups[textureIndex] == nullptr) {
         return;
     }
-    wgpuRenderPassEncoderSetPipeline(encoder, pso2DInsAtl);
+    wgpuRenderPassEncoderSetPipeline(encoder, blend == ME::SpriteBlend::Additive ? pso2DInsAtlAdditive : pso2DInsAtl);
 
     // The texture and its atlas properties share the slot index, as in RendererDX.
     const uint32_t atlasOffset = sceneWebGPU->textureAtlasBuffer->GetOffset(textureIndex);
@@ -382,7 +388,7 @@ void ME::RendererWebGPU::End() {
         wgpuTextureRelease(depthTexture);
         depthTexture = nullptr;
     }
-    for (WGPURenderPipeline* pipeline : {&pso2DAtl, &pso2DInsAtl, &pso2DUIText, &pso2DUISprite}) {
+    for (WGPURenderPipeline* pipeline : {&pso2DAtl, &pso2DInsAtl, &pso2DInsAtlAdditive, &pso2DUIText, &pso2DUISprite}) {
         if (*pipeline != nullptr) {
             wgpuRenderPipelineRelease(*pipeline);
             *pipeline = nullptr;

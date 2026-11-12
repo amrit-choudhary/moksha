@@ -129,7 +129,7 @@ VkPipeline ME::PSOVulkan::CreatePSO2DAtlas(VkDevice device, VkRenderPass renderP
 }
 
 VkPipeline ME::PSOVulkan::CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPass renderPass, VkPipelineLayout layout,
-                                                    const char* shaderName) {
+                                                    const char* shaderName, ME::SpriteBlend blendMode) {
     // The modules are compiled into the pipeline, so they are freed once it exists.
     ShaderVulkan shader;
     if (!shader.Init(device, shaderName)) {
@@ -199,6 +199,13 @@ VkPipeline ME::PSOVulkan::CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPas
     blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    const bool bAdditive = blendMode == ME::SpriteBlend::Additive;
+    if (bAdditive) {
+        // Colour adds up and the target's alpha is kept, as RendererDX's additive PSO.
+        blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    }
 
     VkPipelineColorBlendStateCreateInfo blend = {};
     blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -214,7 +221,7 @@ VkPipeline ME::PSOVulkan::CreatePSO2DInstancedAtlas(VkDevice device, VkRenderPas
     VkPipelineDepthStencilStateCreateInfo depthStencil = {};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = bAdditive ? VK_FALSE : VK_TRUE;
     depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.stencilTestEnable = VK_FALSE;

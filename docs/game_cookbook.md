@@ -194,6 +194,11 @@ for (size_t i = 0; i < maxTiles; ++i) {
 // Later, after moving instance i or changing its atlasIndex:
 instancedSpriteRenderers0[i].bDirty = true;
 // "Removing" an instance: move it far off-screen and mark it dirty.
+
+// Only the first N instances are updated, uploaded and drawn (any time; default all). Keep the live ones at the front.
+instancedSpriteDrawCount0 = liveCount;
+// Glow (particles, sparks): colour adds up where sprites overlap, and the set writes no depth.
+instancedSpriteBlend0 = ME::SpriteBlend::Additive;
 ```
 
 ## Sprite animation

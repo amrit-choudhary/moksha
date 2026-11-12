@@ -10,6 +10,8 @@
  * UI related functionalities are handled in a separate SceneUI class.
  */
 
+#include <cstdint>
+
 #include "moksha/client/rendering/shared/camera.h"
 #include "moksha/client/rendering/shared/light.h"
 #include "moksha/client/rendering/shared/material.h"
@@ -69,6 +71,18 @@ class Scene {
     ME::Span<ME::Transform> instancedSpriteTransforms1;
     ME::Span<ME::SpriteRenderer> instancedSpriteRenderers1;
     ME::SpriteRendererInstanceData* spriteInstanceData1 = nullptr;
+
+    // Per set: how many instances are updated, uploaded and drawn each frame, the first N of the set (clamped to its
+    // count, which is fixed at startup). Lower it to stop paying for parked instances. Default: all.
+    uint32_t instancedSpriteDrawCount0 = UINT32_MAX;
+    uint32_t instancedSpriteDrawCount1 = UINT32_MAX;
+    // Per set blending; can change at any time.
+    ME::SpriteBlend instancedSpriteBlend0 = ME::SpriteBlend::Alpha;
+    ME::SpriteBlend instancedSpriteBlend1 = ME::SpriteBlend::Alpha;
+
+    // instancedSpriteDrawCount0/1 clamped to the set's count: what the renderers upload and draw.
+    uint32_t GetInstancedDrawCount0() const;
+    uint32_t GetInstancedDrawCount1() const;
 
     ME::Span<ME::ColliderAABB> staticColliders;
     ME::Span<ME::ColliderAABB> dynamicColliders;

@@ -39,7 +39,9 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   compiles each listed shader to a `.metallib` (Xcode's Metal compiler, macOS 26 minimum) and turns textures into the
   same RGBA8 `.dds` as `win-dx12`; nothing compiles at startup.
 - DX12 known issue: `SceneDX::MakeSpriteInstanceBuffer` returns early when instanced set 0 is empty, so a scene using
-  only set 1 gets no buffer for it (`SceneMetal` creates each set independently).
+  only set 1 gets no buffer for it and set 1 isn't drawn (`SceneMetal` creates each set independently).
+- Instanced sets: each backend has a second instanced pipeline, `pso2DInsAtlAdditive`, chosen per set by
+  `Scene::instancedSpriteBlend0/1`, and copies and draws only `Scene::GetInstancedDrawCount0/1()` instances.
 - Mac known issues (deferred): keys pressed with Cmd stick (AppKit swallows their key-up; GLFW forwards Cmd key-ups
   with a local event monitor); releasing one Shift/Ctrl/Option/Cmd while the other side is held reads as still down
   (decide press/release from the key's own state, as GLFW does); held keys stick when the window loses focus.
@@ -121,7 +123,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   only each frame's copy aligned, the descriptor range the whole array; set 1 binding 0) by `gl_InstanceIndex`,
   texture and atlas slots 1 and 2 as in every backend, each set made on its own.
   The scene pipelines blend straight alpha (`SRC_ALPHA`/`ONE_MINUS_SRC_ALPHA`, alpha `ONE`/`ZERO`) with depth on,
-  as DX12. `SceneUIVulkan` (`scene/scene_ui_vulkan.*`, one for the game's UI and one for the debug overlay, each
+  as DX12, except `pso2DInsAtlAdditive` (additive instanced sets; see docs/porting/README.md, "Blending"). `SceneUIVulkan` (`scene/scene_ui_vulkan.*`, one for the game's UI and one for the debug overlay, each
   rebuilt after a device wait by `SetScenes` / `SetDebugUIScene`) owns a UI scene's textures (atlas slot 0, font
   slot 1), two pass buffers (packed window size; the GLSL block declares the `uint` directly, as a std140 struct
   would round up past the 4-byte C++ constants), the atlases, and the UI sprite and text instance buffers at
