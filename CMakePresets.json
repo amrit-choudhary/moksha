@@ -20,6 +20,20 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
             }
+        },
+        {
+            "name": "android-arm64",
+            "displayName": "Android arm64 (Vulkan)",
+            "description": "Cross-compiles for Android phones from Windows or macOS. Needs ANDROID_HOME, ANDROID_NDK_HOME and MOKSHA_HOST_COOK (a desktop-built Moksha_Cook) set per machine.",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-android",
+            "toolchainFile": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ANDROID_ABI": "arm64-v8a",
+                "ANDROID_PLATFORM": "android-29",
+                "MOKSHA_COOK_EXECUTABLE": "$env{MOKSHA_HOST_COOK}"
+            }
         }
     ],
     "buildPresets": [
@@ -30,6 +44,10 @@
         {
             "name": "win-vulkan-dev",
             "configurePreset": "win-vulkan-dev"
+        },
+        {
+            "name": "android-arm64",
+            "configurePreset": "android-arm64"
         }
     ]
 }
