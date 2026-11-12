@@ -309,9 +309,18 @@ function(_moksha_android_apk target appId displayName orientation)
     set(apkDir "${CMAKE_CURRENT_BINARY_DIR}/${target}_apk")
     set(libDir "${apkDir}/lib/${ANDROID_ABI}")
     set(apk "${CMAKE_CURRENT_BINARY_DIR}/${target}.apk")
+    # Release builds pack the .so without symbols (a fraction of its size); the others keep them for debuggers and
+    # symbolized crash logs. The build folder's .so keeps them either way.
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+        set(copyLib "${CMAKE_STRIP}" --strip-unneeded -o "${libDir}/$<TARGET_FILE_NAME:${target}>"
+                    "$<TARGET_FILE:${target}>")
+    else()
+        set(copyLib "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:${target}>" "${libDir}")
+    endif()
+
     add_custom_command(TARGET ${target} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${libDir}"
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${target}>" "${libDir}"
+        COMMAND ${copyLib}
         COMMAND "${MOKSHA_AAPT2}" link -o "${apkDir}/unaligned.apk" --manifest "${manifest}" -I "${MOKSHA_ANDROID_JAR}"
                 $<$<CONFIG:Debug>:--debug-mode>
         COMMAND "${MOKSHA_JAR}" --update --no-manifest --no-compress "--file=${apkDir}/unaligned.apk"
