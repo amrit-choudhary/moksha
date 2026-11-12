@@ -261,8 +261,9 @@ function(_moksha_android_debug_keystore outVar)
 endfunction()
 
 # Packs target (lib<target>.so) and its cooked assets/ into <target>.apk after each link: aapt2 links the manifest
-# against android.jar and adds assets/, jar adds lib/<abi>/ uncompressed, zipalign aligns it (.so files to 16 KB
-# pages), apksigner signs it with the debug key. Adds <target>_install (adb install, then start the activity).
+# against android.jar, jar adds assets/ and lib/<abi>/ uncompressed (aapt2 -A writes '\' into nested asset paths on
+# Windows), zipalign aligns it (.so files to 16 KB pages), apksigner signs it with the debug key. Adds
+# <target>_install (adb install, then start the activity).
 function(_moksha_android_apk target appId displayName orientation)
     foreach(tool MOKSHA_ANDROID_JAR MOKSHA_AAPT2 MOKSHA_ZIPALIGN MOKSHA_APKSIGNER MOKSHA_ADB MOKSHA_JAR MOKSHA_KEYTOOL)
         if(NOT ${tool} OR NOT EXISTS "${${tool}}")
@@ -312,8 +313,9 @@ function(_moksha_android_apk target appId displayName orientation)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${libDir}"
         COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${target}>" "${libDir}"
         COMMAND "${MOKSHA_AAPT2}" link -o "${apkDir}/unaligned.apk" --manifest "${manifest}" -I "${MOKSHA_ANDROID_JAR}"
-                -A "${apkDir}/assets" $<$<CONFIG:Debug>:--debug-mode>
-        COMMAND "${MOKSHA_JAR}" --update --no-manifest --no-compress "--file=${apkDir}/unaligned.apk" -C "${apkDir}" lib
+                $<$<CONFIG:Debug>:--debug-mode>
+        COMMAND "${MOKSHA_JAR}" --update --no-manifest --no-compress "--file=${apkDir}/unaligned.apk"
+                -C "${apkDir}" assets -C "${apkDir}" lib
         COMMAND "${MOKSHA_ZIPALIGN}" -f -P 16 4 "${apkDir}/unaligned.apk" "${apkDir}/aligned.apk"
         COMMAND "${MOKSHA_APKSIGNER}" sign --ks "${keystore}" --ks-pass pass:android --key-pass pass:android
                 --out "${apk}" "${apkDir}/aligned.apk"

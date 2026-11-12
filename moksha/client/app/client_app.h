@@ -1,9 +1,10 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_ANDROID) || \
+    defined(ME_HEADLESS)
 
 /**
  * The client app: owns every engine system and the game, and runs one frame per Tick. A per-platform driver
- * (platform/win, platform/mac, platform/ios, platform/headless) creates the window, if any, and repeats Tick; this
- * class never loops by itself.
+ * (platform/win, platform/mac, platform/ios, platform/web, platform/android, platform/headless) creates the window, if
+ * any, and repeats Tick; this class never loops by itself.
  */
 
 #pragma once
@@ -33,6 +34,8 @@
 #include "moksha/client/input/input_manager_ios.h"
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
 #include "moksha/client/input/input_manager_web.h"
+#elif defined(ME_ANDROID) && !defined(ME_HEADLESS)
+#include "moksha/client/input/input_manager_android.h"
 #endif
 #if defined(ME_DX12)
 #include "moksha/client/rendering/directx/renderer_dx.h"
@@ -110,9 +113,9 @@ class ClientApp {
     void HandleKeyEvent(uint16_t keyCode, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
-#elif defined(ME_IOS) && !defined(ME_HEADLESS)
-    // Feeds the first finger on the screen to the input system: its position in view points (top-left origin) and
-    // whether it is still down.
+#elif (defined(ME_IOS) || defined(ME_ANDROID)) && !defined(ME_HEADLESS)
+    // Feeds the first finger on the screen to the input system: its position in window units (iOS: view points;
+    // top-left origin) and whether it is still down.
     void HandlePrimaryTouch(float x, float y, bool isDown);
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
     // Feed browser input events to the input system: a DOM KeyboardEvent.code, a position in window units (top-left
@@ -147,6 +150,8 @@ class ClientApp {
     Input::InputManagerIos* iosInputManager = nullptr;
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
     Input::InputManagerWeb* webInputManager = nullptr;
+#elif defined(ME_ANDROID) && !defined(ME_HEADLESS)
+    Input::InputManagerAndroid* androidInputManager = nullptr;
 #endif
 #if defined(ME_DX12)
     RendererDX renderer;
@@ -170,4 +175,4 @@ class ClientApp {
 
 }  // namespace ME
 
-#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_ANDROID || ME_HEADLESS

@@ -21,4 +21,7 @@ endif()
 if(WIN32)
     # Winsock, used by the sockets. PUBLIC so every program linking shared gets it too.
     target_link_libraries(Moksha_Shared PUBLIC Ws2_32)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    # The asset manager (platform/assets_android.cpp).
+    target_link_libraries(Moksha_Shared PUBLIC android)
 endif()

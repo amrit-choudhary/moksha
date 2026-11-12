@@ -6,3 +6,8 @@ add_library(Moksha_Logging STATIC ${SOURCES})
 
 target_include_directories(Moksha_Logging PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(Moksha_Logging PUBLIC Moksha_Options)
+
+# Android: logcat (liblog).
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    target_link_libraries(Moksha_Logging PUBLIC log)
+endif()

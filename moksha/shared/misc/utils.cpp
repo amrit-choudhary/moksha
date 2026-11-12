@@ -55,3 +55,7 @@ std::string ME::Utils::GetUserDataPath() {
 std::string ME::Utils::GetExecutableDirPath() {
     return appPaths.executableDir;
 }
+
+void* ME::Utils::GetAssetManager() {
+    return appPaths.assetManager;
+}

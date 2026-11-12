@@ -61,8 +61,8 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         find_library(APPLICATION_SERVICES_FRAMEWORK ApplicationServices)
         target_link_libraries(Moksha_Client PUBLIC ${APPLICATION_SERVICES_FRAMEWORK})
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
-        # NativeActivity, window and asset manager (android); logcat (log).
-        target_link_libraries(Moksha_Client PUBLIC android log)
+        # NativeActivity and window (android); logcat comes through Moksha_Logging.
+        target_link_libraries(Moksha_Client PUBLIC android)
     endif()
 
     # Platform entry and OS glue for the current OS.

@@ -1,4 +1,5 @@
-#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_HEADLESS)
+#if defined(ME_WIN) || defined(ME_MAC) || defined(ME_IOS) || defined(ME_WEB) || defined(ME_ANDROID) || \
+    defined(ME_HEADLESS)
 
 #include "client_app.h"
 
@@ -84,6 +85,8 @@ bool ME::ClientApp::Init() {
     iosInputManager = static_cast<ME::Input::InputManagerIos*>(inputManager.GetPlatformInputManager());
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
     webInputManager = static_cast<ME::Input::InputManagerWeb*>(inputManager.GetPlatformInputManager());
+#elif defined(ME_ANDROID) && !defined(ME_HEADLESS)
+    androidInputManager = static_cast<ME::Input::InputManagerAndroid*>(inputManager.GetPlatformInputManager());
 #endif
     // Once per process, before any socket (game connection, content sync) is created.
     networkingStarted = ME::Net::InitNetworking();
@@ -283,6 +286,12 @@ void ME::ClientApp::ReleaseAllInput() {
         webInputManager->ReleaseAll();
     }
 }
+#elif defined(ME_ANDROID) && !defined(ME_HEADLESS)
+void ME::ClientApp::HandlePrimaryTouch(float x, float y, bool isDown) {
+    if (androidInputManager != nullptr) {
+        androidInputManager->HandlePrimaryTouch(x, y, isDown);
+    }
+}
 #endif
 
-#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_HEADLESS
+#endif  // ME_WIN || ME_MAC || ME_IOS || ME_WEB || ME_ANDROID || ME_HEADLESS

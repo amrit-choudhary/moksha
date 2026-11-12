@@ -5,7 +5,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 ## App, entry and loop
 - The engine owns `main` and the loop; a game provides `CreateGame(const AppArgs&, AppConfig&)` /
   `DestroyGame(Game*)` (`game/game_factory.h`, or the `MOKSHA_GAME(GameClass, "Title")` macro).
-- `app/client_app.*` (`ClientApp`, Windows, macOS, iOS, web and headless): `Configure(args)` → `Init` → `Tick()` per frame →
+- `app/client_app.*` (`ClientApp`, Windows, macOS, iOS, web, Android and headless): `Configure(args)` → `Init` → `Tick()` per frame →
   `Shutdown()`. It never loops itself. Drivers per platform: `platform/win/win_main.cpp` (window, message pump,
   `Tick`; minimized → `Pause` and a blocking wait), `platform/mac/mac_main.mm` (the same shape: `NSWindow`, event
   pump with `nextEventMatchingMask`, `Tick`; minimized or fully covered → `Pause` and a blocking wait, woken by a
@@ -64,6 +64,14 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   finger as the mouse; losing focus releases everything. Resources are packed into the page's `.data` and preloaded to
   `/resources/`. Audio is miniaudio's default ScriptProcessorNode path, which unlocks on the first input. WebGPU needs a
   secure page (`localhost` or HTTPS); the page shows a message without it.
+- Android (`platform/android/`, NativeActivity, no Java; see [docs/android_port_plan.md](../../docs/android_port_plan.md)):
+  the NDK's `native_app_glue` (compiled into `Moksha_Entry`) runs `android_main` on its own thread. The app starts at
+  the first `APP_CMD_INIT_WINDOW`: `Utils::SetPaths` (resources from the APK's `assets/` through `AppPaths::assetManager`,
+  `user_data/` and `dlc/` in internal storage), `Configure` (no command line), `SetWindowMetrics` (pixels ÷ density/160),
+  `Init(AndroidVulkanView)`. While resumed with a window, events are polled without waiting and `Tick` runs once per
+  loop (FIFO present paces it); otherwise the loop waits. A lost window keeps the app paused until the renderer can
+  recreate its surface (not yet). `false` from `Tick` finishes the activity. The first finger is the mouse
+  (`InputManagerAndroid`); keys go to the system, so Back closes the app.
 - Config layering (`app/app_config.*`, later wins): engine defaults → `CreateGame` → `resources/config/settings.ini`
   (`[window] title width height vsync fullscreen`, `[time] fixedStepFPS`, `[net] serverIP serverPort
   contentServerIP contentServerPort`, `[debug] debugOverlay`, `[ui] safeAreaTop safeAreaBottom safeAreaLeft safeAreaRight`, copied into `WindowState` for the
@@ -100,7 +108,8 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   the workflow, verification, the feature parity table (update it with each feature) and one DX12 → API guide per
   backend. Read the backend's guide before porting to it.
 - Vulkan reaches the window only through `VulkanView` (`rendering/vulkan/vulkan_view.h`: instance extensions,
-  `CreateSurface`, pixel size), implemented per OS in `platform/<os>/`. On Windows (`win_vulkan_view.*`) it is a
+  `CreateSurface`, pixel size), implemented per OS in `platform/<os>/` (Android: `android_vulkan_view.*`,
+  `vkCreateAndroidSurfaceKHR`). On Windows (`win_vulkan_view.*`) it is a
   development-only build (`-DMOKSHA_RENDERER=VULKAN`, needs the Vulkan SDK); DX12 stays the Windows renderer.
 - `RendererVulkan` (in progress; the user writes it lesson by lesson, see the plan) targets Vulkan 1.1 core with only the
   surface and swapchain extensions, and only what phones support. Its classes mirror the DX12 ones: `ShaderVulkan`

@@ -71,7 +71,8 @@ change is checked against all of them, even those not built yet:
 - **All asset and file access goes through `Vfs`.** Assets live in the APK, the app bundle or
   a virtual filesystem on some platforms; writable data has its own per-platform root.
 - **OS calls only in** `moksha/shared/platform/` (one file per OS, for code every program needs),
-  `moksha/client/platform/<os>/`, `rendering/<api>/` and `shared/net/socket_platform_*`.
+  `moksha/client/platform/<os>/`, `rendering/<api>/` and `shared/net/socket_platform_*`. One exception:
+  `moksha/logging/logging.cpp` writes to logcat on Android (`__android_log_write`), as logging depends on no module.
 - **The engine must not require threads** (the web needs special builds for them).
 - **Window size is a request:** mobile and web decide it; headless keeps it for layout.
 - Test host for Linux servers and headless clients: a Raspberry Pi 4B (Linux ARM64).

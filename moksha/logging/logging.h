@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <string_view>
 
 namespace ME {
@@ -60,8 +61,19 @@ inline std::string_view DefaultLogColor() {
     return "\033[37m";  // White
 }
 
+#ifdef ME_ANDROID
+// Writes one message to logcat (tag "Moksha") at the priority matching level. Android drops stdout.
+void WriteAndroidLog(LogLevel level, const std::string& message);
+#endif
+
 template <typename... Args>
 void LogImpl(LogLevel level, const Args&... args) {
+#ifdef ME_ANDROID
+    // Logcat shows the level itself and no terminal colours.
+    std::ostringstream message;
+    (message << ... << args);
+    WriteAndroidLog(level, message.str());
+#else
     std::ostringstream oss;
     oss << LogLevelToColor(level);
     oss << LogLevelToString(level) << ' ';
@@ -69,6 +81,7 @@ void LogImpl(LogLevel level, const Args&... args) {
     oss << DefaultLogColor();
     oss << '\n';
     std::cout << oss.str();
+#endif
 }
 
 template <typename... Args>

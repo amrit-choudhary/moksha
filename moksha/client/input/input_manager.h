@@ -186,6 +186,9 @@ class InputManager {
 #ifdef ME_WEB
     friend class InputManagerWeb;
 #endif
+#ifdef ME_ANDROID
+    friend class InputManagerAndroid;
+#endif
 
     InputManager();
     ~InputManager();

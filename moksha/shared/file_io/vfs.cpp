@@ -1,11 +1,31 @@
 #include "vfs.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <system_error>
+#include <utility>
 
 #include "moksha/shared/misc/utils.h"
+
+#ifdef ME_ANDROID
+#include "moksha/shared/platform/assets.h"
+#endif
+
+namespace {
+
+// Roots packed inside the app package rather than stored as files: read through Platform::ReadAsset, never written.
+bool IsPackaged(ME::FileRoot root) {
+#ifdef ME_ANDROID
+    return root == ME::FileRoot::Resources;
+#else
+    (void)root;
+    return false;
+#endif
+}
+
+}  // namespace
 
 std::string ME::Vfs::GetRootPath(FileRoot root) {
     switch (root) {
@@ -20,6 +40,22 @@ std::string ME::Vfs::GetRootPath(FileRoot root) {
 }
 
 bool ME::Vfs::ReadText(FileRoot root, const char* relPath, std::string& out) {
+#ifdef ME_ANDROID
+    if (IsPackaged(root)) {
+        size_t size = 0;
+        if (!Platform::GetAssetSize(Utils::GetAssetManager(), relPath, size)) {
+            return false;
+        }
+        std::string text(size, ' ');
+        size_t readSize = 0;
+        if (!Platform::ReadAsset(Utils::GetAssetManager(), relPath, reinterpret_cast<uint8_t*>(text.data()), size,
+                                 readSize)) {
+            return false;
+        }
+        out = std::move(text);
+        return true;
+    }
+#endif
     // Text mode: on Windows "\r\n" line endings are read as "\n", which the parsers expect.
     std::ifstream file(GetRootPath(root) + relPath);
     if (!file.is_open()) {
@@ -33,6 +69,11 @@ bool ME::Vfs::ReadText(FileRoot root, const char* relPath, std::string& out) {
 }
 
 bool ME::Vfs::GetFileSize(FileRoot root, const char* relPath, size_t& outSize) {
+#ifdef ME_ANDROID
+    if (IsPackaged(root)) {
+        return Platform::GetAssetSize(Utils::GetAssetManager(), relPath, outSize);
+    }
+#endif
     // ios::ate opens with the read position at the end, so tellg() is the file size.
     std::ifstream file(GetRootPath(root) + relPath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -48,6 +89,11 @@ bool ME::Vfs::GetFileSize(FileRoot root, const char* relPath, size_t& outSize) {
 }
 
 bool ME::Vfs::ReadBytes(FileRoot root, const char* relPath, uint8_t* buffer, size_t capacity, size_t& outSize) {
+#ifdef ME_ANDROID
+    if (IsPackaged(root)) {
+        return Platform::ReadAsset(Utils::GetAssetManager(), relPath, buffer, capacity, outSize);
+    }
+#endif
     std::ifstream file(GetRootPath(root) + relPath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         return false;
@@ -69,6 +115,9 @@ bool ME::Vfs::ReadBytes(FileRoot root, const char* relPath, uint8_t* buffer, siz
 }
 
 bool ME::Vfs::WriteBytes(FileRoot root, const char* relPath, const uint8_t* data, size_t size) {
+    if (IsPackaged(root)) {
+        return false;
+    }
     const std::filesystem::path path(GetRootPath(root) + relPath);
 
     // Exceptions are disabled, so std::filesystem calls must use the std::error_code overload;
@@ -87,6 +136,9 @@ bool ME::Vfs::WriteBytes(FileRoot root, const char* relPath, const uint8_t* data
 }
 
 bool ME::Vfs::RemoveFile(FileRoot root, const char* relPath) {
+    if (IsPackaged(root)) {
+        return false;
+    }
     std::error_code error;
     // remove() returns false without an error when the file doesn't exist; that still counts as success.
     std::filesystem::remove(std::filesystem::path(GetRootPath(root) + relPath), error);
@@ -94,6 +146,9 @@ bool ME::Vfs::RemoveFile(FileRoot root, const char* relPath) {
 }
 
 void ME::Vfs::RemoveEmptyFolders(FileRoot root, const char* relPath) {
+    if (IsPackaged(root)) {
+        return;
+    }
     // Walk the relative path's folders from deepest to shallowest, e.g. "a/b/c.json" -> "a/b", then "a".
     std::filesystem::path folder = std::filesystem::path(relPath).parent_path();
     const std::string rootPath = GetRootPath(root);

@@ -46,13 +46,16 @@ through `ICollisionListener`, which `Game` implements).
   folders), `RemoveFile`, `RemoveEmptyFolders`. Each driver sets the root folders once at startup with
   `Utils::SetPaths(AppPaths)` (`misc/utils.h`). Desktop and servers use `MakeExecutableRelativePaths`
   (`resources/`, `dlc/`, `user_data/` next to the exe); iOS maps them to the bundle and Application Support, web to an
-  in-memory file system with `user_data/` kept in IndexedDB, and Android will map them to the APK.
+  in-memory file system with `user_data/` kept in IndexedDB. On Android `Resources` is packed in the APK: reads go
+  through `Platform::GetAssetSize` / `ReadAsset` with the `AAssetManager*` the driver puts in `AppPaths::assetManager`,
+  and writes and removals there fail; `Dlc` and `UserData` stay plain files.
 - Parsers work on text already in memory: INI (`[section] key=value`, `;`/`#` comments), CSV, DDS.
 - `std::filesystem` calls use the `std::error_code` overloads only.
 
 ## Platform (`platform/`)
 One file per OS for code every program needs: `GetExecutablePath(argv0)` (Windows `GetModuleFileNameA`, macOS
-`_NSGetExecutablePath` + `realpath`; `exe_path_posix.cpp` covers the rest with `argv0` for now).
+`_NSGetExecutablePath` + `realpath`; `exe_path_posix.cpp` covers the rest with `argv0` for now). `assets.h`: files
+packed in the app package, only for `Vfs` (`assets_android.cpp`: `AAssetManager`; links `android`).
 
 ## Vendored
 `third_party/json` (cJSON), `random/stb_perlin.*`: opaque, don't modify.

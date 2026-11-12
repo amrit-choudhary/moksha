@@ -7,6 +7,10 @@
 #include <sstream>
 #include <string>
 
+#ifdef ME_ANDROID
+#include <android/log.h>
+#endif
+
 namespace {
 // Formatting codes
 const std::string_view reset = "\033[m";
@@ -59,3 +63,25 @@ static std::string GetCurrentTime() {
     strftime(buffer, sizeof(buffer), "%H:%M:%S", localtime(&in_time_t));
     return buffer;
 }
+
+#ifdef ME_ANDROID
+// The one OS call outside shared/platform/: logging may depend on no other module.
+void ME::WriteAndroidLog(LogLevel level, const std::string& message) {
+    int priority = ANDROID_LOG_INFO;
+    switch (level) {
+        case LogLevel::Warning:
+            priority = ANDROID_LOG_WARN;
+            break;
+        case LogLevel::Error:
+            priority = ANDROID_LOG_ERROR;
+            break;
+        case LogLevel::Debug:
+            priority = ANDROID_LOG_DEBUG;
+            break;
+        case LogLevel::Info:
+        case LogLevel::Success:
+            break;
+    }
+    __android_log_write(priority, "Moksha", message.c_str());
+}
+#endif  // ME_ANDROID

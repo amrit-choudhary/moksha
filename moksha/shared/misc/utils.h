@@ -15,7 +15,8 @@ uint32_t HashString2uint32(const char* str);
 
 /**
  * The folders the file roots map to (see Vfs), each with a trailing slash, and the executable's folder without one.
- * Each platform driver fills it in; the OS decides where writable data may live.
+ * Each platform driver fills it in; the OS decides where writable data may live. On Android, Resources are read from
+ * the APK through assetManager (an AAssetManager*), and resources is only a label for log messages.
  */
 class AppPaths {
    public:
@@ -23,6 +24,7 @@ class AppPaths {
     std::string resources;
     std::string dlc;
     std::string userData;
+    void* assetManager = nullptr;
 };
 
 /**
@@ -54,6 +56,11 @@ std::string GetUserDataPath();
  * Directory containing the executable, without a trailing slash.
  */
 std::string GetExecutableDirPath();
+
+/**
+ * Android: the AAssetManager* Resources are read through. Null elsewhere.
+ */
+void* GetAssetManager();
 
 inline uint32_t Pack16To32(uint16_t high, uint16_t low) {
     return (static_cast<uint32_t>(high) << 16) | static_cast<uint32_t>(low);
