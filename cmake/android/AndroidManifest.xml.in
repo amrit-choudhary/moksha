@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AndroidManifest.xml of every Android game, filled in per game by moksha_add_game (configure_file, @ONLY). No Java code:
+  the system's NativeActivity loads lib@MOKSHA_ANDROID_LIB@.so, whose native_app_glue runs the driver (platform/android).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="@MOKSHA_ANDROID_PACKAGE@"
+          android:versionCode="@MOKSHA_ANDROID_VERSION_CODE@"
+          android:versionName="@MOKSHA_ANDROID_VERSION_NAME@">
+
+    <uses-sdk android:minSdkVersion="@MOKSHA_ANDROID_MIN_SDK@" android:targetSdkVersion="@MOKSHA_ANDROID_TARGET_SDK@"/>
+
+    <!-- Vulkan 1.1 (VK_API_VERSION_1_1); stores hide the app from devices without it. -->
+    <uses-feature android:name="android.hardware.vulkan.version" android:version="0x401000" android:required="true"/>
+
+    <!-- Game and content servers. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application android:label="@MOKSHA_ANDROID_DISPLAY_NAME@"
+                 android:hasCode="false"
+                 android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+        <!-- configChanges: rotation, resizing and keyboard changes reach the app as events instead of restarting the
+             activity. -->
+        <activity android:name="android.app.NativeActivity"
+                  android:exported="true"
+                  android:launchMode="singleTask"
+                  android:screenOrientation="@MOKSHA_ANDROID_ORIENTATION@"
+                  android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density">
+            <meta-data android:name="android.app.lib_name" android:value="@MOKSHA_ANDROID_LIB@"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -35,6 +35,9 @@ elseif(APPLE)
     target_link_libraries(miniaudio PRIVATE "-framework CoreAudio" "-framework AudioUnit" "-framework AudioToolbox" "-framework CoreServices")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     # Web Audio through the page's JavaScript: no system libraries.
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+    # AAudio and OpenSL ES are loaded at runtime; pthread is part of Bionic's libc.
+    target_link_libraries(miniaudio PRIVATE dl m)
 else() # Linux/Unix
     target_link_libraries(miniaudio PRIVATE pthread dl asound m)
 endif()

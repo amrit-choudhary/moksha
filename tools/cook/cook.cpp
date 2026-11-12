@@ -196,7 +196,8 @@ ME::Cook::CookTarget ME::Cook::ParseTarget(const char* name) {
 
 bool ME::Cook::Cooker::Init(CookTarget inTarget, const fs::path& inOutDir, const CookTools& inTools) {
     if (inTarget != CookTarget::WinDX12 && inTarget != CookTarget::Headless && inTarget != CookTarget::MacMetal &&
-        inTarget != CookTarget::IosMetal && inTarget != CookTarget::WebWebGPU && inTarget != CookTarget::WinVulkan) {
+        inTarget != CookTarget::IosMetal && inTarget != CookTarget::WebWebGPU && inTarget != CookTarget::WinVulkan &&
+        inTarget != CookTarget::AndroidVulkan) {
         std::cerr << "Cook: error: this target is not supported yet\n";
         return false;
     }
@@ -518,7 +519,7 @@ bool ME::Cook::Cooker::CookShaders(cJSON* root, const fs::path& srcRoot, const f
     if (target == CookTarget::WebWebGPU) {
         return CookWgslShaders(shaders, srcRoot, listPath);
     }
-    if (target == CookTarget::WinVulkan) {
+    if (target == CookTarget::WinVulkan || target == CookTarget::AndroidVulkan) {
         return CookGlslShaders(shaders, srcRoot, listPath);
     }
     // Nothing is drawn headless; other languages belong to other graphics APIs.

@@ -1,6 +1,7 @@
 /**
  * Moksha_Cook: cooks res_list.json files for one target platform into one output folder (see cook.h).
- *   Moksha_Cook --target <win-dx12|win-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir> [--dxc <exe>]
+ *   Moksha_Cook --target <win-dx12|win-vulkan|android-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir>
+ * [--dxc <exe>]
  *               [--glslc <exe>] [--metal-developer-dir <dir>] <res_list.json>...
  * Lists cook in the order given; a later list may not produce a path an earlier one already produced.
  */
@@ -16,9 +17,9 @@ namespace {
 constexpr uint32_t MaxLists = 16;
 
 void PrintUsage() {
-    std::cerr
-        << "Usage: Moksha_Cook --target <win-dx12|win-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir> "
-           "[--dxc <exe>] [--glslc <exe>] [--metal-developer-dir <dir>] <res_list.json>...\n";
+    std::cerr << "Usage: Moksha_Cook --target "
+                 "<win-dx12|win-vulkan|android-vulkan|mac-metal|ios-metal|web-webgpu|headless> --out <dir> "
+                 "[--dxc <exe>] [--glslc <exe>] [--metal-developer-dir <dir>] <res_list.json>...\n";
 }
 
 }  // namespace

@@ -47,8 +47,11 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         # Both compiling and linking need the port.
         target_compile_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
         target_link_options(Moksha_Client PUBLIC --use-port=emdawnwebgpu)
+    elseif(MOKSHA_RENDERER STREQUAL "VULKAN" AND CMAKE_SYSTEM_NAME STREQUAL "Android")
+        # Headers are in the NDK's sysroot; libvulkan is the system loader.
+        target_link_libraries(Moksha_Client PUBLIC vulkan)
     elseif(MOKSHA_RENDERER STREQUAL "VULKAN")
-        # Headers and the loader: the Vulkan SDK on Windows (VULKAN_SDK), the NDK on Android.
+        # Headers and the loader from the Vulkan SDK (VULKAN_SDK).
         find_package(Vulkan REQUIRED)
         target_link_libraries(Moksha_Client PUBLIC Vulkan::Vulkan)
     endif()
@@ -57,6 +60,9 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
         find_library(APPLICATION_SERVICES_FRAMEWORK ApplicationServices)
         target_link_libraries(Moksha_Client PUBLIC ${APPLICATION_SERVICES_FRAMEWORK})
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+        # NativeActivity, window and asset manager (android); logcat (log).
+        target_link_libraries(Moksha_Client PUBLIC android log)
     endif()
 
     # Platform entry and OS glue for the current OS.
@@ -68,6 +74,12 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
         file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/mac/*.mm")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
         file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/web/*.cpp")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+        # The NDK's native_app_glue exports ANativeActivity_onCreate and runs android_main on its own thread.
+        # Compiled into this OBJECT library, so the linker keeps it without -u ANativeActivity_onCreate.
+        set(ANDROID_GLUE_DIR "${ANDROID_NDK}/sources/android/native_app_glue")
+        file(GLOB ENTRY_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/platform/android/*.cpp")
+        list(APPEND ENTRY_SOURCES "${ANDROID_GLUE_DIR}/android_native_app_glue.c")
     else()
         message(FATAL_ERROR "Moksha: no windowed client entry for '${CMAKE_SYSTEM_NAME}' yet")
     endif()
@@ -80,13 +92,15 @@ if(MOKSHA_GRAPHICS_API_DEFINE)
     # The iOS driver uses ARC (the macOS one predates it).
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
         target_compile_options(Moksha_Entry PRIVATE -fobjc-arc)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
+        target_include_directories(Moksha_Entry PRIVATE "${ANDROID_GLUE_DIR}")
     endif()
 endif()
 
 # Headless client: the same sources without the GPU, OS input, audio device and windowed app files.
 set(HEADLESS_SOURCES ${SOURCES})
 list(FILTER HEADLESS_SOURCES EXCLUDE REGEX
-     "/rendering/(directx|metal|webgpu|vulkan)/|/scene/scene_(ui_)?(dx|metal|webgpu|vulkan)\.|/input/input_manager_(win|mac|ios|web)\.|/audio/audio_impl_miniaudio\.")
+     "/rendering/(directx|metal|webgpu|vulkan)/|/scene/scene_(ui_)?(dx|metal|webgpu|vulkan)\.|/input/input_manager_(win|mac|ios|web|android)\.|/audio/audio_impl_miniaudio\.")
 
 add_library(Moksha_ClientHeadless STATIC ${HEADLESS_SOURCES})
 

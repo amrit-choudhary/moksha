@@ -20,8 +20,8 @@ Project rules: [root CLAUDE.md](../CLAUDE.md).
   developer folder whose `xcrun` has it (the selected one, else `/Applications/Xcode.app`, so xcode-select may stay on
   the Command Line Tools) and passes it as `--metal-developer-dir`; `MOKSHA_METAL_DEVELOPER_DIR` overrides.
 - Targets: `win-dx12`, `win-vulkan` (development only; `moksha_add_game` finds `glslc` in the Vulkan SDK and passes it),
-  `headless` (copies only; headless clients and servers), `mac-metal`, `ios-metal`, `web-webgpu`.
-  `android-vulkan` is reserved and reports "not supported yet".
+  `android-vulkan` (the same output as `win-vulkan`; `glslc` from the NDK's `shader-tools`), `headless` (copies only;
+  headless clients and servers), `mac-metal`, `ios-metal`, `web-webgpu`.
 - Skips outputs newer than their sources; a shader is rebuilt when any file in its folder changes.
 - Cross-compiled builds pass a host-built cook with `MOKSHA_COOK_EXECUTABLE`.
 

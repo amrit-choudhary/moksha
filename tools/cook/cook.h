@@ -11,8 +11,9 @@
  *               graphics API uses: win-dx12 hlsl with dxc (<name>_vs.cso, <name>_ps.cso), mac-metal and ios-metal metal
  *               with `xcrun metal` for their OS's SDK (<name>.metallib). web-webgpu wgsl stays source, which the
  *               browser compiles; its `#include "file"` lines are replaced by the file, from the shader's folder.
- *               win-vulkan glsl: one file per stage (.vert, .frag), each compiled by glslc to SPIR-V (<file>.spv).
- * Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its includes) changed.
+ *               win-vulkan and android-vulkan glsl: one file per stage (.vert, .frag), each compiled by glslc to SPIR-V
+ * (<file>.spv). Outputs newer than their sources are skipped; a shader is rebuilt when anything in its folder (its
+ * includes) changed.
  */
 #pragma once
 
@@ -32,7 +33,7 @@ enum class CookTarget : uint8_t {
     Headless,       // headless clients and servers: copies only, nothing is drawn
     MacMetal,       // macOS, Metal 4: metal -> .metallib via xcrun, png -> dds in the cook
     IosMetal,       // iOS devices, Metal 4: metal -> .metallib for the iphoneos SDK, png -> dds in the cook
-    AndroidVulkan,  // not supported yet
+    AndroidVulkan,  // Android, Vulkan: glsl -> .spv via glslc, png -> dds in the cook
     WebWebGPU,      // web, WebGPU: wgsl with includes resolved, png -> dds in the cook
     WinVulkan,      // Windows, Vulkan (development only): glsl -> .spv via glslc, png -> dds in the cook
 };
