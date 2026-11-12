@@ -26,7 +26,12 @@ For anyone (human or AI) writing a game in its own repo against the engine. Engi
 cooks the engine's resources plus the game's next to it. `HEADLESS` adds `<Target>_Headless` (no window,
 renderer, input or audio; same game code). After adding or removing a `.cpp`, re-run `cmake -B build`.
 On iOS the game is an app bundle: optional `DISPLAY_NAME`, `BUNDLE_ID` (default `MOKSHA_BUNDLE_ID_PREFIX` plus the
-target) and `ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill its Info.plist; other platforms ignore them.
+target) and `ORIENTATION PORTRAIT|LANDSCAPE|ANY` fill its Info.plist; other platforms ignore them, except Android.
+On Android the game is `lib<Target>.so` in a signed debug `<Target>.apk`, with the same three arguments filling its
+manifest (the package name allows only `[a-z0-9_.]`; other characters become `_`). `<Target>_install` installs it on
+the phone `adb` sees and starts it; `adb logcat -s Moksha` shows the engine's log. No command line, no headless twin
+and no servers; Back closes the app, and `127.0.0.1` in `settings.ini` is the phone itself. Until the renderer handles
+a lost surface, leaving the app and coming back leaves it paused, and rotating may break the picture.
 On web the game is a page, with `DISPLAY_NAME` as its title. It has no sockets, so `gameClient` never connects and
 `contentClient` fails and carries on. `Quit()` only logs, since a page can't close itself. `UserData` persists in the
 browser after each write, per site address; a tab killed right after a write can lose that write.
