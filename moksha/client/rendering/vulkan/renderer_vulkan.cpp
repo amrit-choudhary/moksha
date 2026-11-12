@@ -729,9 +729,25 @@ bool ME::RendererVulkan::CreateSwapchain() {
         return false;
     }
 
+    // No pre-rotation yet (Android lesson 9): ask for IDENTITY so the compositor rotates the picture. A phone whose
+    // natural orientation is portrait reports ROTATE_90/270 for a landscape window, with currentExtent still in the
+    // natural orientation; passing that transform on would promise a picture we never rotate (it shows sideways), so
+    // the extent is swapped to match the window instead.
+    const VkSurfaceTransformFlagBitsKHR preTransform =
+        (caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) != 0 ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+                                                                                : caps.currentTransform;
+    const bool swapAxes = preTransform == VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR &&
+                          (caps.currentTransform & (VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR |
+                                                    VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR |
+                                                    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR |
+                                                    VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR)) != 0;
+
     // The surface dictates the size, unless it reports UINT32_MAX ("app chooses"): then the window's pixel size.
     if (caps.currentExtent.width != UINT32_MAX) {
         swapchainExtent = caps.currentExtent;
+        if (swapAxes) {
+            swapchainExtent = {caps.currentExtent.height, caps.currentExtent.width};
+        }
     } else {
         swapchainExtent.width =
             ME::Math::Clamp(view->GetPixelWidth(), caps.minImageExtent.width, caps.maxImageExtent.width);
@@ -778,7 +794,7 @@ bool ME::RendererVulkan::CreateSwapchain() {
     info.imageArrayLayers = 1;
     info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    info.preTransform = caps.currentTransform;
+    info.preTransform = preTransform;
     // Many Android surfaces offer only INHERIT.
     info.compositeAlpha = (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR) != 0
                               ? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
