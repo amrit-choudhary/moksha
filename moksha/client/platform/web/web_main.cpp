@@ -88,6 +88,21 @@ bool OnMouseUp(int, const EmscriptenMouseEvent* event, void* userData) {
     return false;
 }
 
+// DOM deltaY is positive when scrolling down, in pixels, lines or pages (deltaMode). Browsers send about 100 pixels or
+// 3 lines a notch. Consumed, so the page doesn't scroll under the game.
+bool OnWheel(int, const EmscriptenWheelEvent* event, void* userData) {
+    WebApp* web = static_cast<WebApp*>(userData);
+    double notches = event->deltaY / 100.0;
+    if (event->deltaMode == DOM_DELTA_LINE) {
+        notches = event->deltaY / 3.0;
+    } else if (event->deltaMode == DOM_DELTA_PAGE) {
+        notches = event->deltaY;
+    }
+    web->app.HandleMouseMove(event->mouse.targetX / web->cssScale, event->mouse.targetY / web->cssScale);
+    web->app.HandleMouseWheel(static_cast<float>(-notches));
+    return true;
+}
+
 // The first finger on the canvas is the mouse, as on iOS. Consumed, so the browser doesn't also send mouse events.
 bool OnTouch(int eventType, const EmscriptenTouchEvent* event, void* userData) {
     WebApp* web = static_cast<WebApp*>(userData);
@@ -136,6 +151,7 @@ void RegisterEvents(WebApp* web) {
     emscripten_set_mousedown_callback(CANVAS, web, false, OnMouseDown);
     // On the window, so a button released outside the canvas still counts.
     emscripten_set_mouseup_callback(window, web, false, OnMouseUp);
+    emscripten_set_wheel_callback(CANVAS, web, false, OnWheel);
     emscripten_set_touchstart_callback(CANVAS, web, false, OnTouch);
     emscripten_set_touchmove_callback(CANVAS, web, false, OnTouch);
     emscripten_set_touchend_callback(CANVAS, web, false, OnTouch);

@@ -258,6 +258,12 @@ class InputManager {
     // Check if a mouse button was pressed this frame, even if it was released again within the same frame.
     static bool GetMouseButtonPressed(MouseButton button);
 
+    // Scroll wheel movement this frame, in notches (one click of a standard wheel; trackpads give fractions). Positive
+    // is scrolling up, in the system's scroll direction (macOS natural scrolling included). 0 without a wheel.
+    static float GetMouseWheelDelta() {
+        return mouseWheelDelta;
+    }
+
     PlatformInputManager* GetPlatformInputManager();
 
    private:
@@ -269,8 +275,11 @@ class InputManager {
     static void SetKeyState(KeyCode keyCode, bool isDown);
     static void SetMouseButtonState(MouseButton button, bool isDown);
 
+    // Adds scroll wheel movement in notches, positive up. Summed until AdvanceStates.
+    static void AddMouseWheel(float notches);
+
     // Advances DownWasUp -> DownWasDown and UpWasDown -> UpWasUp for every key and mouse button and clears the
-    // latched edges. Each platform backend calls it once per frame from its PostUpdate().
+    // latched edges and the wheel movement. Each platform backend calls it once per frame from its PostUpdate().
     static void AdvanceStates();
 
     // Global key state map.
@@ -288,6 +297,9 @@ class InputManager {
 
     // Mouse position.
     inline static ME::Vec2i mousePos = ME::Vec2i::Zero;
+
+    // Scroll wheel movement since the last AdvanceStates, in notches.
+    inline static float mouseWheelDelta = 0.0f;
 
     // Platform specific input manager.
     PlatformInputManager* platformInputManager;

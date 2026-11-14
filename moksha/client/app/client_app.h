@@ -109,20 +109,25 @@ class ClientApp {
     void HandleInput(UINT msg, WPARAM wParam, LPARAM lParam);
 #elif defined(ME_MAC) && !defined(ME_HEADLESS)
     // Feed macOS input events to the input system: a virtual key code, a position in view points (top-left
-    // origin), and a button number (0 left, 1 right, 2 middle, 3-4 extra).
+    // origin), a button number (0 left, 1 right, 2 middle, 3-4 extra), and scroll wheel notches (positive up).
     void HandleKeyEvent(uint16_t keyCode, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
+    void HandleMouseWheel(float notches);
 #elif (defined(ME_IOS) || defined(ME_ANDROID)) && !defined(ME_HEADLESS)
     // Feeds the first finger on the screen to the input system: its position in window units (iOS: view points;
-    // top-left origin) and whether it is still down.
+    // top-left origin) and whether it is still down. A mouse's or trackpad's scroll goes in as wheel notches
+    // (positive up).
     void HandlePrimaryTouch(float x, float y, bool isDown);
+    void HandleMouseWheel(float notches);
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
     // Feed browser input events to the input system: a DOM KeyboardEvent.code, a position in window units (top-left
-    // origin), and a button number (0 left, 1 right, 2 middle, 3-4 extra). ReleaseAllInput is for a page losing focus.
+    // origin), a button number (0 left, 1 right, 2 middle, 3-4 extra), and scroll wheel notches (positive up).
+    // ReleaseAllInput is for a page losing focus.
     void HandleKeyEvent(const char* code, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
+    void HandleMouseWheel(float notches);
     void ReleaseAllInput();
 #endif
 

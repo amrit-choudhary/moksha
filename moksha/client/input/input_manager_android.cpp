@@ -14,4 +14,8 @@ void InputManagerAndroid::HandlePrimaryTouch(float x, float y, bool isDown) {
     InputManager::SetMouseButtonState(MouseButton::Left, isDown);
 }
 
+void InputManagerAndroid::HandleMouseWheel(float notches) {
+    InputManager::AddMouseWheel(notches);
+}
+
 #endif  // ME_ANDROID

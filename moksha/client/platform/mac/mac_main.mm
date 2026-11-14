@@ -208,6 +208,16 @@ void WakeEventLoop() {
     [self forwardPosition:event];
 }
 
+// Scroll wheel and trackpad scrolling. scrollingDeltaY is positive when scrolling up and already follows the user's
+// scroll direction setting. A wheel reports lines (about one per notch); a trackpad reports points, about 10 a notch.
+- (void)scrollWheel:(NSEvent*)event {
+    if (self.app != nullptr) {
+        [self forwardPosition:event];
+        const double lines = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY / 10.0 : event.scrollingDeltaY;
+        self.app->HandleMouseWheel(static_cast<float>(lines));
+    }
+}
+
 - (void)forwardPosition:(NSEvent*)event {
     if (self.app != nullptr) {
         const NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];

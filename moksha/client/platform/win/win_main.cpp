@@ -87,7 +87,8 @@ LRESULT CALLBACK WindowProcW(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         case WM_LBUTTONDOWN:
         case WM_LBUTTONUP:
         case WM_RBUTTONDOWN:
-        case WM_RBUTTONUP: {
+        case WM_RBUTTONUP:
+        case WM_MOUSEWHEEL: {
             ME::ClientApp* pApp = GetApp(hwnd);
             if (pApp != nullptr) {
                 pApp->HandleInput(msg, wParam, lParam);

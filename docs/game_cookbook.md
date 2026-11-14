@@ -224,8 +224,10 @@ input->GetKeyReleased(ME::Input::KeyCode::Space);   // released this frame
 input->GetMouseButtonPressed(ME::Input::MouseButton::Left);
 ME::Vec2i mouseWorld = input->GetMouseWorldPos();   // pixels, bottom-left origin, Y-up
 ME::Vec2i mouseUI = input->GetMousePos();           // pixels, top-left origin, Y-down
+float wheel = input->GetMouseWheelDelta();          // notches this frame, positive = scrolled up
 ```
-Headless builds have no input; everything reads as up.
+Headless builds have no input; everything reads as up and the wheel as 0. The wheel follows the system's scroll
+direction (macOS natural scrolling included); trackpads give fractions of a notch. Phones without a mouse report 0.
 
 ## UI: labels and a button
 ```cpp

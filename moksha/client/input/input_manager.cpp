@@ -279,6 +279,11 @@ void InputManager::AdvanceStates() {
         mouseButtonPressed[i] = false;
         mouseButtonReleased[i] = false;
     }
+    mouseWheelDelta = 0.0f;
+}
+
+void InputManager::AddMouseWheel(float notches) {
+    mouseWheelDelta += notches;
 }
 
 PlatformInputManager* ME::Input::InputManager::GetPlatformInputManager() {

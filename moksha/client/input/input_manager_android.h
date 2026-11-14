@@ -1,7 +1,8 @@
 #ifdef ME_ANDROID
 /**
  * Input manager for Android. The first finger on the screen drives the left mouse button and the mouse position, so
- * mouse-driven games work unchanged; other fingers are ignored until the engine has a touch API.
+ * mouse-driven games work unchanged; other fingers are ignored until the engine has a touch API. A connected mouse's
+ * scroll drives the scroll wheel.
  */
 
 #pragma once
@@ -17,6 +18,9 @@ class InputManagerAndroid : public PlatformInputManager {
     // The first finger, forwarded from the driver (platform/android) through ClientApp: its position in window units
     // (top-left origin) and whether it is still on the screen.
     void HandlePrimaryTouch(float x, float y, bool isDown);
+
+    // Scroll from a mouse, in notches, positive up.
+    void HandleMouseWheel(float notches);
 };
 
 }  // namespace ME::Input

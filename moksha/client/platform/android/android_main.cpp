@@ -148,8 +148,8 @@ void ForwardPrimaryTouch(AndroidDriver& driver, const AInputEvent* event, size_t
     driver.app->HandlePrimaryTouch(x, y, isDown);
 }
 
-// The first finger goes to the app as the mouse. Keys aren't handled, so the system acts on Back (finishing the
-// activity).
+// The first finger goes to the app as the mouse, and a connected mouse's scroll as the wheel. Keys aren't handled, so
+// the system acts on Back (finishing the activity).
 int32_t HandleInput(android_app* androidApp, AInputEvent* event) {
     AndroidDriver& driver = *static_cast<AndroidDriver*>(androidApp->userData);
     if (driver.app == nullptr || AInputEvent_getType(event) != AINPUT_EVENT_TYPE_MOTION) {
@@ -186,6 +186,10 @@ int32_t HandleInput(android_app* androidApp, AInputEvent* event) {
                 ForwardPrimaryTouch(driver, event, index, false);
                 driver.primaryPointerId = -1;
             }
+            break;
+        // A mouse wheel: AXIS_VSCROLL is in notches, positive up.
+        case AMOTION_EVENT_ACTION_SCROLL:
+            driver.app->HandleMouseWheel(AMotionEvent_getAxisValue(event, AMOTION_EVENT_AXIS_VSCROLL, 0));
             break;
         default:
             break;

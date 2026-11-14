@@ -14,4 +14,8 @@ void InputManagerIos::HandlePrimaryTouch(float x, float y, bool isDown) {
     InputManager::SetMouseButtonState(MouseButton::Left, isDown);
 }
 
+void InputManagerIos::HandleMouseWheel(float notches) {
+    InputManager::AddMouseWheel(notches);
+}
+
 #endif  // ME_IOS

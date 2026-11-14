@@ -202,6 +202,10 @@ void InputManagerWin::HandleInput(UINT msg, WPARAM wParam, LPARAM lParam) {
             bool isDown = (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN);
             InputManager::SetMouseButtonState(button, isDown);
         }
+    } else if (msg == WM_MOUSEWHEEL) {
+        // Positive is the wheel turned away from the user (scrolling up); WHEEL_DELTA is one notch.
+        const float notches = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / static_cast<float>(WHEEL_DELTA);
+        InputManager::AddMouseWheel(notches);
     } else {
         writeBuffer->Push(msg, wParam, lParam);
     }

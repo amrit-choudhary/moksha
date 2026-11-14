@@ -153,4 +153,8 @@ void InputManagerMac::HandleMouseButton(int button, bool isDown) {
     }
 }
 
+void InputManagerMac::HandleMouseWheel(float notches) {
+    InputManager::AddMouseWheel(notches);
+}
+
 #endif  // ME_MAC

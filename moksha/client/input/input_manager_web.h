@@ -15,10 +15,11 @@ class InputManagerWeb : public PlatformInputManager {
     void PostUpdate() override;
 
     // Browser input events, forwarded from the page (platform/web) through ClientApp. Positions are in window units,
-    // top-left origin. Button numbers follow MouseButton.
+    // top-left origin. Button numbers follow MouseButton. Wheel movement is in notches, positive up.
     void HandleKeyEvent(const char* code, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
+    void HandleMouseWheel(float notches);
 
     // The page lost focus, so no key-up will arrive: every key and button reads as released.
     void ReleaseAll();

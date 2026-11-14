@@ -53,7 +53,8 @@ ME::Utils::AppPaths MakeIosPaths() {
 
 }  // namespace
 
-// The game's view, which Metal draws into. The first finger on it goes to the app as the mouse.
+// The game's view, which Metal draws into. The first finger on it goes to the app as the mouse; a mouse's or
+// trackpad's scroll (iPad) goes to it as the scroll wheel.
 @interface MEView : MTKView
 @property(nonatomic, assign) ME::ClientApp* app;
 @property(nonatomic, weak) UITouch* primaryTouch;
@@ -96,6 +97,24 @@ ME::Utils::AppPaths MakeIosPaths() {
     [self touchesEnded:touches withEvent:event];
 }
 
+// Scroll from a mouse wheel or trackpad: a pan that takes no touches, only scroll input. Its translation follows the
+// content (positive y is scrolling up) in view points; about 10 points make a notch.
+- (void)addScrollRecognizer {
+    UIPanGestureRecognizer* scroll = [[UIPanGestureRecognizer alloc] initWithTarget:self
+                                                                             action:@selector(handleScroll:)];
+    scroll.allowedScrollTypesMask = UIScrollTypeMaskAll;
+    scroll.allowedTouchTypes = @[];
+    [self addGestureRecognizer:scroll];
+}
+
+- (void)handleScroll:(UIPanGestureRecognizer*)scroll {
+    const CGPoint translation = [scroll translationInView:self];
+    [scroll setTranslation:CGPointZero inView:self];
+    if (self.app != nullptr && translation.y != 0.0) {
+        self.app->HandleMouseWheel(static_cast<float>(translation.y / 10.0));
+    }
+}
+
 // Position in view points, top-left origin: the engine's mouse convention.
 - (void)forwardPrimaryTouch:(bool)isDown {
     if (self.app != nullptr) {
@@ -128,6 +147,7 @@ ME::Utils::AppPaths MakeIosPaths() {
     view.preferredFramesPerSecond = 60;
     view.enableSetNeedsDisplay = NO;
     view.paused = YES;
+    [view addScrollRecognizer];
     self.view = view;
 }
 

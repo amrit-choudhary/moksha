@@ -164,7 +164,10 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
 ## Other systems
 - Same strategy pattern everywhere: `audio/` (`IAudioImpl`: miniaudio, or `audio_impl_dummy.h` headless),
   `input/` (`PlatformInputManager`: win, mac, or the no-op base when headless). Key state in `InputManager`
-  is static (existing code; mouse position queries need the instance).
+  is static (existing code; mouse position queries need the instance). The scroll wheel (`GetMouseWheelDelta`,
+  notches, positive up in the system's scroll direction) is summed from `WM_MOUSEWHEEL` (Windows), `scrollWheel:`
+  (macOS), the canvas `wheel` event (web), a scroll-only pan recogniser (iPad mouse/trackpad) and `ACTION_SCROLL`
+  (Android), and cleared in `AdvanceStates`.
 - `ui/`: small retained-mode layout (`UILayoutEngine`, `UIElement` tree: panel, label, image, button) feeding
   `SceneUI` arrays. `debug/`: on-screen overlay (`DebugSystem::ScreenPrintSlot` / `ScreenPrint`) drawn in its
   own pass; it is reached through a static instance (known issue). `AppConfig::debugOverlay` (default: on, off when

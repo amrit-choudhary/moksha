@@ -22,6 +22,7 @@ class InputManagerMac : public PlatformInputManager {
     void HandleKeyEvent(uint16_t keyCode, bool isDown);
     void HandleMouseMove(float x, float y);
     void HandleMouseButton(int button, bool isDown);
+    void HandleMouseWheel(float notches);  // positive up
 };
 
 }  // namespace ME::Input

@@ -256,10 +256,22 @@ void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
         macInputManager->HandleMouseButton(button, isDown);
     }
 }
+
+void ME::ClientApp::HandleMouseWheel(float notches) {
+    if (macInputManager != nullptr) {
+        macInputManager->HandleMouseWheel(notches);
+    }
+}
 #elif defined(ME_IOS) && !defined(ME_HEADLESS)
 void ME::ClientApp::HandlePrimaryTouch(float x, float y, bool isDown) {
     if (iosInputManager != nullptr) {
         iosInputManager->HandlePrimaryTouch(x, y, isDown);
+    }
+}
+
+void ME::ClientApp::HandleMouseWheel(float notches) {
+    if (iosInputManager != nullptr) {
+        iosInputManager->HandleMouseWheel(notches);
     }
 }
 #elif defined(ME_WEB) && !defined(ME_HEADLESS)
@@ -281,6 +293,12 @@ void ME::ClientApp::HandleMouseButton(int button, bool isDown) {
     }
 }
 
+void ME::ClientApp::HandleMouseWheel(float notches) {
+    if (webInputManager != nullptr) {
+        webInputManager->HandleMouseWheel(notches);
+    }
+}
+
 void ME::ClientApp::ReleaseAllInput() {
     if (webInputManager != nullptr) {
         webInputManager->ReleaseAll();
@@ -290,6 +308,12 @@ void ME::ClientApp::ReleaseAllInput() {
 void ME::ClientApp::HandlePrimaryTouch(float x, float y, bool isDown) {
     if (androidInputManager != nullptr) {
         androidInputManager->HandlePrimaryTouch(x, y, isDown);
+    }
+}
+
+void ME::ClientApp::HandleMouseWheel(float notches) {
+    if (androidInputManager != nullptr) {
+        androidInputManager->HandleMouseWheel(notches);
     }
 }
 #endif

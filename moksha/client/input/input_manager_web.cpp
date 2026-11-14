@@ -151,6 +151,10 @@ void InputManagerWeb::HandleMouseButton(int button, bool isDown) {
     }
 }
 
+void InputManagerWeb::HandleMouseWheel(float notches) {
+    InputManager::AddMouseWheel(notches);
+}
+
 void InputManagerWeb::ReleaseAll() {
     for (const auto& entry : KeyCodeMap) {
         InputManager::SetKeyState(entry.second, false);

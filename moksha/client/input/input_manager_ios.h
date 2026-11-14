@@ -1,7 +1,8 @@
 #ifdef ME_IOS
 /**
  * Input manager for iOS. The first finger on the screen drives the left mouse button and the mouse position, so
- * mouse-driven games work unchanged; other fingers are ignored until the engine has a touch API.
+ * mouse-driven games work unchanged; other fingers are ignored until the engine has a touch API. A mouse's or
+ * trackpad's scroll (iPad) drives the scroll wheel.
  */
 
 #pragma once
@@ -17,6 +18,9 @@ class InputManagerIos : public PlatformInputManager {
     // The first finger, forwarded from the view (platform/ios) through ClientApp: its position in view points
     // (top-left origin) and whether it is still on the screen.
     void HandlePrimaryTouch(float x, float y, bool isDown);
+
+    // Scroll from a mouse or trackpad, in notches, positive up.
+    void HandleMouseWheel(float notches);
 };
 
 }  // namespace ME::Input
