@@ -70,6 +70,9 @@ constexpr size_t MaxLoadedMusicCount = 16;
 // Timer constants
 constexpr size_t MaxTimerCount = 256;  // simultaneously scheduled timers per TimerManager
 
+// Job constants
+constexpr uint32_t MaxQueuedJobCount = 1'024;  // jobs waiting for a worker at once, per JobSystem
+
 // Server constants
 constexpr size_t MaxServerClients = 255;  // connected clients per GameServer; client IDs are one byte
 

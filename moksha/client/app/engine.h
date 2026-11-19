@@ -19,6 +19,10 @@ namespace Input {
 class InputManager;
 }
 
+namespace Jobs {
+class JobSystem;
+}
+
 namespace Time {
 class TimeManager;
 class TimerManager;
@@ -30,6 +34,7 @@ class Engine {
     Time::TimerManager* timers = nullptr;
     Input::InputManager* input = nullptr;
     PhysicsSystem* physics = nullptr;
+    Jobs::JobSystem* jobs = nullptr;
     AnimationSystem* animation = nullptr;
     AudioSystem* audio = nullptr;
     UISystem* ui = nullptr;

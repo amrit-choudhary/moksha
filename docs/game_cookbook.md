@@ -308,6 +308,24 @@ engine->timers->Clear(spawnTimer);
 ```
 Callbacks take no arguments; keep the state they need in members.
 
+## Jobs
+```cpp
+#include "moksha/shared/jobs/job_system.h"
+
+// A job is a plain function and a context pointer; the context must outlive the job.
+static void BuildPath(void* context) {
+    static_cast<Enemy*>(context)->RebuildPath();
+}
+
+ME::Jobs::JobCounter counter;
+for (Enemy& enemy : enemies) {
+    engine->jobs->Submit(&BuildPath, &enemy, &counter);
+}
+engine->jobs->Wait(counter);  // every job is done after this
+```
+Jobs run inline on the caller for now; once worker threads exist they run in parallel, so a job must only
+touch its own context (or data nothing else writes until `Wait` returns).
+
 ## Collision
 ```cpp
 // Scene: fill dynamicColliders / staticColliders (capacity in engine_limits.h).

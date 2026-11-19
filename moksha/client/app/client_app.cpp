@@ -7,6 +7,7 @@
 
 #include "moksha/logging/logging.h"
 #include "moksha/shared/file_io/ini/ini_parser.h"
+#include "moksha/shared/misc/engine_limits.h"
 #include "moksha/shared/net/networking.h"
 
 ME::ClientApp::ClientApp() {}
@@ -63,6 +64,7 @@ bool ME::ClientApp::Init() {
     engine.timers = &timerManager;
     engine.input = &inputManager;
     engine.physics = &physicsSystem;
+    engine.jobs = &jobSystem;
     engine.animation = &animationSystem;
     engine.audio = &audioSystem;
     engine.ui = &uiSystem;
@@ -92,6 +94,8 @@ bool ME::ClientApp::Init() {
     networkingStarted = ME::Net::InitNetworking();
     gameClient.Init(config.serverIP.c_str(), config.serverPort);
     physicsSystem.Init();
+    // Inline mode (0 workers) until worker threads exist; then the count comes from the config.
+    jobSystem.Init(0, ME::Constants::MaxQueuedJobCount);
     animationSystem.Init();
     audioSystem.Init();
     // Before game->Init, so the game can schedule timers from Init/Start.
@@ -191,6 +195,8 @@ void ME::ClientApp::Shutdown() {
     game->End();
     // After the game ends, so its own cleanup can still clear handles; drops any it left behind.
     timerManager.End();
+    // After the game ends, so its cleanup can still run and wait on jobs.
+    jobSystem.End();
     gameClient.End();
     contentClient.End();
     if (networkingStarted) {

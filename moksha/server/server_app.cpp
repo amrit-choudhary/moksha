@@ -5,6 +5,7 @@
 
 #include "moksha/logging/logging.h"
 #include "moksha/shared/file_io/ini/ini_parser.h"
+#include "moksha/shared/misc/engine_limits.h"
 #include "moksha/shared/misc/utils.h"
 #include "moksha/shared/net/networking.h"
 #include "moksha/shared/platform/exe_path.h"
@@ -34,6 +35,12 @@ bool ME::ServerApp::Init(int argc, char** argv, IGameServerListener& inListener)
     time.Init(timeConfig);
     timers.Init(timeConfig.fixedStepFPS);
     timersStarted = true;
+
+    // Inline mode (0 workers) until worker threads exist.
+    if (!jobs.Init(0, Constants::MaxQueuedJobCount)) {
+        return false;
+    }
+    jobsStarted = true;
 
     INIMap iniMap = INIParser::Load();
     const std::string portStr = iniMap["settings"]["port"];
@@ -80,6 +87,11 @@ void ME::ServerApp::Shutdown() {
         timers.End();
         timersStarted = false;
     }
+    // After the game's own cleanup, so it can still run and wait on jobs.
+    if (jobsStarted) {
+        jobs.End();
+        jobsStarted = false;
+    }
     if (networkingStarted) {
         Net::ShutdownNetworking();
         networkingStarted = false;
@@ -98,6 +110,10 @@ ME::GameServer& ME::ServerApp::GetGameServer() {
 
 ME::Time::TimerManager& ME::ServerApp::GetTimers() {
     return timers;
+}
+
+ME::Jobs::JobSystem& ME::ServerApp::GetJobs() {
+    return jobs;
 }
 
 const ME::Time::TimeManager& ME::ServerApp::GetTime() const {

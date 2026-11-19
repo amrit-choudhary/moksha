@@ -22,6 +22,7 @@
 #include "moksha/client/net/content_client.h"
 #include "moksha/client/net/game_client.h"
 #include "moksha/client/ui/ui_system.h"
+#include "moksha/shared/jobs/job_system.h"
 #include "moksha/shared/physics/physics_system.h"
 #include "moksha/shared/time/time_manager.h"
 #include "moksha/shared/time/timer_manager.h"
@@ -143,6 +144,7 @@ class ClientApp {
     GameClient gameClient;
     ContentClient contentClient;
     PhysicsSystem physicsSystem;
+    Jobs::JobSystem jobSystem;
     AnimationSystem animationSystem;
     AudioSystem audioSystem;
     UISystem uiSystem;

@@ -77,7 +77,7 @@ Client engine (`Moksha_Client`, `Moksha_ClientHeadless`). Project rules: [root C
   contentServerIP contentServerPort`, `[debug] debugOverlay`, `[ui] safeAreaTop safeAreaBottom safeAreaLeft safeAreaRight`, copied into `WindowState` for the
   UI layout) → command line `--key=value` with the same keys. Window size is a request.
 - `app/engine.h` (`Engine`): what the game gets in `Game::Init(Engine&)` — `time`, `timers`, `input`,
-  `physics`, `animation`, `audio`, `ui`, `gameClient`, `contentClient`, `config`, `window`, plus `Quit()` and
+  `physics`, `jobs`, `animation`, `audio`, `ui`, `gameClient`, `contentClient`, `config`, `window`, plus `Quit()` and
   `IsHeadless()`. Passed in, never global.
 - `Tick()` order: `BeginFrame` → input → N × (timers, `FixedUpdate`, physics, animation) at the fixed step →
   `Update`, UI, debug overlay → input post → render (skipped when paused) → game client, content client, audio.

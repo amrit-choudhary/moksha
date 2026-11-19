@@ -5,6 +5,7 @@
 #pragma once
 
 #include "moksha/server/game_server.h"
+#include "moksha/shared/jobs/job_system.h"
 #include "moksha/shared/time/time_manager.h"
 #include "moksha/shared/time/timer_manager.h"
 
@@ -23,7 +24,7 @@ class ServerApp {
     // Init, then Tick until a quit is requested, sleeping between fixed steps, then Shutdown. Returns the exit code.
     int Run(int argc, char** argv, IGameServerListener& listener);
 
-    // Sets up paths, time, timers, networking and the GameServer, then calls listener.OnStart.
+    // Sets up paths, time, timers, jobs, networking and the GameServer, then calls listener.OnStart.
     // Call Shutdown afterwards whether or not it succeeded.
     bool Init(int argc, char** argv, IGameServerListener& listener);
 
@@ -38,15 +39,18 @@ class ServerApp {
 
     GameServer& GetGameServer();
     Time::TimerManager& GetTimers();
+    Jobs::JobSystem& GetJobs();
     const Time::TimeManager& GetTime() const;
 
    private:
     Time::TimeManager time;
     Time::TimerManager timers;
+    Jobs::JobSystem jobs;
     GameServer gameServer;
     IGameServerListener* listener = nullptr;
 
     bool timersStarted = false;
+    bool jobsStarted = false;
     bool networkingStarted = false;
     bool serverStarted = false;
     bool quitRequested = false;

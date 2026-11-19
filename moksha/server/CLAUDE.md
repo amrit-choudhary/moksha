@@ -8,14 +8,15 @@ Project rules: [root CLAUDE.md](../../CLAUDE.md); wire format: [shared/CLAUDE.md
   `int main(int argc, char** argv) { MyListener l; ME::ServerApp app; return app.Run(argc, argv, l); }`.
   Build it with `moksha_add_server(<target> SOURCES … [RES_LIST …] [LIBRARIES …])`.
 - `ServerApp` (`server_app.*`): exe paths, `settings.ini` (`[settings] port`, default
-  `DEFAULT_GAME_SERVER_PORT` 9310), networking, time and timers at 60 Hz, the `GameServer`.
+  `DEFAULT_GAME_SERVER_PORT` 9310), networking, time and timers at 60 Hz, a `Jobs::JobSystem` (`GetJobs`; 0 workers,
+  jobs run inline for now), the `GameServer`.
   `Init` / `Tick` / `Shutdown`, driven by `Run` with `Time::WaitForNextFixedStep` between ticks.
   `RequestQuit` ends the loop. Timers tick first in each fixed step, then the server.
 - `GameServer` (`game_server.*`): one non-blocking UDP socket; up to 256 datagrams per tick. Handles the
   engine verbs itself: `CONNECT` → `CONNECTED` with a new clientID, `PING` → `PONG`, chat and data relayed
   to the other clients. Game verbs go to `IGameServerListener::OnGameMessage(clientID, verb, reader)`; the game
   replies with `Send`, `Broadcast`, `SendToOthers`.
-- Listener calls: `OnStart(ServerApp&)` (get timers and the server here), `OnClientConnected`, `OnGameMessage`,
+- Listener calls: `OnStart(ServerApp&)` (get timers, jobs and the server here), `OnClientConnected`, `OnGameMessage`,
   `OnEnd` (clear timers, close resources).
 
 ## Limits (known issues)

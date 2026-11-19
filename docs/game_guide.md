@@ -50,7 +50,7 @@ browser after each write, per site address; a tab killed right after a write can
 
 ## What `ME::Engine` gives you (`moksha/client/app/engine.h`)
 `time` (frame clock), `timers` (delayed/repeating `Delegate` calls), `input` (keys, mouse, scroll wheel), `physics` (AABB
-collision reports), `animation`, `audio`, `ui`, `gameClient` (UDP to a game server), `contentClient` (DLC
+collision reports), `jobs` (job system; runs every job inline for now), `animation`, `audio`, `ui`, `gameClient` (UDP to a game server), `contentClient` (DLC
 sync), `config` (final settings), `window` (actual size), `Quit()`, `IsHeadless()`. Keep the pointer the
 base class stores in `engine`; never put engine systems in globals.
 

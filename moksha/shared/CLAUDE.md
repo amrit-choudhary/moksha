@@ -40,6 +40,11 @@ Project rules: [root CLAUDE.md](../../CLAUDE.md).
 `ColliderAABB`, `PhysicsScene` (static/dynamic collider spans), `PhysicsSystem` (layer-based checks, reports
 through `ICollisionListener`, which `Game` implements).
 
+## Jobs (`jobs/`, namespace `ME::Jobs`)
+In progress: `JobSystem` (`JobFn` + context, `JobCounter`; inline mode only, 0 workers) and `ParallelFor`
+(skeleton). Must always work with 0 workers (all inline). Plan and steps:
+[docs/planned/job_system.md](../../docs/planned/job_system.md).
+
 ## Files (`file_io/`)
 - `vfs.h` (`Vfs`, `FileRoot { Resources, Dlc, UserData }`): the only place that maps a root to a folder and
   touches the disk. `ReadText`, `GetFileSize` + `ReadBytes` (caller-owned buffer), `WriteBytes` (creates
